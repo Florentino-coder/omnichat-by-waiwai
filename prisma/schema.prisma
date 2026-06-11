@@ -197,6 +197,8 @@ model Invitation {
   updatedAt     DateTime         @updatedAt
 
   @@index([tenantId])
+  @@index([workspaceId])
+  @@index([invitedByUserId])
   @@index([email])
   @@index([token])
   @@map("invitations")
