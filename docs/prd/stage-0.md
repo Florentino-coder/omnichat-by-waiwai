@@ -370,6 +370,9 @@ Checkpoint 1:
 - [x] Public invitation verify and accept endpoints scaffolded
 - [x] Invitation accept creates user and workspace membership in a transaction
 - [x] Unit tests added for invitation tenant scope, expiry, accept transaction, and duplicate-user rejection
+- [x] `users/me` get/update endpoints scaffolded with tenant membership scope
+- [x] `audit-logs` list endpoint scaffolded with OWNER/ADMIN RBAC and tenant scope
+- [x] Unit tests added for user profile tenant scope and audit-log tenant scope
 - [ ] Email provider integration for sending invitation links
 - [ ] Redis-backed refresh token session cache
 - [ ] TOTP verification implementation
