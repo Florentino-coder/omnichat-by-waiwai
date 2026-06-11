@@ -354,6 +354,28 @@ Before moving to Stage 2, verify:
 
 ---
 
+## Stage 1 Backend Checkpoint
+
+Checkpoint 1:
+
+- [x] `apps/api` NestJS 10 foundation scaffolded with strict TypeScript
+- [x] Prisma service/module wired for server-side database access
+- [x] Auth module scaffolded with login, refresh, and logout endpoints
+- [x] JWT access token payload includes `tenantId`, `workspaceId`, and `role`
+- [x] Refresh tokens are generated as random values and stored as SHA-256 hashes in DB
+- [x] Login writes an `AuditAction.LOGIN` audit log
+- [x] JWT, tenant, and roles guard skeletons added
+- [x] Unit tests added for login success, invalid password rejection, and logout token revocation
+- [ ] Invitation-based registration endpoint
+- [ ] Redis-backed refresh token session cache
+- [ ] TOTP verification implementation
+- [ ] Tenant/workspace CRUD endpoints
+- [ ] Full RBAC integration tests and e2e tenant isolation tests
+
+Dependency checkpoint: npm audit reports high-severity transitive findings in the locked NestJS 10 / tooling dependency chain. npm's proposed fix upgrades to NestJS 11, which is outside the locked Stage 1 stack and requires founder approval before changing.
+
+---
+
 ## Open Decisions (Founder Must Decide Before Stage 1)
 
 1. **Subdomain vs path routing for tenants?**
