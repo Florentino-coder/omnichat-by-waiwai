@@ -1,0 +1,115 @@
+erDiagram
+    TENANTS ||--|| TENANT_SETTINGS : "has"
+    TENANTS ||--o{ WORKSPACES : "owns"
+    TENANTS ||--o{ WORKSPACE_MEMBERS : "contains"
+    TENANTS ||--o{ INVITATIONS : "sends"
+    TENANTS ||--o{ AUDIT_LOGS : "logs"
+
+    WORKSPACES ||--o{ WORKSPACE_MEMBERS : "has"
+    WORKSPACES ||--o{ INVITATIONS : "targets"
+
+    USERS ||--o{ WORKSPACE_MEMBERS : "joins via"
+    USERS ||--o{ REFRESH_TOKENS : "holds"
+    USERS ||--o{ INVITATIONS : "invites"
+    USERS ||--o{ AUDIT_LOGS : "creates"
+
+    TENANTS {
+        uuid id PK
+        string name
+        string slug UK
+        string logoUrl
+        string planId
+        bool isActive
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp deletedAt
+    }
+
+    TENANT_SETTINGS {
+        uuid id PK
+        uuid tenantId FK
+        string defaultLanguage
+        string timezone
+        bool enableTwoFa
+        int maxAgents
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    WORKSPACES {
+        uuid id PK
+        uuid tenantId FK
+        string name
+        string description
+        bool isDefault
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp deletedAt
+    }
+
+    USERS {
+        uuid id PK
+        string email UK
+        string passwordHash
+        string displayName
+        string avatarUrl
+        string twoFaSecret
+        bool twoFaEnabled
+        bool emailVerified
+        timestamp lastLoginAt
+        string lastLoginIp
+        bool isActive
+        timestamp createdAt
+        timestamp updatedAt
+        timestamp deletedAt
+    }
+
+    WORKSPACE_MEMBERS {
+        uuid id PK
+        uuid tenantId FK
+        uuid workspaceId FK
+        uuid userId FK
+        enum role
+        bool isActive
+        timestamp joinedAt
+        timestamp updatedAt
+    }
+
+    INVITATIONS {
+        uuid id PK
+        uuid tenantId FK
+        uuid workspaceId FK
+        uuid invitedByUserId FK
+        string email
+        enum role
+        string token UK
+        enum status
+        timestamp expiresAt
+        timestamp acceptedAt
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    REFRESH_TOKENS {
+        uuid id PK
+        uuid userId FK
+        string tokenHash UK
+        string deviceInfo
+        string ipAddress
+        timestamp expiresAt
+        timestamp revokedAt
+        timestamp createdAt
+    }
+
+    AUDIT_LOGS {
+        uuid id PK
+        uuid tenantId FK
+        uuid userId FK
+        enum action
+        string targetType
+        string targetId
+        json metadata
+        string ipAddress
+        string userAgent
+        timestamp createdAt
+    }

@@ -1,0 +1,270 @@
+// prisma/schema.prisma
+// OmniChat SaaS — Stage 1: Foundation
+// Covers: Tenant, Auth, RBAC, User Management, Workspace, Invitation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  OWNER
+  ADMIN
+  AGENT
+  QC
+  VIEWER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum AuditAction {
+  // Auth
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  PASSWORD_CHANGED
+  TWO_FA_ENABLED
+  TWO_FA_DISABLED
+  // User
+  USER_INVITED
+  USER_REMOVED
+  USER_ROLE_CHANGED
+  // Tenant
+  TENANT_CREATED
+  TENANT_SETTINGS_CHANGED
+  // Workspace
+  WORKSPACE_CREATED
+  WORKSPACE_UPDATED
+  WORKSPACE_DELETED
+}
+
+// ============================================================
+// TENANT
+// ============================================================
+
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique  // URL-safe identifier e.g. "acme-corp"
+  logoUrl     String?
+  planId      String?           // Stage 17: Billing
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  workspaces  Workspace[]
+  users       WorkspaceMember[]
+  invitations Invitation[]
+  auditLogs   AuditLog[]
+  settings    TenantSettings?
+
+  @@index([slug])
+  @@map("tenants")
+}
+
+model TenantSettings {
+  id                    String   @id @default(uuid())
+  tenantId              String   @unique
+  tenant                Tenant   @relation(fields: [tenantId], references: [id])
+  // Defaults
+  defaultLanguage       String   @default("th")
+  timezone              String   @default("Asia/Bangkok")
+  // Feature flags (expand per stage)
+  enableTwoFa           Boolean  @default(false)
+  maxAgents             Int      @default(10)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("tenant_settings")
+}
+
+// ============================================================
+// WORKSPACE
+// Tenants can have multiple workspaces (e.g. departments)
+// ============================================================
+
+model Workspace {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  members     WorkspaceMember[]
+  invitations Invitation[]
+
+  @@index([tenantId])
+  @@map("workspaces")
+}
+
+// ============================================================
+// USER (Global — not tenant-scoped)
+// Identity record. Actual tenant membership via WorkspaceMember
+// ============================================================
+
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  passwordHash     String
+  displayName      String
+  avatarUrl        String?
+  // 2FA
+  twoFaSecret      String?  // encrypted AES-256
+  twoFaEnabled     Boolean  @default(false)
+  // Security
+  emailVerified    Boolean  @default(false)
+  emailVerifiedAt  DateTime?
+  lastLoginAt      DateTime?
+  lastLoginIp      String?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+
+  // Relations
+  memberships      WorkspaceMember[]
+  refreshTokens    RefreshToken[]
+  sentInvitations  Invitation[]     @relation("InvitedBy")
+  auditLogs        AuditLog[]
+
+  @@map("users")
+}
+
+// ============================================================
+// WORKSPACE MEMBER
+// Join table: User <-> Workspace with Role
+// ============================================================
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  tenantId    String                          // denormalized for easy filtering
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  role        Role      @default(AGENT)
+  isActive    Boolean   @default(true)
+  joinedAt    DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([tenantId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+// ============================================================
+// INVITATION
+// ============================================================
+
+model Invitation {
+  id            String           @id @default(uuid())
+  tenantId      String
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  workspaceId   String
+  workspace     Workspace        @relation(fields: [workspaceId], references: [id])
+  invitedByUserId String
+  invitedBy     User             @relation("InvitedBy", fields: [invitedByUserId], references: [id])
+  email         String
+  role          Role             @default(AGENT)
+  token         String           @unique  // secure random token, emailed to invitee
+  status        InvitationStatus @default(PENDING)
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([token])
+  @@map("invitations")
+}
+
+// ============================================================
+// REFRESH TOKEN
+// ============================================================
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  tokenHash   String   @unique  // store hash only, never raw token
+  deviceInfo  String?
+  ipAddress   String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// AUDIT LOG (Stage 1 — basic auth/user events)
+// Immutable: never delete, never update
+// ============================================================
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id])
+  action      AuditAction
+  targetType  String?     // e.g. "User", "Conversation"
+  targetId    String?     // ID of the affected resource
+  metadata    Json?       // extra context (IP, user agent, old/new values)
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// FUTURE STAGES — placeholder models (do not implement yet)
+// Uncomment when reaching the relevant stage
+// ============================================================
+
+// Stage 2: LINE OA
+// model LineChannel { ... }
+// model Conversation { ... }
+// model Message { ... }
+
+// Stage 4: CRM
+// model Customer { ... }
+// model CustomerNote { ... }
+
+// Stage 5: Knowledge
+// model KnowledgeArticle { ... }
+// model SavedReply { ... }
+
+// Stage 17: Billing
+// model Plan { ... }
+// model Subscription { ... }
+// model Invoice { ... }
