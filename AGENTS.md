@@ -312,6 +312,7 @@ Do not touch anything outside the task scope.
 ```bash
 # apps/api/.env (template — actual values in Coolify secrets)
 DATABASE_URL="postgresql://user:pass@localhost:5432/omnichat"
+DIRECT_URL="postgresql://user:pass@localhost:5432/omnichat" # Prisma migrations/direct connection
 REDIS_URL="redis://localhost:6379"
 JWT_SECRET="..."
 JWT_REFRESH_SECRET="..."

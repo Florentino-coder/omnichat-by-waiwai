@@ -11,7 +11,7 @@ Build OmniChat as a multi-tenant customer service SaaS platform for LINE OA, KPI
 
 Never build the whole system at once. Every stage must be designed, reviewed, implemented, tested, and documented before moving to the next stage.
 
-Every database task must declare its target database first: local Docker, Coolify, staging, or production. Never run migrations without an explicit `DATABASE_URL` source.
+Every database task must declare its target database first: local Docker, Supabase, Coolify, staging, or production. Never run migrations without explicit database connection sources. For Supabase + Prisma, use `DATABASE_URL` for the transaction pooler and `DIRECT_URL` for migrations/session pooler.
 
 ## Roles
 
