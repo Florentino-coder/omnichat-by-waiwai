@@ -369,7 +369,10 @@ Checkpoint 1:
 - [ ] Invitation-based registration endpoint
 - [ ] Redis-backed refresh token session cache
 - [ ] TOTP verification implementation
-- [ ] Tenant/workspace CRUD endpoints
+- [x] Tenant `me` and settings endpoints scaffolded with tenant-scoped service queries
+- [x] Workspace CRUD endpoints scaffolded with tenant-scoped service queries
+- [x] Workspace member list, role update, and remove endpoints scaffolded with RBAC guards
+- [x] Unit tests added for tenant scope, workspace scope, and member role update scope
 - [ ] Full RBAC integration tests and e2e tenant isolation tests
 
 Dependency checkpoint: npm audit reports high-severity transitive findings in the locked NestJS 10 / tooling dependency chain. npm's proposed fix upgrades to NestJS 11, which is outside the locked Stage 1 stack and requires founder approval before changing.
