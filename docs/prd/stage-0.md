@@ -21,10 +21,10 @@ Stage 0 produces all design documents required before any code is written. Nothi
 - [x] Prisma Schema Stage 1 (`prisma/schema.prisma`)
 - [x] AGENTS.md (root)
 - [ ] System Architecture Diagram
-- [ ] API Specification — Stage 1 Endpoints
-- [ ] Security Design Document
-- [ ] UI Sitemap
-- [ ] Sprint Roadmap with time estimates
+- [x] API Specification — Stage 1 Endpoints
+- [x] Security Design Document
+- [x] UI Sitemap
+- [x] Sprint Roadmap with time estimates
 
 ---
 
@@ -237,6 +237,7 @@ All business data uses `deletedAt DateTime?`. Hard delete is reserved for compli
 ```sql
 -- tenants
 CREATE UNIQUE INDEX ON tenants(slug);
+CREATE INDEX ON tenants(slug);
 
 -- workspaces
 CREATE INDEX ON workspaces(tenant_id);
@@ -248,8 +249,11 @@ CREATE INDEX ON workspace_members(user_id);
 
 -- invitations
 CREATE INDEX ON invitations(tenant_id);
+CREATE INDEX ON invitations(workspace_id);
+CREATE INDEX ON invitations(invited_by_user_id);
 CREATE INDEX ON invitations(email);
 CREATE UNIQUE INDEX ON invitations(token);
+CREATE INDEX ON invitations(token);
 
 -- refresh_tokens
 CREATE INDEX ON refresh_tokens(user_id);
@@ -261,6 +265,10 @@ CREATE INDEX ON audit_logs(user_id);
 CREATE INDEX ON audit_logs(action);
 CREATE INDEX ON audit_logs(created_at);
 ```
+
+Note: Prisma keeps camelCase column names in the applied Stage 1 schema because the founder chose to keep the existing schema. The SQL above describes logical fields; the migration uses Prisma-generated quoted column names such as `"tenantId"`, `"workspaceId"`, and `"invitedByUserId"`.
+
+Supabase hardening: Stage 1-A enables RLS on all public Stage 1 tables and `_prisma_migrations` without public policies. This is intentional while the backend access model is server-side Prisma/NestJS, so Supabase Data API access remains deny-by-default until a dedicated RLS policy model is approved.
 
 ---
 
@@ -327,6 +335,22 @@ Before moving to Stage 2, verify:
 | S2-B   | Message sync + storage         | 1 week   |
 | S3-A   | Inbox UI + Realtime (Socket)   | 2 weeks  |
 | ...    | ...                            | ...      |
+
+---
+
+## Stage 1-A Implementation Status
+
+- [x] Prisma schema normalized under `prisma/schema.prisma`
+- [x] Initial Prisma migration applied to Supabase PostgreSQL
+- [x] Seed script creates test tenant, tenant settings, default workspace, owner user, owner membership, and audit log
+- [x] Supabase RLS enabled for all Stage 1 public tables with deny-by-default public access
+- [x] Supabase unindexed foreign key advisor fixed for invitations
+- [x] Prisma migration status verified against Supabase
+- [x] Seed verified as idempotent
+- [ ] Backend auth API implementation
+- [ ] Backend tenant/workspace/RBAC implementation
+- [ ] Invitation email flow implementation
+- [ ] Stage 1 automated test suite
 
 ---
 

@@ -50,6 +50,8 @@ Stage 1-A1 is Prisma artifact readiness: schema, migration SQL, seed script, pac
 
 Stage 1-A2 is database apply: set `DATABASE_URL`, run migration, seed data, verify tables, verify indexes, verify seed records.
 
+Stage 1-A status: complete for Supabase PostgreSQL. The initial schema, seed flow, RLS hardening, migration ordering fix, and invitation foreign key indexes have been applied and verified. Remaining Stage 1 work starts with backend auth and tenant-scoped API implementation.
+
 ## Success Target
 
 Year 1: 10 companies.
