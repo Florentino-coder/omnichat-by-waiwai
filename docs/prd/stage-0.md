@@ -366,7 +366,11 @@ Checkpoint 1:
 - [x] Login writes an `AuditAction.LOGIN` audit log
 - [x] JWT, tenant, and roles guard skeletons added
 - [x] Unit tests added for login success, invalid password rejection, and logout token revocation
-- [ ] Invitation-based registration endpoint
+- [x] Invitation create/list/revoke endpoints scaffolded with OWNER/ADMIN RBAC
+- [x] Public invitation verify and accept endpoints scaffolded
+- [x] Invitation accept creates user and workspace membership in a transaction
+- [x] Unit tests added for invitation tenant scope, expiry, accept transaction, and duplicate-user rejection
+- [ ] Email provider integration for sending invitation links
 - [ ] Redis-backed refresh token session cache
 - [ ] TOTP verification implementation
 - [x] Tenant `me` and settings endpoints scaffolded with tenant-scoped service queries
