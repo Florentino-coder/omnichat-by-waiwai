@@ -416,6 +416,7 @@ Checkpoint 1:
 - [x] CI baseline: Prisma validate, typecheck lint, build, tests, coverage report
 - [x] Health check endpoint for DB/Redis readiness
 - [x] Local Docker Compose stack added for PostgreSQL 16 + Redis 7
+- [x] RBAC and tenant guard integration coverage added for allow/deny paths
 
 Dependency checkpoint: npm audit reports high-severity transitive findings in the locked NestJS 10 / tooling dependency chain. npm's proposed fix upgrades to NestJS 11, which is outside the locked Stage 1 stack and requires founder approval before changing.
 
