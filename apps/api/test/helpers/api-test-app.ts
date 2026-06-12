@@ -16,8 +16,7 @@ export async function createApiTestApp(): Promise<INestApplication> {
   process.env.APP_BASE_URL = process.env.APP_BASE_URL ?? "http://localhost:3000";
   process.env.RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_test_key";
   process.env.ENCRYPTION_KEY =
-    process.env.ENCRYPTION_KEY ??
-    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    process.env.ENCRYPTION_KEY ?? Buffer.alloc(32, 7).toString("base64");
 
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule]
@@ -43,7 +42,7 @@ export async function createApiTestApp(): Promise<INestApplication> {
     })
     .compile();
 
-  const app = moduleRef.createNestApplication();
+  const app = moduleRef.createNestApplication({ rawBody: true });
   app.setGlobalPrefix("api/v1");
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());

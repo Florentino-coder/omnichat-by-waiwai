@@ -53,6 +53,27 @@ enum AuditAction {
   WORKSPACE_CREATED
   WORKSPACE_UPDATED
   WORKSPACE_DELETED
+  // LINE OA
+  LINE_CHANNEL_CONNECTED
+  LINE_CHANNEL_UPDATED
+  LINE_CHANNEL_DISCONNECTED
+  LINE_MESSAGE_RECEIVED
+  LINE_REPLY_SENT
+  LINE_WEBHOOK_FAILED
+}
+
+enum MessageSource {
+  LINE
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageType {
+  TEXT
+  UNKNOWN
 }
 
 // ============================================================
@@ -78,6 +99,9 @@ model Tenant {
   auditLogs   AuditLog[]
   settings    TenantSettings?
   usageCounters UsageCounter[]
+  lineChannels LineChannel[]
+  conversations Conversation[]
+  messages Message[]
 
   @@index([slug])
   @@index([planId])
@@ -131,6 +155,8 @@ model Workspace {
   // Relations
   members     WorkspaceMember[]
   invitations Invitation[]
+  lineChannels LineChannel[]
+  conversations Conversation[]
 
   @@index([tenantId])
   @@map("workspaces")
@@ -283,15 +309,92 @@ model UsageCounter {
   @@map("usage_counters")
 }
 
+model LineChannel {
+  id                          String    @id @default(uuid())
+  tenantId                    String
+  tenant                      Tenant    @relation(fields: [tenantId], references: [id])
+  workspaceId                 String
+  workspace                   Workspace @relation(fields: [workspaceId], references: [id])
+  name                        String
+  lineChannelId               String
+  encryptedChannelSecret      String
+  encryptedChannelAccessToken String
+  tokenExpiresAt              DateTime?
+  isActive                    Boolean   @default(true)
+  lastWebhookAt               DateTime?
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+  deletedAt                   DateTime?
+
+  conversations Conversation[]
+  messages      Message[]
+
+  @@unique([tenantId, lineChannelId])
+  @@index([tenantId])
+  @@index([workspaceId])
+  @@index([lineChannelId])
+  @@map("line_channels")
+}
+
+model Conversation {
+  id               String        @id @default(uuid())
+  tenantId         String
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  workspaceId      String
+  workspace        Workspace     @relation(fields: [workspaceId], references: [id])
+  lineChannelId    String
+  lineChannel      LineChannel   @relation(fields: [lineChannelId], references: [id])
+  source           MessageSource @default(LINE)
+  externalThreadId String
+  displayName      String?
+  lastMessageAt    DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+
+  messages Message[]
+
+  @@unique([tenantId, source, externalThreadId])
+  @@index([tenantId])
+  @@index([workspaceId])
+  @@index([lineChannelId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id                String           @id @default(uuid())
+  tenantId          String
+  tenant            Tenant           @relation(fields: [tenantId], references: [id])
+  conversationId    String
+  conversation      Conversation     @relation(fields: [conversationId], references: [id])
+  lineChannelId     String
+  lineChannel       LineChannel      @relation(fields: [lineChannelId], references: [id])
+  direction         MessageDirection
+  source            MessageSource    @default(LINE)
+  type              MessageType      @default(TEXT)
+  externalMessageId String?
+  text              String?
+  rawPayload        Json?
+  sentAt            DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+
+  @@unique([lineChannelId, externalMessageId])
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([lineChannelId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
 // ============================================================
 // FUTURE STAGES — placeholder models (do not implement yet)
 // Uncomment when reaching the relevant stage
 // ============================================================
 
-// Stage 2: LINE OA
-// model LineChannel { ... }
-// model Conversation { ... }
-// model Message { ... }
+// Stage 2: LINE OA implemented above
 
 // Stage 4: CRM
 // model Customer { ... }

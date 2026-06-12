@@ -4,6 +4,7 @@ import { AuditLogsModule } from "./audit-logs/audit-logs.module";
 import { AuthModule } from "./auth/auth.module";
 import { HealthModule } from "./health/health.module";
 import { InvitationsModule } from "./invitations/invitations.module";
+import { LineModule } from "./line/line.module";
 import { MailModule } from "./mail/mail.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { RedisModule } from "./redis/redis.module";
@@ -25,7 +26,8 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     UsersModule,
     AuditLogsModule,
     TenantsModule,
-    WorkspacesModule
+    WorkspacesModule,
+    LineModule
   ]
 })
 export class AppModule {}
