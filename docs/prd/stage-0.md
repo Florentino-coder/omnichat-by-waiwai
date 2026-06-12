@@ -413,10 +413,12 @@ Checkpoint 1:
 - [x] API success/error response envelopes wired globally
 - [x] Unit tests added for success envelope and validation/error envelope
 - [x] Billing Lite schema, seed data, plan endpoints, and plan-limit checks
-- [ ] CI baseline: test, coverage, lint
+- [x] CI baseline: Prisma validate, typecheck lint, build, tests, coverage report
 - [x] Health check endpoint for DB/Redis readiness
 
 Dependency checkpoint: npm audit reports high-severity transitive findings in the locked NestJS 10 / tooling dependency chain. npm's proposed fix upgrades to NestJS 11, which is outside the locked Stage 1 stack and requires founder approval before changing.
+
+Coverage checkpoint: coverage report is wired, but the current Stage 1 backend test coverage is below the >80% release target. Keep the Stage 1 success criterion open until integration/e2e tests and controller/guard coverage are added.
 
 ---
 
