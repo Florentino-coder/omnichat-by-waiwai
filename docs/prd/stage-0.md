@@ -345,7 +345,7 @@ Before moving to Stage 2, verify:
 - [ ] All endpoints return correct error codes and messages
 - [ ] Test coverage > 80%
 - [ ] No `any` TypeScript errors
-- [ ] Docker Compose runs locally
+- [x] Docker Compose config exists for local PostgreSQL 16 + Redis 7
 
 ---
 
@@ -415,6 +415,7 @@ Checkpoint 1:
 - [x] Billing Lite schema, seed data, plan endpoints, and plan-limit checks
 - [x] CI baseline: Prisma validate, typecheck lint, build, tests, coverage report
 - [x] Health check endpoint for DB/Redis readiness
+- [x] Local Docker Compose stack added for PostgreSQL 16 + Redis 7
 
 Dependency checkpoint: npm audit reports high-severity transitive findings in the locked NestJS 10 / tooling dependency chain. npm's proposed fix upgrades to NestJS 11, which is outside the locked Stage 1 stack and requires founder approval before changing.
 

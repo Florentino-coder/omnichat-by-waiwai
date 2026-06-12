@@ -9,6 +9,8 @@
     "api:test": "jest --config apps/api/jest.config.cjs",
     "api:test:cov": "jest --config apps/api/jest.config.cjs --coverage",
     "api:typecheck": "tsc -p apps/api/tsconfig.json --noEmit",
+    "docker:down": "docker compose down",
+    "docker:up": "docker compose up -d",
     "lint": "npm run api:typecheck",
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev --name init-stage1",
