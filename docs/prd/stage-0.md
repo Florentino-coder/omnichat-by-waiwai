@@ -165,6 +165,12 @@ POST   /api/v1/invitations/accept/:token  Accept invitation (creates user)
 GET    /api/v1/audit-logs             List audit logs (OWNER/ADMIN only)
 ```
 
+### System Endpoints
+
+```
+GET    /api/v1/health                 Public readiness check for DB + Redis
+```
+
 ---
 
 ## Security Design
@@ -408,7 +414,7 @@ Checkpoint 1:
 - [x] Unit tests added for success envelope and validation/error envelope
 - [x] Billing Lite schema, seed data, plan endpoints, and plan-limit checks
 - [ ] CI baseline: test, coverage, lint
-- [ ] Health check endpoint for DB/Redis readiness
+- [x] Health check endpoint for DB/Redis readiness
 
 Dependency checkpoint: npm audit reports high-severity transitive findings in the locked NestJS 10 / tooling dependency chain. npm's proposed fix upgrades to NestJS 11, which is outside the locked Stage 1 stack and requires founder approval before changing.
 
