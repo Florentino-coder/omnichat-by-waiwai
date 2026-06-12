@@ -6,9 +6,10 @@ import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { TenantGuard } from "../auth/guards/tenant.guard";
 import { JwtTenantPayload } from "../auth/types/auth.types";
+import { UpdateTenantPlanDto } from "./dto/update-tenant-plan.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
 import { UpdateTenantSettingsDto } from "./dto/update-tenant-settings.dto";
-import { TenantsService } from "./tenants.service";
+import { TenantPlanSnapshot, TenantsService } from "./tenants.service";
 
 @Controller("tenants")
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
@@ -42,5 +43,20 @@ export class TenantsController {
     @Body() dto: UpdateTenantSettingsDto
   ): Promise<TenantSettings> {
     return this.tenantsService.updateSettings(ctx.tenantId, dto);
+  }
+
+  @Get("me/plan")
+  @Roles(Role.ADMIN)
+  getPlan(@TenantCtx() ctx: JwtTenantPayload): Promise<TenantPlanSnapshot> {
+    return this.tenantsService.getPlan(ctx.tenantId);
+  }
+
+  @Patch("me/plan")
+  @Roles(Role.OWNER)
+  updatePlan(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Body() dto: UpdateTenantPlanDto
+  ): Promise<TenantPlanSnapshot> {
+    return this.tenantsService.updatePlan(ctx.tenantId, ctx.sub, dto);
   }
 }

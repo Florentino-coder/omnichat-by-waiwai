@@ -406,7 +406,7 @@ Checkpoint 1:
 - [ ] Full RBAC integration tests and e2e tenant isolation tests
 - [x] API success/error response envelopes wired globally
 - [x] Unit tests added for success envelope and validation/error envelope
-- [ ] Billing Lite schema, seed data, plan endpoints, and plan-limit checks
+- [x] Billing Lite schema, seed data, plan endpoints, and plan-limit checks
 - [ ] CI baseline: test, coverage, lint
 - [ ] Health check endpoint for DB/Redis readiness
 

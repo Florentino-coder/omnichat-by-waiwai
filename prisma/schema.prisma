@@ -46,6 +46,9 @@ enum AuditAction {
   // Tenant
   TENANT_CREATED
   TENANT_SETTINGS_CHANGED
+  PLAN_CHANGED
+  PLAN_LIMIT_EXCEEDED
+  USAGE_THRESHOLD_REACHED
   // Workspace
   WORKSPACE_CREATED
   WORKSPACE_UPDATED
@@ -61,7 +64,8 @@ model Tenant {
   name        String
   slug        String   @unique  // URL-safe identifier e.g. "acme-corp"
   logoUrl     String?
-  planId      String?           // Stage 17: Billing
+  planId      String   @default("free")
+  trialEndsAt DateTime?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -73,9 +77,23 @@ model Tenant {
   invitations Invitation[]
   auditLogs   AuditLog[]
   settings    TenantSettings?
+  usageCounters UsageCounter[]
 
   @@index([slug])
+  @@index([planId])
   @@map("tenants")
+}
+
+model PlanLimit {
+  id                    String   @id @default(uuid())
+  planId                String   @unique
+  maxWorkspaces         Int
+  maxAgents             Int
+  maxAiCreditsPerMonth  Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("plan_limits")
 }
 
 model TenantSettings {
@@ -247,6 +265,22 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model UsageCounter {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  metric      String
+  periodStart DateTime
+  periodEnd   DateTime
+  value       BigInt   @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, metric, periodStart])
+  @@index([tenantId])
+  @@map("usage_counters")
 }
 
 // ============================================================

@@ -4,6 +4,7 @@ erDiagram
     TENANTS ||--o{ WORKSPACE_MEMBERS : "contains"
     TENANTS ||--o{ INVITATIONS : "sends"
     TENANTS ||--o{ AUDIT_LOGS : "logs"
+    TENANTS ||--o{ USAGE_COUNTERS : "meters"
 
     WORKSPACES ||--o{ WORKSPACE_MEMBERS : "has"
     WORKSPACES ||--o{ INVITATIONS : "targets"
@@ -19,6 +20,7 @@ erDiagram
         string slug UK
         string logoUrl
         string planId
+        timestamp trialEndsAt
         bool isActive
         timestamp createdAt
         timestamp updatedAt
@@ -112,4 +114,25 @@ erDiagram
         string ipAddress
         string userAgent
         timestamp createdAt
+    }
+
+    PLAN_LIMITS {
+        uuid id PK
+        string planId UK
+        int maxWorkspaces
+        int maxAgents
+        int maxAiCreditsPerMonth
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    USAGE_COUNTERS {
+        uuid id PK
+        uuid tenantId FK
+        string metric
+        timestamp periodStart
+        timestamp periodEnd
+        bigint value
+        timestamp createdAt
+        timestamp updatedAt
     }

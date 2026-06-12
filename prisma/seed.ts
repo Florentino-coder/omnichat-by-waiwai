@@ -19,19 +19,56 @@ const seedOwner = {
   password: "ChangeMe123!",
 } as const;
 
+const planLimits = [
+  {
+    planId: "free",
+    maxWorkspaces: 1,
+    maxAgents: 2,
+    maxAiCreditsPerMonth: 0,
+  },
+  {
+    planId: "starter",
+    maxWorkspaces: 1,
+    maxAgents: 5,
+    maxAiCreditsPerMonth: 0,
+  },
+  {
+    planId: "pro",
+    maxWorkspaces: 3,
+    maxAgents: 20,
+    maxAiCreditsPerMonth: 0,
+  },
+  {
+    planId: "enterprise",
+    maxWorkspaces: 100,
+    maxAgents: 1000,
+    maxAiCreditsPerMonth: 0,
+  },
+] as const;
+
 async function main(): Promise<void> {
   const passwordHash = await bcrypt.hash(seedOwner.password, 12);
+
+  for (const planLimit of planLimits) {
+    await prisma.planLimit.upsert({
+      where: { planId: planLimit.planId },
+      update: planLimit,
+      create: planLimit,
+    });
+  }
 
   const tenant = await prisma.tenant.upsert({
     where: { slug: seedTenant.slug },
     update: {
       name: seedTenant.name,
+      planId: "free",
       isActive: true,
       deletedAt: null,
     },
     create: {
       name: seedTenant.name,
       slug: seedTenant.slug,
+      planId: "free",
       isActive: true,
     },
   });

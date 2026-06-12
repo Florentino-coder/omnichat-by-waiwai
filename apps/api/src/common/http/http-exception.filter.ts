@@ -23,6 +23,7 @@ interface HttpResponseLike {
 }
 
 interface ExceptionBody {
+  code?: string;
   message?: string | string[];
   error?: string;
   details?: unknown;
@@ -69,7 +70,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     return {
       success: false,
       error: {
-        code: this.codeFromStatus(status),
+        code: exceptionBody.code ?? this.codeFromStatus(status),
         message,
         ...(details ? { details } : {})
       }

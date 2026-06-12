@@ -27,7 +27,7 @@ export class WorkspacesController {
     @TenantCtx() ctx: JwtTenantPayload,
     @Body() dto: CreateWorkspaceDto
   ): Promise<Workspace> {
-    return this.workspacesService.create(ctx.tenantId, dto);
+    return this.workspacesService.create(ctx.tenantId, ctx.sub, dto);
   }
 
   @Get(":id")

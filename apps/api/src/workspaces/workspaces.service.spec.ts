@@ -1,5 +1,6 @@
 import { NotFoundException } from "@nestjs/common";
-import { Role } from "@prisma/client";
+import { AuditAction, Role } from "@prisma/client";
+import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import { PrismaService } from "../prisma/prisma.service";
 import { WorkspacesService } from "./workspaces.service";
 
@@ -7,13 +8,24 @@ type MockPrisma = {
   workspace: {
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    count: jest.Mock<Promise<number>, [unknown]>;
     create: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
   };
   workspaceMember: {
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    count: jest.Mock<Promise<number>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  tenant: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  planLimit: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  auditLog: {
+    create: jest.Mock<Promise<unknown>, [unknown]>;
   };
 };
 
@@ -21,13 +33,24 @@ const createPrisma = (): MockPrisma => ({
   workspace: {
     findMany: jest.fn<Promise<unknown>, [unknown]>(),
     findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    count: jest.fn<Promise<number>, [unknown]>(),
     create: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
   },
   workspaceMember: {
     findMany: jest.fn<Promise<unknown>, [unknown]>(),
     findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    count: jest.fn<Promise<number>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  tenant: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  planLimit: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  auditLog: {
+    create: jest.fn<Promise<unknown>, [unknown]>()
   }
 });
 
@@ -52,9 +75,12 @@ describe("WorkspacesService", () => {
 
   it("creates a workspace under the current tenant", async () => {
     const prisma = createPrisma();
+    prisma.tenant.findUnique.mockResolvedValue({ planId: "pro" });
+    prisma.planLimit.findUnique.mockResolvedValue({ maxWorkspaces: 3 });
+    prisma.workspace.count.mockResolvedValue(1);
     prisma.workspace.create.mockResolvedValue({ id: "workspace-1" });
 
-    await createService(prisma).create("tenant-1", {
+    await createService(prisma).create("tenant-1", "owner-1", {
       name: "Support",
       description: "Support team"
     });
@@ -66,6 +92,28 @@ describe("WorkspacesService", () => {
         description: "Support team",
         isDefault: false
       }
+    });
+  });
+
+  it("rejects workspace creation when plan limit is reached", async () => {
+    const prisma = createPrisma();
+    prisma.tenant.findUnique.mockResolvedValue({ planId: "free" });
+    prisma.planLimit.findUnique.mockResolvedValue({ maxWorkspaces: 1 });
+    prisma.workspace.count.mockResolvedValue(1);
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await expect(
+      createService(prisma).create("tenant-1", "owner-1", {
+        name: "Support"
+      })
+    ).rejects.toBeInstanceOf(PlanLimitExceededException);
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: "owner-1",
+        action: AuditAction.PLAN_LIMIT_EXCEEDED,
+        targetType: "Workspace"
+      })
     });
   });
 

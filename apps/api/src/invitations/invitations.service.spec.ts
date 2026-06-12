@@ -1,5 +1,6 @@
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { AuditAction, InvitationStatus, Role } from "@prisma/client";
+import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import { PrismaService } from "../prisma/prisma.service";
 import { InvitationsService } from "./invitations.service";
 
@@ -35,6 +36,15 @@ type MockPrisma = {
   user: {
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  tenant: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  planLimit: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  workspaceMember: {
+    count: jest.Mock<Promise<number>, [unknown]>;
+  };
   $transaction: jest.Mock<Promise<unknown>, [(tx: MockTransaction) => Promise<unknown>]>;
 };
 
@@ -69,6 +79,15 @@ const createPrisma = (tx = createTx()): MockPrisma => ({
   },
   user: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  tenant: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  planLimit: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  workspaceMember: {
+    count: jest.fn<Promise<number>, [unknown]>()
   },
   $transaction: jest.fn<Promise<unknown>, [(tx: MockTransaction) => Promise<unknown>]>(
     (callback) => callback(tx)
@@ -185,6 +204,9 @@ describe("InvitationsService", () => {
     const prisma = createPrisma(tx);
     prisma.invitation.findUnique.mockResolvedValue(pendingInvitation);
     prisma.user.findUnique.mockResolvedValue(null);
+    prisma.tenant.findUnique.mockResolvedValue({ planId: "free" });
+    prisma.planLimit.findUnique.mockResolvedValue({ maxAgents: 2 });
+    prisma.workspaceMember.count.mockResolvedValue(1);
     tx.user.create.mockResolvedValue({
       id: "user-1",
       email: "agent@example.com"
@@ -233,5 +255,29 @@ describe("InvitationsService", () => {
         password: "ChangeMe123!"
       })
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects accept when the tenant agent limit is reached", async () => {
+    const prisma = createPrisma();
+    prisma.invitation.findUnique.mockResolvedValue(pendingInvitation);
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.tenant.findUnique.mockResolvedValue({ planId: "free" });
+    prisma.planLimit.findUnique.mockResolvedValue({ maxAgents: 2 });
+    prisma.workspaceMember.count.mockResolvedValue(2);
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await expect(
+      createService(prisma).accept("token-1", {
+        displayName: "Agent User",
+        password: "ChangeMe123!"
+      })
+    ).rejects.toBeInstanceOf(PlanLimitExceededException);
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        action: AuditAction.PLAN_LIMIT_EXCEEDED,
+        targetType: "WorkspaceMember"
+      })
+    });
   });
 });

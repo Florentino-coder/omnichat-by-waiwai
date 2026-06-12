@@ -1,4 +1,9 @@
-import { ArgumentsHost, BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  ArgumentsHost,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException
+} from "@nestjs/common";
 import { HttpExceptionFilter } from "./http-exception.filter";
 
 type JsonMock = jest.Mock<void, [unknown]>;
@@ -59,6 +64,27 @@ describe("HttpExceptionFilter", () => {
         code: "BAD_REQUEST",
         message: "Bad Request",
         details: ["email must be an email"]
+      }
+    });
+  });
+
+  it("preserves custom application error codes", () => {
+    const { host, status, json } = createHost();
+
+    new HttpExceptionFilter().catch(
+      new ForbiddenException({
+        code: "PLAN_LIMIT_EXCEEDED",
+        message: "Workspace limit exceeded"
+      }),
+      host
+    );
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: {
+        code: "PLAN_LIMIT_EXCEEDED",
+        message: "Workspace limit exceeded"
       }
     });
   });

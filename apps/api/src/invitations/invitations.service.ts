@@ -2,6 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from "@nestjs/common
 import { AuditAction, Invitation, InvitationStatus, User } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
+import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import { PrismaService } from "../prisma/prisma.service";
 import { AcceptInvitationDto } from "./dto/accept-invitation.dto";
 import { CreateInvitationDto } from "./dto/create-invitation.dto";
@@ -123,6 +124,8 @@ export class InvitationsService {
       throw new ConflictException("User already exists");
     }
 
+    await this.assertAgentLimit(invitation.tenantId);
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -184,6 +187,49 @@ export class InvitationsService {
 
     if (!workspace) {
       throw new NotFoundException("Workspace not found");
+    }
+  }
+
+  private async assertAgentLimit(tenantId: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { planId: true }
+    });
+    const limits = tenant
+      ? await this.prisma.planLimit.findUnique({
+          where: { planId: tenant.planId }
+        })
+      : null;
+
+    if (!tenant || !limits) {
+      throw new NotFoundException("Plan limit not found");
+    }
+
+    const activeMembers = await this.prisma.workspaceMember.count({
+      where: {
+        tenantId,
+        isActive: true
+      }
+    });
+
+    if (activeMembers >= limits.maxAgents) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          action: AuditAction.PLAN_LIMIT_EXCEEDED,
+          targetType: "WorkspaceMember",
+          metadata: {
+            planId: tenant.planId,
+            limit: limits.maxAgents,
+            current: activeMembers
+          }
+        }
+      });
+      throw new PlanLimitExceededException("Agent limit exceeded", {
+        planId: tenant.planId,
+        limit: limits.maxAgents,
+        current: activeMembers
+      });
     }
   }
 
