@@ -129,6 +129,15 @@ Version: 1.0 | Stage: 0 (Architecture)
 
 ---
 
+## Billing Lite (Stage 1)
+
+| Action                        | OWNER | ADMIN | AGENT | QC  | VIEWER |
+|-------------------------------|-------|-------|-------|-----|--------|
+| View Plan & Usage             | โ…    | โ…    | โ    | โ  | โ     |
+| Change Plan (manual MVP)      | โ…    | โ    | โ    | โ  | โ     |
+
+---
+
 ## Automation (Stage 10)
 
 | Action                        | OWNER | ADMIN | AGENT | QC  | VIEWER |

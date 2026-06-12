@@ -90,13 +90,14 @@ A user can belong to multiple workspaces within the same tenant, with potentiall
 - RBAC enforcement on all routes
 - Audit logging for auth + user events
 - Basic 2FA setup (TOTP, optional)
+- Billing Lite (manual plan limits, usage-meter hook, no payment processor)
 
 ### Explicitly Excluded from Stage 1
 
 - LINE OA, messaging, conversations
 - Dashboard, reports
 - Any AI features
-- Billing
+- Full self-serve billing and invoices
 - Search
 
 ---
@@ -215,6 +216,16 @@ Sensitive values (LINE channel secrets, 2FA secrets, API keys for AI) are:
 | POST /auth/register | 10 req/hour per IP |
 | All other endpoints | 100 req/min per user |
 
+### Stage 2 LINE OA Security Gate
+
+Before Stage 2 starts, the Stage 2 design must cover:
+
+- Webhook signature verification with `x-line-signature` HMAC-SHA256.
+- LINE secrets and access tokens encrypted with the AES-256-GCM secret storage pattern.
+- LINE Messaging API rate limit and retry handling through BullMQ.
+- Webhook handler returns `200` quickly; processing continues async.
+- Channel access-token refresh strategy.
+
 ---
 
 ## Database Design Decisions
@@ -269,6 +280,17 @@ CREATE INDEX ON audit_logs(created_at);
 Note: Prisma keeps camelCase column names in the applied Stage 1 schema because the founder chose to keep the existing schema. The SQL above describes logical fields; the migration uses Prisma-generated quoted column names such as `"tenantId"`, `"workspaceId"`, and `"invitedByUserId"`.
 
 Supabase hardening: Stage 1-A enables RLS on all public Stage 1 tables and `_prisma_migrations` without public policies. This is intentional while the backend access model is server-side Prisma/NestJS, so Supabase Data API access remains deny-by-default until a dedicated RLS policy model is approved.
+
+### Billing Lite and Usage Hook
+
+Stage 1 adds manual Billing Lite:
+
+- `Tenant.planId` defaults to `free`; tenant may also have `trialEndsAt`.
+- `PlanLimit` stores per-plan limits for workspaces, agents, and future AI credits.
+- `UsageCounter` reserves tenant-level metering for Stage 12+ AI usage.
+- `GET /api/v1/tenants/me/plan` returns current plan, limits, and usage snapshot.
+- `PATCH /api/v1/tenants/me/plan` changes plan manually and is OWNER-only.
+- Creating counted resources must check `PlanLimit` first and return `403 PLAN_LIMIT_EXCEEDED` when exceeded.
 
 ---
 
@@ -329,8 +351,9 @@ Before moving to Stage 2, verify:
 | S1-A   | DB + Auth backend              | 1 week   |
 | S1-B   | Tenant + Workspace + RBAC      | 1 week   |
 | S1-C   | Invitation system              | 3 days   |
-| S1-D   | Frontend auth flows            | 1 week   |
-| S1-E   | Testing + bug fixes            | 3 days   |
+| S1-D   | API envelope, CI baseline, Billing Lite | 1 week   |
+| S1-E   | Frontend auth flows            | 1 week   |
+| S1-F   | Testing + bug fixes            | 3 days   |
 | S2-A   | LINE OA connect + webhook      | 1 week   |
 | S2-B   | Message sync + storage         | 1 week   |
 | S3-A   | Inbox UI + Realtime (Socket)   | 2 weeks  |
@@ -381,6 +404,11 @@ Checkpoint 1:
 - [x] Workspace member list, role update, and remove endpoints scaffolded with RBAC guards
 - [x] Unit tests added for tenant scope, workspace scope, and member role update scope
 - [ ] Full RBAC integration tests and e2e tenant isolation tests
+- [x] API success/error response envelopes wired globally
+- [x] Unit tests added for success envelope and validation/error envelope
+- [ ] Billing Lite schema, seed data, plan endpoints, and plan-limit checks
+- [ ] CI baseline: test, coverage, lint
+- [ ] Health check endpoint for DB/Redis readiness
 
 Dependency checkpoint: npm audit reports high-severity transitive findings in the locked NestJS 10 / tooling dependency chain. npm's proposed fix upgrades to NestJS 11, which is outside the locked Stage 1 stack and requires founder approval before changing.
 
@@ -399,6 +427,41 @@ Dependency checkpoint: npm audit reports high-severity transitive findings in th
 
 4. **Support for multiple workspaces per tenant in Stage 1?**
    - Or keep it simple: 1 tenant = 1 workspace initially
+
+5. **Plan tiers for MVP?**
+   - Suggested: `free` = 1 workspace / 2 agents / 0 AI credits, `starter` = 1 workspace / 5 agents, `pro` = 3 workspaces / 20 agents.
+
+6. **Payment processor for full billing?**
+   - Stripe vs Omise vs 2C2P. Omise/2C2P have stronger Thai PromptPay support.
+
+7. **Error tracking provider?**
+   - Sentry hosted vs GlitchTip/self-hosted alternative for Coolify.
+
+---
+
+## Frontend Design System (Stage 1 UI Foundation)
+
+Stage 1 UI uses a minimal premium SaaS style: white background, deep indigo accent, quiet borders, no decorative second accent.
+
+Core tokens:
+
+| Token | Hex | Usage |
+|---|---|---|
+| `--background` | `#FFFFFF` | page background |
+| `--foreground` | `#16182B` | primary text |
+| `--card-border` | `#E8E9F0` | borders |
+| `--secondary` | `#F7F7FB` | sidebar and hover fills |
+| `--muted-foreground` | `#767A8C` | secondary text |
+| `--primary` | `#4338CA` | buttons, active nav, links |
+| `--primary-hover` | `#372FA3` | button hover |
+| `--primary-soft` | `#EEF0FF` | active rows and badges |
+| `--success` | `#1F9D72` | status only |
+| `--warning` | `#D97706` | status only |
+| `--danger` | `#DC4444` | error/destructive |
+
+Typography: Plus Jakarta Sans for headings, Inter for UI/body, JetBrains Mono for IDs/logs. Use weights 400 and 500 only.
+
+Auth pages: centered 360px card on white background. App shell: 56px icon rail plus content area. Inbox 3-pane is Stage 3 spec only, not Stage 1 implementation.
 
 ---
 

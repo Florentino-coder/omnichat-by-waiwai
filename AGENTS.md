@@ -249,6 +249,16 @@ pnpm test:e2e
 
 ---
 
+## Quality & Compliance Rules
+
+- Any new mutating endpoint MUST add a corresponding `AuditAction` enum value and write an audit log entry as part of the same task, not a follow-up.
+- Any new tenant-scoped resource that has a count limit (workspaces, agents, AI credits, etc.) MUST be checked against `PlanLimit` before creation.
+- CI must pass tests, coverage target (>80%), and lint before a task is marked complete. If CI is not yet set up, add it during Stage 1.
+- New stages start from the MVP Track in `docs/roadmap/codex-first-master-plan.md` unless the founder explicitly opens a Post-MVP stage.
+- Stage 5 and later stages MUST NOT begin until the Internal Dogfooding Gate in `docs/roadmap/codex-first-master-plan.md` is checked off in `docs/prd/stage-0.md`. Bugs found during dogfooding are fixed as Stage 1-4 work, not deferred.
+
+---
+
 ## Stage Scope Reference
 
 | Stage | Name             | Status     |
