@@ -3,6 +3,7 @@ import { AuditAction, Invitation, InvitationStatus, User } from "@prisma/client"
 import * as bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AcceptInvitationDto } from "./dto/accept-invitation.dto";
 import { CreateInvitationDto } from "./dto/create-invitation.dto";
@@ -12,14 +13,17 @@ const INVITATION_EXPIRY_DAYS = 7;
 
 @Injectable()
 export class InvitationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService
+  ) {}
 
   async create(
     tenantId: string,
     invitedByUserId: string,
     dto: CreateInvitationDto
   ): Promise<CreatedInvitationResponse> {
-    await this.assertWorkspaceInTenant(tenantId, dto.workspaceId);
+    const context = await this.assertWorkspaceInTenant(tenantId, dto.workspaceId);
     const token = this.createToken();
     const invitation = await this.prisma.invitation.create({
       data: {
@@ -47,6 +51,22 @@ export class InvitationsService {
         }
       }
     });
+
+    try {
+      await this.mailService.sendInvitationEmail({
+        to: invitation.email,
+        inviteToken: token,
+        tenantName: context.tenantName,
+        workspaceName: context.workspaceName,
+        expiresAt: invitation.expiresAt
+      });
+    } catch (error) {
+      await this.prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: InvitationStatus.REVOKED }
+      });
+      throw error;
+    }
 
     return {
       invitation,
@@ -176,7 +196,11 @@ export class InvitationsService {
   private async assertWorkspaceInTenant(
     tenantId: string,
     workspaceId: string
-  ): Promise<void> {
+  ): Promise<{ tenantName: string; workspaceName: string }> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, name: true }
+    });
     const workspace = await this.prisma.workspace.findFirst({
       where: {
         id: workspaceId,
@@ -185,9 +209,14 @@ export class InvitationsService {
       }
     });
 
-    if (!workspace) {
+    if (!tenant || !workspace) {
       throw new NotFoundException("Workspace not found");
     }
+
+    return {
+      tenantName: tenant.name,
+      workspaceName: workspace.name
+    };
   }
 
   private async assertAgentLimit(tenantId: string): Promise<void> {

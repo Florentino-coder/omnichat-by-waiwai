@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException } from "@nestjs/common";
 import { AuditAction, InvitationStatus, Role } from "@prisma/client";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { InvitationsService } from "./invitations.service";
 
@@ -20,6 +21,9 @@ type MockTransaction = {
 };
 
 type MockPrisma = {
+  tenant: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
   workspace: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
   };
@@ -34,9 +38,6 @@ type MockPrisma = {
     create: jest.Mock<Promise<unknown>, [unknown]>;
   };
   user: {
-    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
-  };
-  tenant: {
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
   };
   planLimit: {
@@ -64,6 +65,9 @@ const createTx = (): MockTransaction => ({
 });
 
 const createPrisma = (tx = createTx()): MockPrisma => ({
+  tenant: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
   workspace: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
   },
@@ -80,9 +84,6 @@ const createPrisma = (tx = createTx()): MockPrisma => ({
   user: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>()
   },
-  tenant: {
-    findUnique: jest.fn<Promise<unknown>, [unknown]>()
-  },
   planLimit: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>()
   },
@@ -94,8 +95,18 @@ const createPrisma = (tx = createTx()): MockPrisma => ({
   )
 });
 
-const createService = (prisma: MockPrisma): InvitationsService =>
-  new InvitationsService(prisma as unknown as PrismaService);
+const createMail = (): Pick<MailService, "sendInvitationEmail"> => ({
+  sendInvitationEmail: jest.fn<Promise<void>, [Parameters<MailService["sendInvitationEmail"]>[0]]>().mockResolvedValue(undefined)
+});
+
+const createService = (
+  prisma: MockPrisma,
+  mailService: Pick<MailService, "sendInvitationEmail"> = createMail()
+): InvitationsService =>
+  new InvitationsService(
+    prisma as unknown as PrismaService,
+    mailService as MailService
+  );
 
 const pendingInvitation = {
   id: "invitation-1",
@@ -124,11 +135,13 @@ const pendingInvitation = {
 describe("InvitationsService", () => {
   it("creates tenant-scoped invitations and audit logs the invite", async () => {
     const prisma = createPrisma();
-    prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+    const mailService = createMail();
+    prisma.tenant.findUnique.mockResolvedValue({ id: "tenant-1", name: "Tenant" });
+    prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1", name: "Support" });
     prisma.invitation.create.mockResolvedValue(pendingInvitation);
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
-    const result = await createService(prisma).create("tenant-1", "owner-1", {
+    const result = await createService(prisma, mailService).create("tenant-1", "owner-1", {
       workspaceId: "workspace-1",
       email: "Agent@Example.com",
       role: Role.AGENT
@@ -140,6 +153,10 @@ describe("InvitationsService", () => {
         tenantId: "tenant-1",
         deletedAt: null
       }
+    });
+    expect(prisma.tenant.findUnique).toHaveBeenCalledWith({
+      where: { id: "tenant-1" },
+      select: { id: true, name: true }
     });
     expect(prisma.invitation.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -161,7 +178,42 @@ describe("InvitationsService", () => {
         targetId: "invitation-1"
       })
     });
+    expect(mailService.sendInvitationEmail).toHaveBeenCalledWith({
+      to: "agent@example.com",
+      inviteToken: result.inviteToken,
+      tenantName: "Tenant",
+      workspaceName: "Support",
+      expiresAt: pendingInvitation.expiresAt
+    });
     expect(result.inviteToken).toEqual(expect.any(String));
+  });
+
+  it("rejects create when invitation email delivery fails", async () => {
+    const prisma = createPrisma();
+    const mailService = createMail();
+    jest
+      .mocked(mailService.sendInvitationEmail)
+      .mockRejectedValue(new Error("Email delivery failed"));
+    prisma.tenant.findUnique.mockResolvedValue({ id: "tenant-1", name: "Tenant" });
+    prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1", name: "Support" });
+    prisma.invitation.create.mockResolvedValue(pendingInvitation);
+    prisma.invitation.update.mockResolvedValue({
+      ...pendingInvitation,
+      status: InvitationStatus.REVOKED
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await expect(
+      createService(prisma, mailService).create("tenant-1", "owner-1", {
+        workspaceId: "workspace-1",
+        email: "Agent@Example.com",
+        role: Role.AGENT
+      })
+    ).rejects.toThrow("Email delivery failed");
+    expect(prisma.invitation.update).toHaveBeenCalledWith({
+      where: { id: "invitation-1" },
+      data: { status: InvitationStatus.REVOKED }
+    });
   });
 
   it("does not revoke invitations outside the current tenant", async () => {
