@@ -1059,3 +1059,15 @@ After Checkpoint E, founder chooses one:
 4. Discard the branch
 
 No merge, PR, or discard happens without explicit founder decision.
+
+---
+
+## Publish: Checkpoint G
+
+Founder decision: publish Stage 1 Foundation to `main` only.
+
+- [x] `codex/stage-1-backend-security` fast-forward merged into local `main`
+- [x] fresh verification run on `main`
+- [x] secret scan before publish
+- [ ] push `main` to GitHub
+- [ ] report deploy readiness and next stage
