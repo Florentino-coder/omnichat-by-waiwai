@@ -3,6 +3,7 @@ import { ConfigModule } from "@nestjs/config";
 import { AuditLogsModule } from "./audit-logs/audit-logs.module";
 import { AuthModule } from "./auth/auth.module";
 import { HealthModule } from "./health/health.module";
+import { InboxModule } from "./inbox/inbox.module";
 import { InvitationsModule } from "./invitations/invitations.module";
 import { LineModule } from "./line/line.module";
 import { MailModule } from "./mail/mail.module";
@@ -25,6 +26,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     InvitationsModule,
     UsersModule,
     AuditLogsModule,
+    InboxModule,
     TenantsModule,
     WorkspacesModule,
     LineModule

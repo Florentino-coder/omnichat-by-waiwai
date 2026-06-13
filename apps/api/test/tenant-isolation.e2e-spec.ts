@@ -1,5 +1,11 @@
 import { INestApplication } from "@nestjs/common";
-import { AuditAction, PrismaClient, Role } from "@prisma/client";
+import {
+  AuditAction,
+  MessageDirection,
+  MessageType,
+  PrismaClient,
+  Role
+} from "@prisma/client";
 import request from "supertest";
 import { createApiTestApp } from "./helpers/api-test-app";
 import { createStage1Fixtures, Stage1Fixtures } from "./helpers/stage-1-fixtures";
@@ -79,6 +85,30 @@ describe("Stage 1 tenant isolation e2e", () => {
 
     expect(JSON.stringify(response.body.data)).toContain(fixtures.tenantA.auditLogId);
     expect(JSON.stringify(response.body.data)).not.toContain(fixtures.tenantB.auditLogId);
+  });
+
+  it("keeps inbox conversations and messages tenant-scoped", async () => {
+    const tenantAInbox = await createInboxFixture("tenant-a", fixtures.tenantA);
+    const tenantBInbox = await createInboxFixture("tenant-b", fixtures.tenantB);
+
+    const conversations = await authedGet("/api/v1/inbox/conversations").expect(200);
+    expect(conversations.body.success).toBe(true);
+    expect(JSON.stringify(conversations.body.data)).toContain(tenantAInbox.conversationId);
+    expect(JSON.stringify(conversations.body.data)).toContain("Tenant A inbox message");
+    expect(JSON.stringify(conversations.body.data)).not.toContain(
+      tenantBInbox.conversationId
+    );
+    expect(JSON.stringify(conversations.body.data)).not.toContain("Tenant B inbox message");
+
+    const messages = await authedGet(
+      `/api/v1/inbox/conversations/${tenantAInbox.conversationId}/messages`
+    ).expect(200);
+    expect(messages.body.success).toBe(true);
+    expect(JSON.stringify(messages.body.data)).toContain("Tenant A inbox message");
+
+    await authedGet(
+      `/api/v1/inbox/conversations/${tenantBInbox.conversationId}/messages`
+    ).expect(404);
   });
 
   it("keeps tenant settings and plan scoped to Tenant A", async () => {
@@ -202,6 +232,46 @@ describe("Stage 1 tenant isolation e2e", () => {
 
   function bearer(): string {
     return `Bearer ${fixtures.tenantA.users[Role.OWNER].accessToken}`;
+  }
+
+  async function createInboxFixture(
+    slug: string,
+    fixture: Stage1Fixtures["tenantA"]
+  ): Promise<{ conversationId: string }> {
+    const channel = await prisma.lineChannel.create({
+      data: {
+        tenantId: fixture.tenantId,
+        workspaceId: fixture.workspaceId,
+        name: `${slug} LINE`,
+        lineChannelId: `${slug}-line-channel`,
+        encryptedChannelSecret: `${slug}-secret`,
+        encryptedChannelAccessToken: `${slug}-access-token`
+      }
+    });
+    const conversation = await prisma.conversation.create({
+      data: {
+        tenantId: fixture.tenantId,
+        workspaceId: fixture.workspaceId,
+        lineChannelId: channel.id,
+        externalThreadId: `${slug}-thread`,
+        displayName: `${slug} customer`,
+        lastMessageAt: new Date()
+      }
+    });
+    await prisma.message.create({
+      data: {
+        tenantId: fixture.tenantId,
+        conversationId: conversation.id,
+        lineChannelId: channel.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        externalMessageId: `${slug}-message`,
+        text: slug === "tenant-a" ? "Tenant A inbox message" : "Tenant B inbox message",
+        sentAt: new Date()
+      }
+    });
+
+    return { conversationId: conversation.id };
   }
 
   async function expectTenantWorkspaceCount(

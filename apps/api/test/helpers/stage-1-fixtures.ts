@@ -32,6 +32,9 @@ export interface Stage1Fixtures {
 const roles: Role[] = [Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC, Role.VIEWER];
 
 export async function resetStage1Data(prisma: PrismaClient): Promise<void> {
+  await prisma.message.deleteMany();
+  await prisma.conversation.deleteMany();
+  await prisma.lineChannel.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.invitation.deleteMany();
   await prisma.refreshToken.deleteMany();

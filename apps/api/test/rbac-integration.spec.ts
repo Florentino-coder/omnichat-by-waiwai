@@ -96,6 +96,15 @@ describe("Stage 1 RBAC integration", () => {
     await expectAllowed("get", "/api/v1/audit-logs", [Role.OWNER, Role.ADMIN]);
   });
 
+  it("enforces inbox read RBAC", async () => {
+    await expectAllowed("get", "/api/v1/inbox/conversations", [
+      Role.OWNER,
+      Role.ADMIN,
+      Role.AGENT,
+      Role.QC
+    ]);
+  });
+
   async function expectAllowed(
     method: "get" | "post" | "patch" | "delete",
     path: string,
