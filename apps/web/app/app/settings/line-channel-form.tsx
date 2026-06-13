@@ -13,6 +13,7 @@ type Workspace = {
 type LineChannel = {
   id: string;
   name: string;
+  badgeColor?: string | null;
   lineChannelId: string;
   workspaceId: string;
   createdAt: string;
@@ -21,6 +22,7 @@ type LineChannel = {
 type FormState = {
   workspaceId: string;
   name: string;
+  badgeColor: string;
   lineChannelId: string;
   channelSecret: string;
   channelAccessToken: string;
@@ -29,6 +31,7 @@ type FormState = {
 const initialForm: FormState = {
   workspaceId: "",
   name: "",
+  badgeColor: "#4f46e5",
   lineChannelId: "",
   channelSecret: "",
   channelAccessToken: ""
@@ -114,6 +117,7 @@ export function LineChannelForm() {
         body: JSON.stringify({
           channelAccessToken: form.channelAccessToken.trim(),
           channelSecret: form.channelSecret.trim(),
+          badgeColor: form.badgeColor.trim(),
           lineChannelId: form.lineChannelId.trim(),
           name: form.name.trim(),
           workspaceId: form.workspaceId.trim()
@@ -158,7 +162,14 @@ export function LineChannelForm() {
           {channels.map((channel) => (
             <div key={channel.id} className="flex items-center justify-between gap-3 py-2">
               <div className="min-w-0">
-                <p className="text-sm font-medium">{channel.name}</p>
+                <div className="flex items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="h-3 w-3 rounded-full border border-border"
+                    style={{ backgroundColor: channel.badgeColor ?? "#4f46e5" }}
+                  />
+                  <p className="text-sm font-medium">{channel.name}</p>
+                </div>
                 <p className="text-xs text-muted-foreground">{channel.lineChannelId}</p>
                 <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
                   {getWebhookUrl(channel.lineChannelId)}
@@ -205,6 +216,28 @@ export function LineChannelForm() {
             placeholder={nextLineChannelName(channels)}
             autoComplete="off"
           />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="badgeColor">Badge color</Label>
+          <div className="flex items-center gap-3">
+            <Input
+              id="badgeColor"
+              name="badgeColor"
+              value={form.badgeColor}
+              onChange={updateField("badgeColor")}
+              type="color"
+              className="h-10 w-16 p-1"
+            />
+            <span
+              className="inline-flex min-w-24 items-center justify-center rounded-md border px-3 py-2 text-xs font-medium text-white"
+              style={{
+                backgroundColor: form.badgeColor,
+                borderColor: form.badgeColor
+              }}
+            >
+              {form.name || nextLineChannelName(channels)}
+            </span>
+          </div>
         </div>
         <div className="grid gap-2">
           <Label htmlFor="lineChannelId">LINE channel ID</Label>

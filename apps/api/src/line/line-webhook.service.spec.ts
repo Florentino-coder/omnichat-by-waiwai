@@ -70,9 +70,10 @@ describe("LineWebhookService", () => {
 
     expect(prisma.conversation.upsert).toHaveBeenCalledWith({
       where: {
-        tenantId_source_externalThreadId: {
+        tenantId_source_lineChannelId_externalThreadId: {
           tenantId: "tenant-1",
           source: MessageSource.LINE,
+          lineChannelId: "line-channel-1",
           externalThreadId: "U123"
         }
       },
@@ -185,6 +186,77 @@ describe("LineWebhookService", () => {
             lineProfile: expect.objectContaining({
               displayName: "Somchai LINE",
               language: "th"
+            })
+          })
+        })
+      })
+    );
+  });
+
+  it("stores inbound LINE sticker messages so non-text chats still appear", async () => {
+    const prisma = createPrisma();
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-2",
+      tenantId: "tenant-1",
+      workspaceId: "workspace-1",
+      encryptedChannelSecret: "encrypted-secret",
+      encryptedChannelAccessToken: "encrypted-token"
+    });
+    prisma.conversation.upsert.mockResolvedValue({ id: "conversation-2" });
+    prisma.message.upsert.mockResolvedValue({ id: "message-2" });
+    prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-2" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-2" });
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-token"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    const payload = {
+        events: [
+          {
+            type: "message",
+            source: { type: "user", userId: "U123" },
+            message: {
+              id: "sticker-msg-1",
+              type: "sticker",
+              packageId: "11538",
+              stickerId: "51626494",
+              stickerResourceType: "STATIC"
+            },
+            timestamp: 1700000000000
+          }
+        ]
+      };
+
+    await new LineWebhookService(prisma as unknown as PrismaService, crypto).process(
+      "1656471223",
+      payload as Parameters<LineWebhookService["process"]>[1]
+    );
+
+    expect(prisma.conversation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tenantId_source_lineChannelId_externalThreadId: {
+            tenantId: "tenant-1",
+            source: MessageSource.LINE,
+            lineChannelId: "line-channel-2",
+            externalThreadId: "U123"
+          }
+        }
+      })
+    );
+    expect(prisma.message.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          lineChannelId: "line-channel-2",
+          type: MessageType.STICKER,
+          externalMessageId: "sticker-msg-1",
+          text: null,
+          rawPayload: expect.objectContaining({
+            message: expect.objectContaining({
+              type: "sticker",
+              packageId: "11538",
+              stickerId: "51626494"
             })
           })
         })

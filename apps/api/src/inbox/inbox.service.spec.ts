@@ -1,5 +1,5 @@
 import { NotFoundException } from "@nestjs/common";
-import { MessageDirection, MessageSource, MessageType } from "@prisma/client";
+import { AuditAction, MessageDirection, MessageSource, MessageType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { InboxService } from "./inbox.service";
 
@@ -7,19 +7,27 @@ type MockPrisma = {
   conversation: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
   };
   message: {
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  auditLog: {
+    create: jest.Mock<Promise<unknown>, [unknown]>;
   };
 };
 
 const createPrisma = (): MockPrisma => ({
   conversation: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>(),
-    findMany: jest.fn<Promise<unknown>, [unknown]>()
+    findMany: jest.fn<Promise<unknown>, [unknown]>(),
+    update: jest.fn<Promise<unknown>, [unknown]>()
   },
   message: {
     findMany: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  auditLog: {
+    create: jest.fn<Promise<unknown>, [unknown]>()
   }
 });
 
@@ -49,7 +57,8 @@ describe("InboxService", () => {
           select: {
             id: true,
             name: true,
-            lineChannelId: true
+            lineChannelId: true,
+            badgeColor: true
           }
         },
         messages: {
@@ -60,6 +69,7 @@ describe("InboxService", () => {
             direction: true,
             type: true,
             text: true,
+            rawPayload: true,
             createdAt: true,
             sentAt: true
           }
@@ -116,5 +126,44 @@ describe("InboxService", () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.message.findMany).not.toHaveBeenCalled();
   });
-});
 
+  it("renames a customer conversation inside tenant scope and writes an audit log", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      nickname: null
+    });
+    prisma.conversation.update.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      nickname: "คุณเอฟ"
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createService(prisma).renameCustomer(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      "คุณเอฟ"
+    );
+
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conversation-1" },
+      data: { nickname: "คุณเอฟ" }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: "user-1",
+        action: AuditAction.CONVERSATION_CUSTOMER_RENAMED,
+        targetType: "Conversation",
+        targetId: "conversation-1",
+        metadata: {
+          previousNickname: null,
+          nickname: "คุณเอฟ"
+        }
+      })
+    });
+  });
+});

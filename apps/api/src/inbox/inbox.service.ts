@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { Conversation, Message } from "@prisma/client";
+import { AuditAction, Conversation, Message } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
 export type InboxConversation = Conversation & {
@@ -7,12 +7,14 @@ export type InboxConversation = Conversation & {
     id: string;
     name: string;
     lineChannelId: string;
+    badgeColor: string;
   };
   messages: {
     id: string;
     direction: Message["direction"];
     type: Message["type"];
     text: string | null;
+    rawPayload: Message["rawPayload"];
     createdAt: Date;
     sentAt: Date | null;
   }[];
@@ -33,7 +35,8 @@ export class InboxService {
           select: {
             id: true,
             name: true,
-            lineChannelId: true
+            lineChannelId: true,
+            badgeColor: true
           }
         },
         messages: {
@@ -44,6 +47,7 @@ export class InboxService {
             direction: true,
             type: true,
             text: true,
+            rawPayload: true,
             createdAt: true,
             sentAt: true
           }
@@ -80,5 +84,45 @@ export class InboxService {
       take: 200
     });
   }
-}
 
+  async renameCustomer(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    nickname: string
+  ): Promise<Conversation> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+
+    if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
+    const cleanNickname = nickname.trim();
+    const updatedConversation = await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { nickname: cleanNickname }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.CONVERSATION_CUSTOMER_RENAMED,
+        targetType: "Conversation",
+        targetId: conversation.id,
+        metadata: {
+          previousNickname: conversation.nickname,
+          nickname: cleanNickname
+        }
+      }
+    });
+
+    return updatedConversation;
+  }
+}

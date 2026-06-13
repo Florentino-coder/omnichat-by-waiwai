@@ -34,6 +34,7 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - [x] Checkpoint F: App rail opens live Settings route and LINE settings shows full webhook URL for production testing.
 - [x] Checkpoint G: Inbox maps production LINE `externalThreadId` and refreshes conversations every 5 seconds.
 - [x] Checkpoint H: Inbox shows LINE customer profile/channel detail, selected thread refreshes every 2 seconds, and Settings is ready for multiple LINE OA channels.
+- [x] Checkpoint I: Inbox supports per-channel conversation identity, customer nicknames, LINE OA badge colors, and sticker message display.
 
 ## Verification - 2026-06-13
 
@@ -68,3 +69,12 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run api:build`
 - Passed: `NEXT_PUBLIC_API_BASE_URL=https://omnichat-by-waiwai.onrender.com npm run web:build`
 - Not run to completion: `npm run api:test -- --runInBand` because integration tests require `DATABASE_URL`; unit suites passed before the DB-backed RBAC integration suite failed at Prisma initialization.
+
+## Verification - 2026-06-14 Checkpoint I
+
+- Passed: `npm run api:test -- apps/api/src/line/line-webhook.service.spec.ts apps/api/src/inbox/inbox.service.spec.ts apps/api/src/line/line-channels.service.spec.ts --runInBand`
+- Passed: `npm run web:test -- apps/web/__tests__/inbox-page.test.tsx apps/web/__tests__/app-shell.test.tsx --runInBand`
+- Passed: `npm run lint`
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run api:build`
+- Passed: `NEXT_PUBLIC_API_BASE_URL=https://omnichat-by-waiwai.onrender.com npm run web:build`

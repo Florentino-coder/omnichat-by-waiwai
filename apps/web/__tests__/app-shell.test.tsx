@@ -83,6 +83,7 @@ describe("App shell", () => {
             {
               id: "line-channel-1",
               name: "Main LINE OA",
+              badgeColor: "#0ea5e9",
               lineChannelId: "1234567890",
               workspaceId: "workspace-1",
               createdAt: "2026-06-14T01:02:00.000Z"
@@ -110,6 +111,9 @@ describe("App shell", () => {
     fireEvent.change(screen.getByLabelText("Channel access token"), {
       target: { value: "line-access-token-value" }
     });
+    fireEvent.change(screen.getByLabelText("Badge color"), {
+      target: { value: "#0ea5e9" }
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Add LINE OA channel" }));
 
@@ -118,6 +122,7 @@ describe("App shell", () => {
         body: JSON.stringify({
           channelAccessToken: "line-access-token-value",
           channelSecret: "line-secret-value",
+          badgeColor: "#0ea5e9",
           lineChannelId: "1234567890",
           name: "Main LINE OA",
           workspaceId: "workspace-1"
@@ -162,6 +167,7 @@ describe("App shell", () => {
             {
               id: "line-channel-1",
               name: "Line OA 1",
+              badgeColor: "#4f46e5",
               lineChannelId: "1111111111",
               workspaceId: "workspace-1",
               createdAt: "2026-06-14T01:02:00.000Z"
@@ -181,6 +187,7 @@ describe("App shell", () => {
             {
               id: "line-channel-1",
               name: "Line OA 1",
+              badgeColor: "#4f46e5",
               lineChannelId: "1111111111",
               workspaceId: "workspace-1",
               createdAt: "2026-06-14T01:02:00.000Z"
@@ -188,6 +195,7 @@ describe("App shell", () => {
             {
               id: "line-channel-2",
               name: "Line OA 2",
+              badgeColor: "#16a34a",
               lineChannelId: "2222222222",
               workspaceId: "workspace-1",
               createdAt: "2026-06-14T01:03:00.000Z"
@@ -220,6 +228,7 @@ describe("App shell", () => {
         body: JSON.stringify({
           channelAccessToken: "line-access-token-two",
           channelSecret: "line-secret-two",
+          badgeColor: "#4f46e5",
           lineChannelId: "2222222222",
           name: "Line OA 2",
           workspaceId: "workspace-1"

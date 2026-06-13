@@ -1,7 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Badge, Card } from "@omnichat/ui";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties
+} from "react";
+import { Check, Pencil, X } from "lucide-react";
+import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { ReplyComposer } from "./reply-composer";
 
@@ -10,7 +18,9 @@ type MessageDirection = "INBOUND" | "OUTBOUND";
 type ConversationPreviewMessage = {
   id: string;
   direction: MessageDirection;
+  type?: string | null;
   text: string | null;
+  rawPayload?: LineMessagePayload | null;
   createdAt: string;
 };
 
@@ -18,11 +28,13 @@ type InboxConversation = {
   id: string;
   externalThreadId: string;
   displayName?: string | null;
+  nickname?: string | null;
   status?: string | null;
   lastMessageAt?: string | null;
   lineChannel: {
     id: string;
     name: string;
+    badgeColor?: string | null;
     lineChannelId: string;
   };
   messages: ConversationPreviewMessage[];
@@ -31,6 +43,7 @@ type InboxConversation = {
 type InboxMessage = {
   id: string;
   direction: MessageDirection;
+  type?: string | null;
   text: string | null;
   createdAt: string;
   rawPayload?: LineMessagePayload | null;
@@ -46,6 +59,9 @@ type LineMessagePayload = {
   message?: {
     id?: string;
     type?: string;
+    packageId?: string;
+    stickerId?: string;
+    stickerResourceType?: string;
   };
   timestamp?: number;
   lineProfile?: {
@@ -63,6 +79,9 @@ export default function InboxPage() {
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
   const isMountedRef = useRef(false);
 
   const selectedConversation = useMemo(
@@ -76,6 +95,7 @@ export default function InboxPage() {
   const lineProfile = latestInboundMessage?.rawPayload?.lineProfile ?? null;
   const lineSource = latestInboundMessage?.rawPayload?.source ?? null;
   const lineMessage = latestInboundMessage?.rawPayload?.message ?? null;
+  const selectedCustomerName = selectedConversation ? customerLabel(selectedConversation) : "";
 
   const loadConversations = useCallback(async (options?: { quiet?: boolean }): Promise<void> => {
     if (!options?.quiet) {
@@ -134,6 +154,11 @@ export default function InboxPage() {
     };
   }, [selectedId]);
 
+  useEffect(() => {
+    setIsEditingName(false);
+    setNicknameDraft(selectedCustomerName);
+  }, [selectedCustomerName, selectedId]);
+
   async function loadMessages(
     conversationId: string,
     options?: { quiet?: boolean }
@@ -157,6 +182,38 @@ export default function InboxPage() {
       if (isMountedRef.current && !options?.quiet) {
         setIsLoadingMessages(false);
       }
+    }
+  }
+
+  async function saveCustomerName(): Promise<void> {
+    const cleanName = nicknameDraft.trim();
+    if (!selectedConversation || !cleanName || isSavingName) {
+      return;
+    }
+
+    setIsSavingName(true);
+    setError(null);
+    try {
+      const updated = await apiFetch<{ id: string; nickname?: string | null }>(
+        `/api/v1/inbox/conversations/${selectedConversation.id}/customer-name`,
+        {
+          body: JSON.stringify({ nickname: cleanName }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        }
+      );
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? { ...conversation, nickname: updated.nickname ?? cleanName }
+            : conversation
+        )
+      );
+      setIsEditingName(false);
+    } catch (saveError) {
+      setError(readMessage(saveError, "Could not rename customer."));
+    } finally {
+      setIsSavingName(false);
     }
   }
 
@@ -209,8 +266,8 @@ export default function InboxPage() {
                         {customerLabel(conversation)}
                       </p>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {latestMessage?.text
-                          ? `${latestMessage.direction === "OUTBOUND" ? "You: " : ""}${latestMessage.text}`
+                        {latestMessage
+                          ? `${latestMessage.direction === "OUTBOUND" ? "You: " : ""}${messageSummary(latestMessage)}`
                           : "No messages yet"}
                       </p>
                     </div>
@@ -219,7 +276,9 @@ export default function InboxPage() {
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between">
-                    <Badge variant="muted">{conversation.lineChannel.name}</Badge>
+                    <Badge style={lineChannelBadgeStyle(conversation.lineChannel)}>
+                      {conversation.lineChannel.name}
+                    </Badge>
                     <span className="text-xs text-muted-foreground">
                       {conversationStatus(conversation)}
                     </span>
@@ -262,7 +321,18 @@ export default function InboxPage() {
                     : ""
                 }`}
               >
-                <p className="whitespace-pre-wrap text-sm">{message.text ?? "(Unsupported message)"}</p>
+                {isStickerMessage(message) ? (
+                  <div className="grid gap-2">
+                    <p className="text-sm font-medium">
+                      Sticker {message.rawPayload?.message?.stickerId ?? "received"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Package {message.rawPayload?.message?.packageId ?? "-"}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm">{messageSummary(message)}</p>
+                )}
                 <p
                   className={`mt-2 text-xs ${
                     message.direction === "OUTBOUND" ? "text-white/80" : "text-muted-foreground"
@@ -299,8 +369,61 @@ export default function InboxPage() {
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">Customer name</dt>
-              <dd className="mt-1 break-all font-medium">
-                {selectedConversation ? customerLabel(selectedConversation) : "-"}
+              <dd className="mt-1">
+                {isEditingName && selectedConversation ? (
+                  <div className="grid gap-2">
+                    <Label htmlFor="customer-nickname" className="sr-only">
+                      Customer nickname
+                    </Label>
+                    <Input
+                      id="customer-nickname"
+                      name="customer-nickname"
+                      value={nicknameDraft}
+                      onChange={(event) => setNicknameDraft(event.target.value)}
+                      autoComplete="off"
+                      maxLength={80}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={saveCustomerName}
+                        disabled={isSavingName || nicknameDraft.trim().length === 0}
+                        aria-label="Save customer name"
+                      >
+                        <Check size={14} aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setNicknameDraft(selectedCustomerName);
+                          setIsEditingName(false);
+                        }}
+                        aria-label="Cancel customer name edit"
+                      >
+                        <X size={14} aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="break-all font-medium">
+                      {selectedConversation ? selectedCustomerName : "-"}
+                    </span>
+                    {selectedConversation ? (
+                      <button
+                        type="button"
+                        className="rounded-md border border-border p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        onClick={() => setIsEditingName(true)}
+                        aria-label="Edit customer name"
+                      >
+                        <Pencil size={14} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
+                )}
               </dd>
             </div>
             <div>
@@ -371,7 +494,37 @@ function readMessage(error: unknown, fallback: string): string {
 }
 
 function customerLabel(conversation: InboxConversation): string {
-  return conversation.displayName ?? conversation.externalThreadId;
+  return conversation.nickname ?? conversation.displayName ?? conversation.externalThreadId;
+}
+
+function messageSummary(message: {
+  text: string | null;
+  type?: string | null;
+  rawPayload?: LineMessagePayload | null;
+}): string {
+  if (message.text) {
+    return message.text;
+  }
+  if (isStickerMessage(message)) {
+    return `Sticker ${message.rawPayload?.message?.stickerId ?? "received"}`;
+  }
+  return "(Unsupported message)";
+}
+
+function isStickerMessage(message: {
+  type?: string | null;
+  rawPayload?: LineMessagePayload | null;
+}): boolean {
+  return message.type === "STICKER" || message.rawPayload?.message?.type === "sticker";
+}
+
+function lineChannelBadgeStyle(lineChannel: InboxConversation["lineChannel"]): CSSProperties {
+  const color = lineChannel.badgeColor ?? "#4f46e5";
+  return {
+    backgroundColor: color,
+    borderColor: color,
+    color: "#fff"
+  };
 }
 
 function conversationStatus(conversation: InboxConversation | null): string {

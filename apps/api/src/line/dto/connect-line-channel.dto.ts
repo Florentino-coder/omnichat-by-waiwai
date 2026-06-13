@@ -1,4 +1,11 @@
-import { IsDateString, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import {
+  IsDateString,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength
+} from "class-validator";
 
 export class ConnectLineChannelDto {
   @IsString()
@@ -9,6 +16,10 @@ export class ConnectLineChannelDto {
   @MinLength(2)
   @MaxLength(120)
   name!: string;
+
+  @IsString()
+  @Matches(/^#[0-9a-fA-F]{6}$/)
+  badgeColor!: string;
 
   @IsString()
   @MinLength(4)
@@ -27,4 +38,3 @@ export class ConnectLineChannelDto {
   @IsDateString()
   tokenExpiresAt?: string;
 }
-

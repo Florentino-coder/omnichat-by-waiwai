@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, LineChannel } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -26,11 +26,24 @@ export class LineChannelsService {
     userId: string,
     dto: ConnectLineChannelDto
   ): Promise<LineChannel> {
+    const workspace = await this.prisma.workspace.findFirst({
+      where: {
+        id: dto.workspaceId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+
+    if (!workspace) {
+      throw new BadRequestException("Workspace not found for tenant");
+    }
+
     const channel = await this.prisma.lineChannel.create({
       data: {
         tenantId,
         workspaceId: dto.workspaceId,
         name: dto.name,
+        badgeColor: dto.badgeColor,
         lineChannelId: dto.lineChannelId,
         encryptedChannelSecret: this.cryptoSecret.encrypt(dto.channelSecret),
         encryptedChannelAccessToken: this.cryptoSecret.encrypt(dto.channelAccessToken),
@@ -71,4 +84,3 @@ export class LineChannelsService {
     return channel;
   }
 }
-

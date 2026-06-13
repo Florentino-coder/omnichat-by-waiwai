@@ -29,6 +29,7 @@ describe("InboxPage", () => {
               lineChannel: {
                 id: "line-channel-1",
                 name: "Main LINE",
+                badgeColor: "#0ea5e9",
                 lineChannelId: "1234567890"
               },
               messages: [
@@ -120,6 +121,7 @@ describe("InboxPage", () => {
               lineChannel: {
                 id: "line-channel-1",
                 name: "Main LINE",
+                badgeColor: "#0ea5e9",
                 lineChannelId: "1234567890"
               },
               messages: [
@@ -183,6 +185,7 @@ describe("InboxPage", () => {
               lineChannel: {
                 id: "line-channel-1",
                 name: "Main LINE",
+                badgeColor: "#0ea5e9",
                 lineChannelId: "1234567890"
               },
               messages: []
@@ -240,6 +243,158 @@ describe("InboxPage", () => {
     expect(await screen.findByText("second live message")).toBeInTheDocument();
   });
 
+  it("renders sticker messages and applies the LINE OA badge color", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-2",
+              externalThreadId: "U456",
+              displayName: "Customer Two",
+              status: "OPEN",
+              lastMessageAt: "2026-06-14T02:30:00.000Z",
+              lineChannel: {
+                id: "line-channel-2",
+                name: "Line OA 2",
+                badgeColor: "#16a34a",
+                lineChannelId: "1656471223"
+              },
+              messages: [
+                {
+                  id: "message-preview-sticker",
+                  direction: "INBOUND",
+                  type: "STICKER",
+                  text: null,
+                  rawPayload: {
+                    message: {
+                      id: "sticker-msg-1",
+                      type: "sticker",
+                      packageId: "11538",
+                      stickerId: "51626494"
+                    }
+                  },
+                  createdAt: "2026-06-14T02:30:00.000Z"
+                }
+              ]
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "message-sticker",
+              direction: "INBOUND",
+              type: "STICKER",
+              text: null,
+              createdAt: "2026-06-14T02:30:00.000Z",
+              rawPayload: {
+                source: { type: "user", userId: "U456" },
+                message: {
+                  id: "sticker-msg-1",
+                  type: "sticker",
+                  packageId: "11538",
+                  stickerId: "51626494",
+                  stickerResourceType: "STATIC"
+                }
+              }
+            }
+          ]
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect(await screen.findByText("Sticker 51626494")).toBeInTheDocument();
+    expect(await screen.findByText("Package 11538")).toBeInTheDocument();
+    expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({
+      backgroundColor: "#16a34a"
+    });
+  });
+
+  it("renames the selected customer from the inbox context panel", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              displayName: "F",
+              status: "OPEN",
+              lastMessageAt: "2026-06-14T01:00:00.000Z",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: []
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            id: "conversation-1",
+            nickname: "Customer F"
+          }
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect((await screen.findAllByText("F")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Edit customer name" }));
+    fireEvent.change(screen.getByLabelText("Customer nickname"), {
+      target: { value: "Customer F" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save customer name" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/inbox/conversations/conversation-1/customer-name",
+        {
+          body: JSON.stringify({ nickname: "Customer F" }),
+          headers: {
+            Authorization: "Bearer access-token",
+            "Content-Type": "application/json"
+          },
+          method: "PATCH"
+        }
+      );
+    });
+    expect((await screen.findAllByText("Customer F")).length).toBeGreaterThan(0);
+  });
+
   it("posts reply text through the existing LINE conversation reply route with auth", async () => {
     const fetchMock = jest
       .fn()
@@ -255,6 +410,7 @@ describe("InboxPage", () => {
               lineChannel: {
                 id: "line-channel-1",
                 name: "Main LINE",
+                badgeColor: "#0ea5e9",
                 lineChannelId: "1234567890"
               },
               messages: []

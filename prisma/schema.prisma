@@ -57,6 +57,7 @@ enum AuditAction {
   LINE_CHANNEL_CONNECTED
   LINE_CHANNEL_UPDATED
   LINE_CHANNEL_DISCONNECTED
+  CONVERSATION_CUSTOMER_RENAMED
   LINE_MESSAGE_RECEIVED
   LINE_REPLY_SENT
   LINE_WEBHOOK_FAILED
@@ -73,6 +74,7 @@ enum MessageDirection {
 
 enum MessageType {
   TEXT
+  STICKER
   UNKNOWN
 }
 
@@ -316,6 +318,7 @@ model LineChannel {
   workspaceId                 String
   workspace                   Workspace @relation(fields: [workspaceId], references: [id])
   name                        String
+  badgeColor                  String    @default("#4f46e5")
   lineChannelId               String
   encryptedChannelSecret      String
   encryptedChannelAccessToken String
@@ -347,6 +350,7 @@ model Conversation {
   source           MessageSource @default(LINE)
   externalThreadId String
   displayName      String?
+  nickname         String?
   lastMessageAt    DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -354,7 +358,7 @@ model Conversation {
 
   messages Message[]
 
-  @@unique([tenantId, source, externalThreadId])
+  @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
   @@index([workspaceId])
   @@index([lineChannelId])
