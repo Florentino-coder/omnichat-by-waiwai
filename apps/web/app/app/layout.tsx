@@ -1,6 +1,5 @@
 import { BookOpen, ChartNoAxesColumn, Inbox, Settings, Users } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@omnichat/ui";
 import { UserMenu } from "./user-menu";
 
 const navItems = [
