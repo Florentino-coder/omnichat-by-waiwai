@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Card } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { ReplyComposer } from "./reply-composer";
@@ -16,7 +16,8 @@ type ConversationPreviewMessage = {
 
 type InboxConversation = {
   id: string;
-  customerExternalId: string;
+  externalThreadId: string;
+  displayName?: string | null;
   status: string;
   lastMessageAt?: string | null;
   lineChannel: {
@@ -41,42 +42,53 @@ export default function InboxPage() {
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isMountedRef = useRef(false);
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId]
   );
 
-  useEffect(() => {
-    let isCurrent = true;
-
-    async function loadConversations(): Promise<void> {
+  const loadConversations = useCallback(async (options?: { quiet?: boolean }): Promise<void> => {
+    if (!options?.quiet) {
       setIsLoadingConversations(true);
-      setError(null);
-      try {
-        const data = await apiFetch<InboxConversation[]>("/api/v1/inbox/conversations");
-        if (!isCurrent) {
-          return;
+    }
+    setError(null);
+    try {
+      const data = await apiFetch<InboxConversation[]>("/api/v1/inbox/conversations");
+      if (!isMountedRef.current) {
+        return;
+      }
+      setConversations(data);
+      setSelectedId((current) => {
+        if (current && data.some((conversation) => conversation.id === current)) {
+          return current;
         }
-        setConversations(data);
-        setSelectedId((current) => current ?? data[0]?.id ?? null);
-      } catch (loadError) {
-        if (isCurrent) {
-          setError(readMessage(loadError, "Could not load conversations."));
-        }
-      } finally {
-        if (isCurrent) {
-          setIsLoadingConversations(false);
-        }
+        return data[0]?.id ?? null;
+      });
+    } catch (loadError) {
+      if (isMountedRef.current) {
+        setError(readMessage(loadError, "Could not load conversations."));
+      }
+    } finally {
+      if (isMountedRef.current && !options?.quiet) {
+        setIsLoadingConversations(false);
       }
     }
+  }, []);
 
+  useEffect(() => {
+    isMountedRef.current = true;
     void loadConversations();
+    const refreshTimer = window.setInterval(() => {
+      void loadConversations({ quiet: true });
+    }, 5000);
 
     return () => {
-      isCurrent = false;
+      isMountedRef.current = false;
+      window.clearInterval(refreshTimer);
     };
-  }, []);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -148,7 +160,7 @@ export default function InboxPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-foreground">
-                        {conversation.customerExternalId}
+                        {customerLabel(conversation)}
                       </p>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
                         {latestMessage?.text
@@ -240,7 +252,7 @@ export default function InboxPage() {
             <div>
               <dt className="text-xs text-muted-foreground">Customer ID</dt>
               <dd className="mt-1 break-all font-medium">
-                {selectedConversation?.customerExternalId ?? "-"}
+                {selectedConversation ? customerLabel(selectedConversation) : "-"}
               </dd>
             </div>
             <div>
@@ -256,6 +268,10 @@ export default function InboxPage() {
 
 function readMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function customerLabel(conversation: InboxConversation): string {
+  return conversation.displayName ?? conversation.externalThreadId;
 }
 
 function formatRelativeTime(value?: string | null): string {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import InboxPage from "../app/app/inbox/page";
 
 describe("InboxPage", () => {
@@ -9,6 +9,7 @@ describe("InboxPage", () => {
 
   afterEach(() => {
     delete (globalThis as { fetch?: typeof fetch }).fetch;
+    jest.useRealTimers();
   });
 
   it("loads tenant conversations and messages from the inbox API", async () => {
@@ -21,7 +22,7 @@ describe("InboxPage", () => {
           data: [
             {
               id: "conversation-1",
-              customerExternalId: "U123",
+              externalThreadId: "U123",
               status: "OPEN",
               lastMessageAt: "2026-06-14T01:00:00.000Z",
               lineChannel: {
@@ -77,6 +78,75 @@ describe("InboxPage", () => {
     expect(screen.getByRole("button", { name: "Send reply" })).toBeDisabled();
   });
 
+  it("refreshes the inbox so newly received LINE conversations appear", async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: []
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-2",
+              externalThreadId: "U456",
+              status: "OPEN",
+              lastMessageAt: "2026-06-14T01:05:00.000Z",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                lineChannelId: "1234567890"
+              },
+              messages: [
+                {
+                  id: "message-preview-2",
+                  direction: "INBOUND",
+                  text: "new LINE message",
+                  createdAt: "2026-06-14T01:05:00.000Z"
+                }
+              ]
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "message-2",
+              direction: "INBOUND",
+              text: "new LINE message",
+              createdAt: "2026-06-14T01:05:00.000Z"
+            }
+          ]
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect(await screen.findByText("No LINE conversations yet.")).toBeInTheDocument();
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    expect(await screen.findAllByText("U456")).toHaveLength(2);
+    expect(screen.getAllByText("new LINE message")).toHaveLength(2);
+  });
+
   it("posts reply text through the existing LINE conversation reply route with auth", async () => {
     const fetchMock = jest
       .fn()
@@ -87,7 +157,7 @@ describe("InboxPage", () => {
           data: [
             {
               id: "conversation-1",
-              customerExternalId: "U123",
+              externalThreadId: "U123",
               status: "OPEN",
               lineChannel: {
                 id: "line-channel-1",
