@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { LineChannel, Role } from "@prisma/client";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { TenantCtx } from "../auth/decorators/tenant-context.decorator";
@@ -8,6 +8,7 @@ import { TenantGuard } from "../auth/guards/tenant.guard";
 import { JwtTenantPayload } from "../auth/types/auth.types";
 import { ConnectLineChannelDto } from "./dto/connect-line-channel.dto";
 import { ReplyLineMessageDto } from "./dto/reply-line-message.dto";
+import { UpdateLineChannelDto } from "./dto/update-line-channel.dto";
 import { LineChannelsService } from "./line-channels.service";
 import { LineReplyService } from "./line-reply.service";
 
@@ -34,6 +35,26 @@ export class LineChannelsController {
     return this.lineChannelsService.connect(ctx.tenantId, ctx.sub, dto);
   }
 
+  @Patch("channels/:id")
+  @Roles(Role.ADMIN)
+  update(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string,
+    @Body() dto: UpdateLineChannelDto
+  ): Promise<LineChannel> {
+    return this.lineChannelsService.update(ctx.tenantId, ctx.sub, id, dto);
+  }
+
+  @Delete("channels/:id")
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string
+  ): Promise<void> {
+    return this.lineChannelsService.softDelete(ctx.tenantId, ctx.sub, id);
+  }
+
   @Post("conversations/:id/reply")
   @Roles(Role.AGENT)
   reply(
@@ -44,4 +65,3 @@ export class LineChannelsController {
     return this.lineReplyService.replyText(ctx.tenantId, ctx.sub, id, dto);
   }
 }
-

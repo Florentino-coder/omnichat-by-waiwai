@@ -68,6 +68,56 @@ export class LineChannelsService {
     return channel;
   }
 
+  async update(
+    tenantId: string,
+    userId: string,
+    id: string,
+    dto: { name?: string; badgeColor?: string }
+  ): Promise<LineChannel> {
+    const channel = await this.getTenantChannel(tenantId, id);
+
+    const updated = await this.prisma.lineChannel.update({
+      where: { id: channel.id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name }),
+        ...(dto.badgeColor !== undefined && { badgeColor: dto.badgeColor })
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.LINE_CHANNEL_UPDATED,
+        targetType: "LineChannel",
+        targetId: channel.id,
+        metadata: { changes: dto }
+      }
+    });
+
+    return updated;
+  }
+
+  async softDelete(tenantId: string, userId: string, id: string): Promise<void> {
+    const channel = await this.getTenantChannel(tenantId, id);
+
+    await this.prisma.lineChannel.update({
+      where: { id: channel.id },
+      data: { deletedAt: new Date() }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.LINE_CHANNEL_DISCONNECTED,
+        targetType: "LineChannel",
+        targetId: channel.id,
+        metadata: { lineChannelId: channel.lineChannelId }
+      }
+    });
+  }
+
   async getTenantChannel(tenantId: string, id: string): Promise<LineChannel> {
     const channel = await this.prisma.lineChannel.findFirst({
       where: {
