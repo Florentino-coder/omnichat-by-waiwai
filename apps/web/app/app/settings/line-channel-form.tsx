@@ -69,6 +69,7 @@ export function LineChannelForm() {
         setChannels(channelData);
         setForm((current) => ({
           ...current,
+          name: current.name || nextLineChannelName(channelData),
           workspaceId: current.workspaceId || defaultWorkspace?.id || ""
         }));
       } catch (loadError) {
@@ -125,6 +126,7 @@ export function LineChannelForm() {
       setMessage("LINE channel saved. Webhook ready for production test.");
       setForm((current) => ({
         ...initialForm,
+        name: nextLineChannelName(channelData),
         workspaceId: current.workspaceId
       }));
     } catch {
@@ -200,7 +202,7 @@ export function LineChannelForm() {
             name="name"
             value={form.name}
             onChange={updateField("name")}
-            placeholder="Main LINE OA"
+            placeholder={nextLineChannelName(channels)}
             autoComplete="off"
           />
         </div>
@@ -242,7 +244,7 @@ export function LineChannelForm() {
         {message ? <p className="text-sm text-success">{message}</p> : null}
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         <Button type="submit" disabled={!isComplete || isSaving} className="w-fit">
-          {isSaving ? "Saving..." : "Save LINE channel"}
+          {isSaving ? "Saving..." : "Add LINE OA channel"}
         </Button>
       </form>
     </div>
@@ -257,4 +259,8 @@ function getWebhookUrl(lineChannelId: string): string {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
   const baseUrl = apiBaseUrl || window.location.origin;
   return `${baseUrl}/api/v1/line/webhook/${lineChannelId}`;
+}
+
+function nextLineChannelName(channels: LineChannel[]): string {
+  return `Line OA ${channels.length + 1}`;
 }

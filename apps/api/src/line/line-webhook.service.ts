@@ -28,6 +28,13 @@ type LineWebhookEvent = {
   timestamp?: number;
 };
 
+type LineProfile = {
+  displayName?: string;
+  pictureUrl?: string;
+  statusMessage?: string;
+  language?: string;
+};
+
 @Injectable()
 export class LineWebhookService {
   constructor(
@@ -75,6 +82,7 @@ export class LineWebhookService {
         continue;
       }
 
+      const lineProfile = await this.loadLineProfile(channel.encryptedChannelAccessToken, event);
       const eventTime = event.timestamp ? new Date(event.timestamp) : new Date();
       const conversation = await this.prisma.conversation.upsert({
         where: {
@@ -90,9 +98,11 @@ export class LineWebhookService {
           lineChannelId: channel.id,
           source: MessageSource.LINE,
           externalThreadId,
+          displayName: lineProfile?.displayName,
           lastMessageAt: eventTime
         },
         update: {
+          displayName: lineProfile?.displayName,
           lastMessageAt: eventTime
         }
       });
@@ -113,11 +123,11 @@ export class LineWebhookService {
           type: MessageType.TEXT,
           externalMessageId: event.message.id,
           text: event.message.text,
-          rawPayload: event,
+          rawPayload: lineProfile ? { ...event, lineProfile } : event,
           sentAt: eventTime
         },
         update: {
-          rawPayload: event
+          rawPayload: lineProfile ? { ...event, lineProfile } : event
         }
       });
 
@@ -144,4 +154,51 @@ export class LineWebhookService {
   private externalThreadId(event: LineWebhookEvent): string | undefined {
     return event.source?.userId ?? event.source?.groupId ?? event.source?.roomId;
   }
+
+  private async loadLineProfile(
+    encryptedChannelAccessToken: string,
+    event: LineWebhookEvent
+  ): Promise<LineProfile | undefined> {
+    if (event.source?.type !== "user" || !event.source.userId) {
+      return undefined;
+    }
+
+    try {
+      const token = this.cryptoSecret.decrypt(encryptedChannelAccessToken);
+      const response = await fetch(
+        `https://api.line.me/v2/bot/profile/${event.source.userId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      if (!response.ok) {
+        return undefined;
+      }
+      return this.toLineProfile(await response.json());
+    } catch {
+      return undefined;
+    }
+  }
+
+  private toLineProfile(value: unknown): LineProfile | undefined {
+    if (!value || typeof value !== "object") {
+      return undefined;
+    }
+    const profile = value as Record<string, unknown>;
+    const displayName = readString(profile.displayName);
+    if (!displayName) {
+      return undefined;
+    }
+
+    return {
+      displayName,
+      pictureUrl: readString(profile.pictureUrl),
+      statusMessage: readString(profile.statusMessage),
+      language: readString(profile.language)
+    };
+  }
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }

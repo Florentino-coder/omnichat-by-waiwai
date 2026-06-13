@@ -111,7 +111,7 @@ describe("App shell", () => {
       target: { value: "line-access-token-value" }
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Save LINE channel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add LINE OA channel" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/channels", {
@@ -136,5 +136,102 @@ describe("App shell", () => {
     expect(
       await screen.findByText(`${window.location.origin}/api/v1/line/webhook/1234567890`)
     ).toBeInTheDocument();
+  });
+
+  it("keeps the LINE settings form ready for adding multiple OA channels", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "workspace-1",
+              name: "Default Workspace",
+              isDefault: true
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "line-channel-1",
+              name: "Line OA 1",
+              lineChannelId: "1111111111",
+              workspaceId: "workspace-1",
+              createdAt: "2026-06-14T01:02:00.000Z"
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { id: "line-channel-2" } })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "line-channel-1",
+              name: "Line OA 1",
+              lineChannelId: "1111111111",
+              workspaceId: "workspace-1",
+              createdAt: "2026-06-14T01:02:00.000Z"
+            },
+            {
+              id: "line-channel-2",
+              name: "Line OA 2",
+              lineChannelId: "2222222222",
+              workspaceId: "workspace-1",
+              createdAt: "2026-06-14T01:03:00.000Z"
+            }
+          ]
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<SettingsPage />);
+
+    expect(await screen.findByDisplayValue("Line OA 2")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("LINE channel ID"), {
+      target: { value: "2222222222" }
+    });
+    fireEvent.change(screen.getByLabelText("Channel secret"), {
+      target: { value: "line-secret-two" }
+    });
+    fireEvent.change(screen.getByLabelText("Channel access token"), {
+      target: { value: "line-access-token-two" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add LINE OA channel" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/channels", {
+        body: JSON.stringify({
+          channelAccessToken: "line-access-token-two",
+          channelSecret: "line-secret-two",
+          lineChannelId: "2222222222",
+          name: "Line OA 2",
+          workspaceId: "workspace-1"
+        }),
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+    });
+    expect(await screen.findByText("2 connected")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Line OA 3")).toBeInTheDocument();
   });
 });

@@ -42,7 +42,8 @@ describe("LineWebhookService", () => {
       id: "line-channel-1",
       tenantId: "tenant-1",
       workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret"
+      encryptedChannelSecret: "encrypted-secret",
+      encryptedChannelAccessToken: "encrypted-token"
     });
     prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
     prisma.message.upsert.mockResolvedValue({ id: "message-1" });
@@ -115,5 +116,79 @@ describe("LineWebhookService", () => {
         targetId: "message-1"
       })
     });
+  });
+
+  it("uses the LINE profile API to name customer conversations", async () => {
+    const fetchMock = jest.fn<Promise<unknown>, [string, unknown]>().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        displayName: "Somchai LINE",
+        pictureUrl: "https://profile.line-scdn.net/customer.png",
+        statusMessage: "Ready",
+        language: "th"
+      })
+    });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+    const prisma = createPrisma();
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-1",
+      tenantId: "tenant-1",
+      workspaceId: "workspace-1",
+      encryptedChannelSecret: "encrypted-secret",
+      encryptedChannelAccessToken: "encrypted-token"
+    });
+    prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
+    prisma.message.upsert.mockResolvedValue({ id: "message-1" });
+    prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    const crypto = {
+      decrypt: jest.fn((value: string) =>
+        value === "encrypted-token" ? "channel-token" : "channel-secret"
+      ),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    await new LineWebhookService(prisma as unknown as PrismaService, crypto).process(
+      "line-channel-1",
+      {
+        events: [
+          {
+            type: "message",
+            source: { type: "user", userId: "U123" },
+            message: { id: "msg-1", type: "text", text: "hello" },
+            timestamp: 1700000000000
+          }
+        ]
+      }
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.line.me/v2/bot/profile/U123", {
+      headers: { Authorization: "Bearer channel-token" }
+    });
+    expect(prisma.conversation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          displayName: "Somchai LINE"
+        }),
+        update: expect.objectContaining({
+          displayName: "Somchai LINE"
+        })
+      })
+    );
+    expect(prisma.message.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          rawPayload: expect.objectContaining({
+            lineProfile: expect.objectContaining({
+              displayName: "Somchai LINE",
+              language: "th"
+            })
+          })
+        })
+      })
+    );
   });
 });

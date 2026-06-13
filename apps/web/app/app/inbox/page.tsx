@@ -18,7 +18,7 @@ type InboxConversation = {
   id: string;
   externalThreadId: string;
   displayName?: string | null;
-  status: string;
+  status?: string | null;
   lastMessageAt?: string | null;
   lineChannel: {
     id: string;
@@ -33,6 +33,27 @@ type InboxMessage = {
   direction: MessageDirection;
   text: string | null;
   createdAt: string;
+  rawPayload?: LineMessagePayload | null;
+};
+
+type LineMessagePayload = {
+  source?: {
+    type?: string;
+    userId?: string;
+    groupId?: string;
+    roomId?: string;
+  };
+  message?: {
+    id?: string;
+    type?: string;
+  };
+  timestamp?: number;
+  lineProfile?: {
+    displayName?: string;
+    pictureUrl?: string;
+    statusMessage?: string;
+    language?: string;
+  };
 };
 
 export default function InboxPage() {
@@ -48,6 +69,13 @@ export default function InboxPage() {
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId]
   );
+  const latestInboundMessage = useMemo(
+    () => [...messages].reverse().find((message) => message.direction === "INBOUND") ?? null,
+    [messages]
+  );
+  const lineProfile = latestInboundMessage?.rawPayload?.lineProfile ?? null;
+  const lineSource = latestInboundMessage?.rawPayload?.source ?? null;
+  const lineMessage = latestInboundMessage?.rawPayload?.message ?? null;
 
   const loadConversations = useCallback(async (options?: { quiet?: boolean }): Promise<void> => {
     if (!options?.quiet) {
@@ -82,7 +110,7 @@ export default function InboxPage() {
     void loadConversations();
     const refreshTimer = window.setInterval(() => {
       void loadConversations({ quiet: true });
-    }, 5000);
+    }, 3000);
 
     return () => {
       isMountedRef.current = false;
@@ -97,20 +125,38 @@ export default function InboxPage() {
     }
 
     void loadMessages(selectedId);
+    const refreshTimer = window.setInterval(() => {
+      void loadMessages(selectedId, { quiet: true });
+    }, 2000);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+    };
   }, [selectedId]);
 
-  async function loadMessages(conversationId: string): Promise<void> {
-    setIsLoadingMessages(true);
+  async function loadMessages(
+    conversationId: string,
+    options?: { quiet?: boolean }
+  ): Promise<void> {
+    if (!options?.quiet) {
+      setIsLoadingMessages(true);
+    }
     setError(null);
     try {
       const data = await apiFetch<InboxMessage[]>(
         `/api/v1/inbox/conversations/${conversationId}/messages`
       );
-      setMessages(data);
+      if (isMountedRef.current) {
+        setMessages(data);
+      }
     } catch (loadError) {
-      setError(readMessage(loadError, "Could not load messages."));
+      if (isMountedRef.current && !options?.quiet) {
+        setError(readMessage(loadError, "Could not load messages."));
+      }
     } finally {
-      setIsLoadingMessages(false);
+      if (isMountedRef.current && !options?.quiet) {
+        setIsLoadingMessages(false);
+      }
     }
   }
 
@@ -174,7 +220,9 @@ export default function InboxPage() {
                   </div>
                   <div className="mt-2 flex items-center justify-between">
                     <Badge variant="muted">{conversation.lineChannel.name}</Badge>
-                    <span className="text-xs text-muted-foreground">{conversation.status}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {conversationStatus(conversation)}
+                    </span>
                   </div>
                 </button>
               );
@@ -190,8 +238,8 @@ export default function InboxPage() {
               </h2>
               <p className="text-xs text-muted-foreground">Replies use Stage 2 LINE API.</p>
             </div>
-            <Badge variant={selectedConversation?.status === "OPEN" ? "success" : "muted"}>
-              {selectedConversation?.status ?? "No conversation"}
+            <Badge variant={conversationStatus(selectedConversation) === "OPEN" ? "success" : "muted"}>
+              {conversationStatus(selectedConversation)}
             </Badge>
           </div>
 
@@ -242,7 +290,7 @@ export default function InboxPage() {
             <h2 id="context-heading" className="font-heading text-sm font-medium">
               Customer context
             </h2>
-            <p className="mt-1 text-xs text-muted-foreground">CRM detail starts in Stage 4</p>
+            <p className="mt-1 text-xs text-muted-foreground">LINE profile and channel detail</p>
           </div>
           <dl className="space-y-4 p-4 text-sm">
             <div>
@@ -250,14 +298,66 @@ export default function InboxPage() {
               <dd className="mt-1 font-medium">LINE OA</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Customer ID</dt>
+              <dt className="text-xs text-muted-foreground">Customer name</dt>
               <dd className="mt-1 break-all font-medium">
                 {selectedConversation ? customerLabel(selectedConversation) : "-"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Channel</dt>
+              <dt className="text-xs text-muted-foreground">Customer ID</dt>
+              <dd className="mt-1 break-all font-medium">
+                {lineSource?.userId ??
+                  lineSource?.groupId ??
+                  lineSource?.roomId ??
+                  selectedConversation?.externalThreadId ??
+                  "-"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">LINE profile</dt>
+              <dd className="mt-2 flex items-center gap-3">
+                {lineProfile?.pictureUrl ? (
+                  <img
+                    src={lineProfile.pictureUrl}
+                    alt=""
+                    className="h-10 w-10 rounded-full border border-border object-cover"
+                  />
+                ) : null}
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">
+                    {lineProfile?.displayName ?? "-"}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {lineProfile?.statusMessage ?? "No status message"}
+                  </span>
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">OA channel name</dt>
               <dd className="mt-1 font-medium">{selectedConversation?.lineChannel.name ?? "-"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">OA channel ID</dt>
+              <dd className="mt-1 break-all font-medium">
+                {selectedConversation?.lineChannel.lineChannelId ?? "-"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">LINE source type</dt>
+              <dd className="mt-1 font-medium">{lineSource?.type ?? "-"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Latest LINE message ID</dt>
+              <dd className="mt-1 break-all font-medium">{lineMessage?.id ?? "-"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Message type</dt>
+              <dd className="mt-1 font-medium">{lineMessage?.type ?? "-"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">Language</dt>
+              <dd className="mt-1 font-medium">{lineProfile?.language ?? "-"}</dd>
             </div>
           </dl>
         </aside>
@@ -272,6 +372,10 @@ function readMessage(error: unknown, fallback: string): string {
 
 function customerLabel(conversation: InboxConversation): string {
   return conversation.displayName ?? conversation.externalThreadId;
+}
+
+function conversationStatus(conversation: InboxConversation | null): string {
+  return conversation?.status ?? (conversation ? "OPEN" : "No conversation");
 }
 
 function formatRelativeTime(value?: string | null): string {
