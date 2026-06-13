@@ -1,5 +1,5 @@
-import { Badge, Button, Card } from "@omnichat/ui";
-import { SendHorizontal } from "lucide-react";
+import { Badge, Card } from "@omnichat/ui";
+import { ReplyComposer } from "./reply-composer";
 
 const sampleConversations = [
   {
@@ -86,22 +86,7 @@ export default function InboxPage() {
             </Card>
           </div>
 
-          <form className="flex gap-3 border-t border-border bg-white p-4">
-            <label className="sr-only" htmlFor="reply-text">
-              Reply text
-            </label>
-            <textarea
-              id="reply-text"
-              aria-label="Reply text"
-              className="min-h-20 flex-1 resize-none rounded-md border border-border bg-secondary px-3 py-2 text-sm text-muted-foreground"
-              disabled
-              placeholder="Reply composer connects in Checkpoint C"
-            />
-            <Button className="gap-2 self-end" disabled>
-              <SendHorizontal aria-hidden="true" size={16} />
-              Send reply
-            </Button>
-          </form>
+          <ReplyComposer conversationId={sampleConversations[0].id} />
         </section>
 
         <aside className="border-l border-border bg-white" aria-labelledby="context-heading">
@@ -130,4 +115,3 @@ export default function InboxPage() {
     </section>
   );
 }
-

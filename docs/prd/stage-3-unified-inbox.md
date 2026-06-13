@@ -28,8 +28,8 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 
 - [x] Checkpoint A: Tenant-scoped inbox list and thread API pass tests.
 - [x] Checkpoint B: Inbox web route renders conversation list, thread, and empty states.
-- [ ] Checkpoint C: Reply UI posts through the existing LINE reply route.
-- [ ] Checkpoint D: Docs, verification, and GitHub main checkpoint complete.
+- [x] Checkpoint C: Reply UI posts through the existing LINE reply route.
+- [x] Checkpoint D: Docs, verification, and GitHub main checkpoint complete.
 
 ## Verification - 2026-06-13
 
@@ -39,5 +39,11 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run web:typecheck`
 - Passed: `npm run ui:typecheck`
 - Passed: `npm run web:test -- --runInBand`
+- Passed: `npx jest --config apps/web/jest.config.cjs apps/web/__tests__/inbox-page.test.tsx --runInBand`
+- Passed: `npx jest --config apps/web/jest.config.cjs apps/web/__tests__/app-shell.test.tsx apps/web/__tests__/inbox-page.test.tsx --runInBand`
+- Passed: `npx jest --config apps/api/jest.config.cjs apps/api/src/inbox/inbox.service.spec.ts --runInBand`
+- Passed: `npm run lint`
+- Passed: `npm run web:build`
 - Passed: secret scan for Supabase/Postgres credentials.
-- Blocked locally: API integration/e2e tests require `DATABASE_URL` in the shell. The new inbox tenant-isolation and RBAC cases are written but need a test database URL to execute.
+- Not run: API integration/e2e tests against Supabase.
+- Safety note: Supabase pooler credentials were provided, but current API integration/e2e fixtures reset core tenant, user, workspace, LINE, conversation, message, and audit tables. Do not run those tests against a non-disposable Supabase database.

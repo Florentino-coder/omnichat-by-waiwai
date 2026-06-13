@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the first usable Unified Inbox slice: tenant-scoped conversation list, message thread API, and web inbox shell.
+**Goal:** Build the first usable Unified Inbox slice: tenant-scoped conversation list, message thread API, web inbox shell, and reply composer wired to the existing LINE reply endpoint.
 
 **Architecture:** Reuse Stage 2 `Conversation` and `Message` tables. Add a focused NestJS `inbox` module for read APIs, then connect the existing Next.js app shell to a compact 3-pane inbox route. Keep replies in the existing Stage 2 LINE reply endpoint to avoid duplicate send logic.
 
@@ -50,4 +50,19 @@
 - [x] Run secret scan.
 - [x] Mark completed checkpoint boxes in the Stage 3 PRD only after verification evidence exists.
 
-**Local caveat:** API integration/e2e execution is blocked until `DATABASE_URL` is available in the shell. Test cases are added for inbox tenant isolation and RBAC.
+**Safety caveat:** API integration/e2e tests are written for inbox tenant isolation and RBAC, but they reset core tables through the shared fixtures. Run them only against a disposable database.
+
+### Task 4: Reply Composer Checkpoint
+
+**Files:**
+- Create: `apps/web/app/app/inbox/reply-composer.tsx`
+- Modify: `apps/web/app/app/inbox/page.tsx`
+- Test: `apps/web/__tests__/inbox-page.test.tsx`
+- Modify: `docs/prd/stage-3-unified-inbox.md`
+
+- [x] Write failing web test for posting reply text through `POST /api/v1/line/conversations/:id/reply`.
+- [x] Add a client reply composer that enables the textbox, disables send until text exists, posts trimmed text, and clears on success.
+- [x] Run focused web test and confirm pass.
+- [x] Mark Stage 3 Checkpoint C complete after verification evidence exists.
+
+**Supabase safety caveat:** The supplied pooler URLs are enough for DB-backed tests, but current e2e fixtures reset core tables. Do not run those tests on a non-disposable Supabase database.
