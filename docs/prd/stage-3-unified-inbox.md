@@ -31,6 +31,7 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - [x] Checkpoint C: Reply UI posts through the existing LINE reply route.
 - [x] Checkpoint D: Docs, verification, and GitHub main checkpoint complete.
 - [x] Checkpoint E: Web inbox and LINE settings use live authenticated API calls instead of mock data.
+- [x] Checkpoint F: App rail opens live Settings route and LINE settings shows full webhook URL for production testing.
 
 ## Verification - 2026-06-13
 
@@ -55,3 +56,4 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run web:test -- --runInBand`
 - Passed: `npm run lint`
 - Passed: `NEXT_PUBLIC_API_BASE_URL=https://omnichat-by-waiwai.onrender.com npm run web:build`
+- Passed: `npm run web:test -- apps/web/__tests__/app-shell.test.tsx --runInBand`

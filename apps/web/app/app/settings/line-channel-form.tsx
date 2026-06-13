@@ -155,9 +155,12 @@ export function LineChannelForm() {
           ) : null}
           {channels.map((channel) => (
             <div key={channel.id} className="flex items-center justify-between gap-3 py-2">
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium">{channel.name}</p>
                 <p className="text-xs text-muted-foreground">{channel.lineChannelId}</p>
+                <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+                  {getWebhookUrl(channel.lineChannelId)}
+                </p>
               </div>
               <Badge variant="muted">
                 {workspaces.find((workspace) => workspace.id === channel.workspaceId)?.name ??
@@ -248,4 +251,10 @@ export function LineChannelForm() {
 
 function readMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function getWebhookUrl(lineChannelId: string): string {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
+  const baseUrl = apiBaseUrl || window.location.origin;
+  return `${baseUrl}/api/v1/line/webhook/${lineChannelId}`;
 }

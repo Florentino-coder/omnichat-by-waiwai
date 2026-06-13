@@ -35,13 +35,18 @@ describe("App shell", () => {
       "href",
       "/app/inbox"
     );
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+      "href",
+      "/app/settings"
+    );
 
-    for (const label of ["Customers", "Reports", "Knowledge", "Settings"]) {
+    for (const label of ["Customers", "Reports", "Knowledge"]) {
       expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     }
 
     expect(screen.getByRole("button", { name: "Customers" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Settings" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reports" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Knowledge" })).toBeDisabled();
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(await screen.findByText("No LINE channel connected yet.")).toBeInTheDocument();
   });
@@ -128,5 +133,8 @@ describe("App shell", () => {
       headers: { Authorization: "Bearer access-token" }
     });
     expect(await screen.findByText("LINE channel saved. Webhook ready for production test.")).toBeInTheDocument();
+    expect(
+      await screen.findByText(`${window.location.origin}/api/v1/line/webhook/1234567890`)
+    ).toBeInTheDocument();
   });
 });

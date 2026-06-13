@@ -7,7 +7,7 @@ const navItems = [
   { label: "Customers", icon: Users, disabled: true },
   { label: "Reports", icon: ChartNoAxesColumn, disabled: true },
   { label: "Knowledge", icon: BookOpen, disabled: true },
-  { label: "Settings", icon: Settings, disabled: false }
+  { label: "Settings", icon: Settings, disabled: false, href: "/app/settings" }
 ];
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
