@@ -3,9 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "api:build": "tsc -p apps/api/tsconfig.json",
-    "api:start": "node apps/api/dist/main.js",
+    "api:start": "node apps/api/dist/src/main.js",
     "api:test": "jest --config apps/api/jest.config.cjs",
     "api:test:cov": "jest --config apps/api/jest.config.cjs --coverage",
     "api:test:e2e": "jest --config apps/api/jest-e2e.config.cjs --runInBand",

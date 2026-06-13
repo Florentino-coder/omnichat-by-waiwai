@@ -59,6 +59,7 @@ The web app proxies `/api/v1/*` to `NEXT_PUBLIC_API_BASE_URL` through `apps/web/
 Required API environment variables:
 
 ```bash
+NODE_VERSION="20.14.0"
 DATABASE_URL="<supabase-transaction-pooler-url>"
 DIRECT_URL="<supabase-session-pooler-url>"
 REDIS_URL="<upstash-redis-url>"
