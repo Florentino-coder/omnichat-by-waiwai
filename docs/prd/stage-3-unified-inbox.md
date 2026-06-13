@@ -35,6 +35,7 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - [x] Checkpoint G: Inbox maps production LINE `externalThreadId` and refreshes conversations every 5 seconds.
 - [x] Checkpoint H: Inbox shows LINE customer profile/channel detail, selected thread refreshes every 2 seconds, and Settings is ready for multiple LINE OA channels.
 - [x] Checkpoint I: Inbox supports per-channel conversation identity, customer nicknames, LINE OA badge colors, and sticker message display.
+- [x] Checkpoint J: Inbox viewport fits desktop/tablet/mobile better, same LINE customer can appear separately per OA, and old cross-OA message rows are repaired during migration.
 
 ## Verification - 2026-06-13
 
@@ -78,3 +79,16 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run web:test -- --runInBand`
 - Passed: `npm run api:build`
 - Passed: `NEXT_PUBLIC_API_BASE_URL=https://omnichat-by-waiwai.onrender.com npm run web:build`
+
+## Verification - 2026-06-14 Checkpoint J
+
+- Passed: `npm run web:test -- apps/web/__tests__/inbox-page.test.tsx --runInBand`
+- Passed: `npm run api:test -- apps/api/src/line/line-webhook.service.spec.ts --runInBand`
+- Passed: `npm run lint`
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run api:test -- apps/api/src/line/line-webhook.service.spec.ts apps/api/src/inbox/inbox.service.spec.ts --runInBand`
+- Passed: `DATABASE_URL=postgresql://user:pass@localhost:5432/omnichat DIRECT_URL=postgresql://user:pass@localhost:5432/omnichat npx prisma validate`
+- Passed: `npm run api:build`
+- Passed: `NEXT_PUBLIC_API_BASE_URL=https://omnichat-by-waiwai.onrender.com npm run web:build`
+- Passed with CRLF-only warnings: `git diff --check`
+- Note: LINE Messaging API profile/webhook data does not include the LINE OA Manager customer note field. OmniChat-local notes remain Stage 4 CRM scope.

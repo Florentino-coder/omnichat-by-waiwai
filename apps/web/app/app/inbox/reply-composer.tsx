@@ -42,15 +42,15 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
   }
 
   return (
-    <form className="border-t border-border bg-white p-4" onSubmit={handleSubmit}>
-      <div className="flex gap-3">
+    <form className="shrink-0 border-t border-border bg-white p-3 lg:p-4" onSubmit={handleSubmit}>
+      <div className="flex flex-col gap-3 sm:flex-row">
         <label className="sr-only" htmlFor="reply-text">
           Reply text
         </label>
         <textarea
           id="reply-text"
           aria-label="Reply text"
-          className="min-h-20 flex-1 resize-none rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+          className="min-h-16 flex-1 resize-none rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground sm:min-h-20"
           disabled={!conversationId || isSending}
           maxLength={5000}
           onChange={(event) => setText(event.target.value)}
@@ -58,7 +58,7 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
           value={text}
         />
         <Button
-          className="gap-2 self-end"
+          className="gap-2 self-stretch sm:self-end"
           disabled={!conversationId || !trimmedText || isSending}
           type="submit"
         >

@@ -323,6 +323,120 @@ describe("InboxPage", () => {
     });
   });
 
+  it("keeps the same LINE customer visible as separate rows for each OA channel", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-oa-2",
+              externalThreadId: "U-same",
+              displayName: "F",
+              status: "OPEN",
+              lastMessageAt: "2026-06-14T03:00:00.000Z",
+              lineChannel: {
+                id: "line-channel-2",
+                name: "Line OA 2",
+                badgeColor: "#16a34a",
+                lineChannelId: "1656471223"
+              },
+              messages: [
+                {
+                  id: "message-preview-oa-2",
+                  direction: "INBOUND",
+                  type: "TEXT",
+                  text: "ดีๆ",
+                  createdAt: "2026-06-14T03:00:00.000Z"
+                }
+              ]
+            },
+            {
+              id: "conversation-oa-1",
+              externalThreadId: "U-same",
+              displayName: "F",
+              status: "OPEN",
+              lastMessageAt: "2026-06-14T02:00:00.000Z",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Line OA 1",
+                badgeColor: "#4f46e5",
+                lineChannelId: "2009897327"
+              },
+              messages: [
+                {
+                  id: "message-preview-oa-1",
+                  direction: "INBOUND",
+                  type: "TEXT",
+                  text: "เก่า",
+                  createdAt: "2026-06-14T02:00:00.000Z"
+                }
+              ]
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "message-oa-2",
+              direction: "INBOUND",
+              type: "TEXT",
+              text: "ดีๆ",
+              createdAt: "2026-06-14T03:00:00.000Z",
+              rawPayload: {
+                source: { type: "user", userId: "U-same" },
+                message: { id: "line-message-oa-2", type: "text" },
+                lineProfile: { displayName: "F" }
+              }
+            }
+          ]
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect(await screen.findByText("ดีๆ")).toBeInTheDocument();
+    expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({ backgroundColor: "#16a34a" });
+    expect(screen.getAllByText("Line OA 1")[0]).toHaveStyle({ backgroundColor: "#4f46e5" });
+    expect(screen.getAllByText("F").length).toBeGreaterThanOrEqual(3);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/inbox/conversations/conversation-oa-2/messages",
+      {
+        headers: { Authorization: "Bearer access-token" }
+      }
+    );
+  });
+
+  it("uses a viewport-fit inbox layout instead of a fixed wide board", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    const layout = await screen.findByTestId("inbox-layout");
+    expect(layout).toHaveClass("h-[calc(100vh-12rem)]");
+    expect(layout).toHaveClass("lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,300px)]");
+  });
+
   it("renames the selected customer from the inbox context panel", async () => {
     const fetchMock = jest
       .fn()

@@ -263,4 +263,98 @@ describe("LineWebhookService", () => {
       })
     );
   });
+
+  it("keeps the same LINE user in separate conversations for separate OA channels", async () => {
+    const prisma = createPrisma();
+    prisma.lineChannel.findFirst
+      .mockResolvedValueOnce({
+        id: "line-channel-1",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        encryptedChannelSecret: "encrypted-secret-1",
+        encryptedChannelAccessToken: "encrypted-token-1"
+      })
+      .mockResolvedValueOnce({
+        id: "line-channel-2",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        encryptedChannelSecret: "encrypted-secret-2",
+        encryptedChannelAccessToken: "encrypted-token-2"
+      });
+    prisma.conversation.upsert
+      .mockResolvedValueOnce({ id: "conversation-1" })
+      .mockResolvedValueOnce({ id: "conversation-2" });
+    prisma.message.upsert
+      .mockResolvedValueOnce({ id: "message-1" })
+      .mockResolvedValueOnce({ id: "message-2" });
+    prisma.lineChannel.update
+      .mockResolvedValueOnce({ id: "line-channel-1" })
+      .mockResolvedValueOnce({ id: "line-channel-2" });
+    prisma.auditLog.create
+      .mockResolvedValueOnce({ id: "audit-1" })
+      .mockResolvedValueOnce({ id: "audit-2" });
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-token"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+    const service = new LineWebhookService(prisma as unknown as PrismaService, crypto);
+
+    await service.process("2009897327", {
+      events: [
+        {
+          type: "message",
+          source: { type: "user", userId: "U-same" },
+          message: { id: "msg-oa-1", type: "text", text: "from OA 1" },
+          timestamp: 1700000000000
+        }
+      ]
+    });
+    await service.process("1656471223", {
+      events: [
+        {
+          type: "message",
+          source: { type: "user", userId: "U-same" },
+          message: { id: "msg-oa-2", type: "text", text: "from OA 2" },
+          timestamp: 1700000001000
+        }
+      ]
+    });
+
+    expect(prisma.conversation.upsert).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: {
+          tenantId_source_lineChannelId_externalThreadId: {
+            tenantId: "tenant-1",
+            source: MessageSource.LINE,
+            lineChannelId: "line-channel-1",
+            externalThreadId: "U-same"
+          }
+        }
+      })
+    );
+    expect(prisma.conversation.upsert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          tenantId_source_lineChannelId_externalThreadId: {
+            tenantId: "tenant-1",
+            source: MessageSource.LINE,
+            lineChannelId: "line-channel-2",
+            externalThreadId: "U-same"
+          }
+        }
+      })
+    );
+    expect(prisma.message.upsert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        create: expect.objectContaining({
+          conversationId: "conversation-2",
+          lineChannelId: "line-channel-2",
+          text: "from OA 2"
+        })
+      })
+    );
+  });
 });

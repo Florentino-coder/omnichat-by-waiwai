@@ -218,8 +218,8 @@ export default function InboxPage() {
   }
 
   return (
-    <section aria-labelledby="inbox-heading" className="min-h-[calc(100vh-7rem)]">
-      <div className="mb-5 flex items-center justify-between gap-4">
+    <section aria-labelledby="inbox-heading" className="flex min-h-[calc(100vh-7rem)] flex-col">
+      <div className="mb-4 flex shrink-0 items-center justify-between gap-4">
         <div>
           <h1 id="inbox-heading" className="font-heading text-2xl font-medium">
             Inbox
@@ -233,9 +233,12 @@ export default function InboxPage() {
 
       {error ? <p className="mb-3 text-sm text-danger">{error}</p> : null}
 
-      <div className="grid min-h-[560px] grid-cols-[280px_minmax(0,1fr)_260px] overflow-hidden rounded-lg border border-border bg-card">
-        <aside className="border-r border-border bg-white">
-          <div className="border-b border-border px-4 py-3">
+      <div
+        data-testid="inbox-layout"
+        className="grid h-[calc(100vh-12rem)] min-h-[520px] flex-1 grid-cols-1 overflow-hidden rounded-lg border border-border bg-card lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,300px)]"
+      >
+        <aside className="min-h-0 overflow-y-auto border-b border-border bg-white lg:border-b-0 lg:border-r">
+          <div className="sticky top-0 z-10 border-b border-border bg-white px-4 py-3">
             <h2 className="font-heading text-sm font-medium">Conversations</h2>
             <p className="mt-1 text-xs text-muted-foreground">Newest activity first</p>
           </div>
@@ -289,8 +292,8 @@ export default function InboxPage() {
           </div>
         </aside>
 
-        <section className="flex min-w-0 flex-col bg-secondary/50" aria-labelledby="thread-heading">
-          <div className="flex h-14 items-center justify-between border-b border-border bg-white px-5">
+        <section className="flex min-h-0 min-w-0 flex-col bg-secondary/50" aria-labelledby="thread-heading">
+          <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-border bg-white px-4 py-3 lg:px-5">
             <div>
               <h2 id="thread-heading" className="font-heading text-sm font-medium">
                 Message thread
@@ -302,7 +305,7 @@ export default function InboxPage() {
             </Badge>
           </div>
 
-          <div className="flex-1 space-y-3 overflow-y-auto p-5">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 lg:p-5">
             {isLoadingMessages ? (
               <p className="text-sm text-muted-foreground">Loading messages...</p>
             ) : null}
@@ -315,7 +318,7 @@ export default function InboxPage() {
             {messages.map((message) => (
               <Card
                 key={message.id}
-                className={`max-w-[72%] p-3 ${
+                className={`max-w-[min(34rem,88%)] p-3 ${
                   message.direction === "OUTBOUND"
                     ? "ml-auto border-primary bg-primary text-white"
                     : ""
@@ -355,8 +358,8 @@ export default function InboxPage() {
           />
         </section>
 
-        <aside className="border-l border-border bg-white" aria-labelledby="context-heading">
-          <div className="border-b border-border px-4 py-3">
+        <aside className="min-h-0 overflow-y-auto border-t border-border bg-white lg:border-l lg:border-t-0" aria-labelledby="context-heading">
+          <div className="sticky top-0 z-10 border-b border-border bg-white px-4 py-3">
             <h2 id="context-heading" className="font-heading text-sm font-medium">
               Customer context
             </h2>
