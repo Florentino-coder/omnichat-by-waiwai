@@ -1,8 +1,16 @@
 import { Module } from "@nestjs/common";
-import { RedisService } from "./redis.service";
+import { ConfigModule } from "@nestjs/config";
+import { defaultRedisFactory, REDIS_FACTORY, RedisService } from "./redis.service";
 
 @Module({
-  providers: [RedisService],
+  imports: [ConfigModule],
+  providers: [
+    {
+      provide: REDIS_FACTORY,
+      useValue: defaultRedisFactory
+    },
+    RedisService
+  ],
   exports: [RedisService]
 })
 export class RedisModule {}

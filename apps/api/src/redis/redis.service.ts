@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Redis from "ioredis";
 
@@ -12,7 +12,11 @@ export interface RedisClient {
   quit?(): Promise<unknown>;
 }
 
-type RedisFactory = (url: string) => RedisClient;
+export type RedisFactory = (url: string) => RedisClient;
+
+export const REDIS_FACTORY = "REDIS_FACTORY";
+
+export const defaultRedisFactory: RedisFactory = (url) => new Redis(url) as unknown as RedisClient;
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -20,7 +24,7 @@ export class RedisService implements OnModuleDestroy {
 
   constructor(
     configService: ConfigService,
-    factory: RedisFactory = (url) => new Redis(url) as unknown as RedisClient
+    @Inject(REDIS_FACTORY) factory: RedisFactory = defaultRedisFactory
   ) {
     this.client = factory(configService.get<string>("REDIS_URL") ?? "redis://localhost:6379");
   }
