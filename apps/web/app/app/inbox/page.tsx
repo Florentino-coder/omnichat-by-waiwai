@@ -72,19 +72,19 @@ type LineMessagePayload = {
   };
 };
 
-// Track read state in sessionStorage (per conversationId)
-function markRead(id: string) {
+// Track read state in sessionStorage (per conversationId, storing the latest read message ID)
+function markRead(id: string, messageId: string) {
   try {
     const key = `omni_read_${id}`;
-    sessionStorage.setItem(key, "1");
+    sessionStorage.setItem(key, messageId);
   } catch {
     // ignore
   }
 }
 
-function isRead(id: string): boolean {
+function isRead(id: string, messageId: string): boolean {
   try {
-    return sessionStorage.getItem(`omni_read_${id}`) === "1";
+    return sessionStorage.getItem(`omni_read_${id}`) === messageId;
   } catch {
     return false;
   }
@@ -98,18 +98,25 @@ function getReadState(
   selectedId: string | null
 ): ConvReadState {
   const latestMsg = conversation.messages[0];
-  const read = isRead(conversation.id) || conversation.id === selectedId;
+  if (!latestMsg) {
+    return "normal";
+  }
 
-  if (!read && latestMsg?.direction === "INBOUND") {
+  // If last message is ours (OUTBOUND), it's always read & replied
+  if (latestMsg.direction === "OUTBOUND") {
+    return "normal";
+  }
+
+  // Latest message is INBOUND (customer)
+  const isCurrentlySelected = conversation.id === selectedId;
+  const read = isCurrentlySelected || isRead(conversation.id, latestMsg.id);
+
+  if (!read) {
     return "unread";
   }
 
-  // If last message is INBOUND (customer) and it has been read but no OUTBOUND after
-  if (read && latestMsg?.direction === "INBOUND") {
-    return "read-not-replied";
-  }
-
-  return "normal";
+  // Read but latest message is still INBOUND (not replied yet)
+  return "read-not-replied";
 }
 
 export default function InboxPage() {
@@ -205,14 +212,22 @@ export default function InboxPage() {
     };
   }, [loadConversations]);
 
+  // Automatically mark the selected conversation's latest message as read
+  useEffect(() => {
+    if (selectedId) {
+      const selectedConv = conversations.find((c) => c.id === selectedId);
+      const latestMsg = selectedConv?.messages[0];
+      if (latestMsg) {
+        markRead(selectedId, latestMsg.id);
+      }
+    }
+  }, [selectedId, conversations]);
+
   useEffect(() => {
     if (!selectedId) {
       setMessages([]);
       return;
     }
-
-    // Mark as read when selected
-    markRead(selectedId);
 
     void loadMessages(selectedId);
     const refreshTimer = window.setInterval(() => {
@@ -296,7 +311,11 @@ export default function InboxPage() {
   }
 
   function handleSelectConversation(id: string) {
-    markRead(id);
+    const conv = conversations.find((c) => c.id === id);
+    const latestMsg = conv?.messages[0];
+    if (latestMsg) {
+      markRead(id, latestMsg.id);
+    }
     setSelectedId(id);
   }
 
@@ -340,7 +359,7 @@ export default function InboxPage() {
                   className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700"
                 >
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
-                  {unreadCount} ยังไม่อ่าน
+                  {unreadCount} ยังไม่ได้อ่าน
                 </span>
               )}
               {readNotRepliedCount > 0 && (
@@ -459,7 +478,7 @@ export default function InboxPage() {
                             : "text-muted-foreground"
                       ].join(" ")}
                     >
-                      {isUnread ? "⬤ ใหม่" : isReadNotReplied ? "◎ ยังไม่ตอบ" : conversationStatus(conversation)}
+                      {isUnread ? "⬤ ยังไม่ได้อ่าน" : isReadNotReplied ? "◎ อ่านแล้วไม่ตอบ" : conversationStatus(conversation)}
                     </span>
                   </div>
                 </button>
@@ -531,8 +550,6 @@ export default function InboxPage() {
             onSent={async () => {
               if (selectedConversation) {
                 await loadMessages(selectedConversation.id);
-                // After reply, mark as read+replied (normal state)
-                markRead(selectedConversation.id);
               }
             }}
           />
