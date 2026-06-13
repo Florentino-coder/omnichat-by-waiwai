@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: omnichat-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    autoDeploy: true
+    buildCommand: npm ci && npx prisma generate && npm run api:build
+    startCommand: npm run api:start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MINIO_ENDPOINT
+        sync: false
+      - key: MINIO_ACCESS_KEY
+        sync: false
+      - key: MINIO_SECRET_KEY
+        sync: false
