@@ -3,7 +3,25 @@ import AppLayout from "../app/app/layout";
 import SettingsPage from "../app/app/settings/page";
 
 describe("App shell", () => {
-  it("renders icon rail, enabled inbox nav, disabled future nav, and settings content", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.localStorage.setItem("omnichat.accessToken", "access-token");
+  });
+
+  afterEach(() => {
+    delete (globalThis as { fetch?: typeof fetch }).fetch;
+  });
+
+  it("renders icon rail, enabled inbox nav, disabled future nav, and settings content", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: [] })
+    });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
     render(
       <AppLayout>
         <SettingsPage />
@@ -25,10 +43,48 @@ describe("App shell", () => {
     expect(screen.getByRole("button", { name: "Customers" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Settings" })).not.toBeDisabled();
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
+    expect(await screen.findByText("No LINE channel connected yet.")).toBeInTheDocument();
   });
 
   it("posts LINE channel settings from the settings page", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({ ok: true });
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "workspace-1",
+              name: "Default Workspace",
+              isDefault: true
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { id: "line-channel-1" } })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "line-channel-1",
+              name: "Main LINE OA",
+              lineChannelId: "1234567890",
+              workspaceId: "workspace-1",
+              createdAt: "2026-06-14T01:02:00.000Z"
+            }
+          ]
+        })
+      });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -36,9 +92,7 @@ describe("App shell", () => {
 
     render(<SettingsPage />);
 
-    fireEvent.change(screen.getByLabelText("Workspace ID"), {
-      target: { value: "workspace-1" }
-    });
+    expect(await screen.findByText("Default Workspace")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Channel name"), {
       target: { value: "Main LINE OA" }
     });
@@ -63,11 +117,16 @@ describe("App shell", () => {
           name: "Main LINE OA",
           workspaceId: "workspace-1"
         }),
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json"
+        },
         method: "POST"
       });
     });
-    expect(screen.getByText("LINE channel saved. Webhook ready for production test.")).toBeInTheDocument();
-    delete (globalThis as { fetch?: typeof fetch }).fetch;
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/workspaces", {
+      headers: { Authorization: "Bearer access-token" }
+    });
+    expect(await screen.findByText("LINE channel saved. Webhook ready for production test.")).toBeInTheDocument();
   });
 });

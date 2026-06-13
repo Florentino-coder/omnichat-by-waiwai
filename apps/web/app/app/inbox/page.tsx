@@ -1,18 +1,107 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import { Badge, Card } from "@omnichat/ui";
+import { apiFetch } from "../../lib/api-client";
 import { ReplyComposer } from "./reply-composer";
 
-const sampleConversations = [
-  {
-    id: "1",
-    name: "LINE customer",
-    channel: "Main LINE",
-    preview: "Latest inbound messages will appear here.",
-    time: "Now",
-    unread: 0
-  }
-];
+type MessageDirection = "INBOUND" | "OUTBOUND";
+
+type ConversationPreviewMessage = {
+  id: string;
+  direction: MessageDirection;
+  text: string | null;
+  createdAt: string;
+};
+
+type InboxConversation = {
+  id: string;
+  customerExternalId: string;
+  status: string;
+  lastMessageAt?: string | null;
+  lineChannel: {
+    id: string;
+    name: string;
+    lineChannelId: string;
+  };
+  messages: ConversationPreviewMessage[];
+};
+
+type InboxMessage = {
+  id: string;
+  direction: MessageDirection;
+  text: string | null;
+  createdAt: string;
+};
 
 export default function InboxPage() {
+  const [conversations, setConversations] = useState<InboxConversation[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<InboxMessage[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedConversation = useMemo(
+    () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
+    [conversations, selectedId]
+  );
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadConversations(): Promise<void> {
+      setIsLoadingConversations(true);
+      setError(null);
+      try {
+        const data = await apiFetch<InboxConversation[]>("/api/v1/inbox/conversations");
+        if (!isCurrent) {
+          return;
+        }
+        setConversations(data);
+        setSelectedId((current) => current ?? data[0]?.id ?? null);
+      } catch (loadError) {
+        if (isCurrent) {
+          setError(readMessage(loadError, "Could not load conversations."));
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoadingConversations(false);
+        }
+      }
+    }
+
+    void loadConversations();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setMessages([]);
+      return;
+    }
+
+    void loadMessages(selectedId);
+  }, [selectedId]);
+
+  async function loadMessages(conversationId: string): Promise<void> {
+    setIsLoadingMessages(true);
+    setError(null);
+    try {
+      const data = await apiFetch<InboxMessage[]>(
+        `/api/v1/inbox/conversations/${conversationId}/messages`
+      );
+      setMessages(data);
+    } catch (loadError) {
+      setError(readMessage(loadError, "Could not load messages."));
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }
+
   return (
     <section aria-labelledby="inbox-heading" className="min-h-[calc(100vh-7rem)]">
       <div className="mb-5 flex items-center justify-between gap-4">
@@ -27,6 +116,8 @@ export default function InboxPage() {
         <Badge variant="primary">Stage 3</Badge>
       </div>
 
+      {error ? <p className="mb-3 text-sm text-danger">{error}</p> : null}
+
       <div className="grid min-h-[560px] grid-cols-[280px_minmax(0,1fr)_260px] overflow-hidden rounded-lg border border-border bg-card">
         <aside className="border-r border-border bg-white">
           <div className="border-b border-border px-4 py-3">
@@ -34,33 +125,48 @@ export default function InboxPage() {
             <p className="mt-1 text-xs text-muted-foreground">Newest activity first</p>
           </div>
           <div className="divide-y divide-border">
-            {sampleConversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                className="w-full bg-primary-soft px-4 py-3 text-left"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-foreground">
-                      {conversation.name}
-                    </p>
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
-                      {conversation.preview}
-                    </p>
+            {isLoadingConversations ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">Loading conversations...</p>
+            ) : null}
+            {!isLoadingConversations && conversations.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">
+                No LINE conversations yet.
+              </p>
+            ) : null}
+            {conversations.map((conversation) => {
+              const latestMessage = conversation.messages[0];
+              const isSelected = conversation.id === selectedId;
+              return (
+                <button
+                  key={conversation.id}
+                  type="button"
+                  className={`w-full px-4 py-3 text-left ${
+                    isSelected ? "bg-primary-soft" : "bg-white hover:bg-secondary"
+                  }`}
+                  onClick={() => setSelectedId(conversation.id)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">
+                        {conversation.customerExternalId}
+                      </p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {latestMessage?.text
+                          ? `${latestMessage.direction === "OUTBOUND" ? "You: " : ""}${latestMessage.text}`
+                          : "No messages yet"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatRelativeTime(conversation.lastMessageAt ?? latestMessage?.createdAt)}
+                    </span>
                   </div>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {conversation.time}
-                  </span>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <Badge variant="muted">{conversation.channel}</Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {conversation.unread} unread
-                  </span>
-                </div>
-              </button>
-            ))}
+                  <div className="mt-2 flex items-center justify-between">
+                    <Badge variant="muted">{conversation.lineChannel.name}</Badge>
+                    <span className="text-xs text-muted-foreground">{conversation.status}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </aside>
 
@@ -72,21 +178,51 @@ export default function InboxPage() {
               </h2>
               <p className="text-xs text-muted-foreground">Replies use Stage 2 LINE API.</p>
             </div>
-            <Badge variant="success">Open</Badge>
+            <Badge variant={selectedConversation?.status === "OPEN" ? "success" : "muted"}>
+              {selectedConversation?.status ?? "No conversation"}
+            </Badge>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto p-5">
-            <Card className="max-w-[72%] p-3">
-              <p className="text-sm">Messages from LINE will render here after API binding.</p>
-              <p className="mt-2 text-xs text-muted-foreground">Inbound</p>
-            </Card>
-            <Card className="ml-auto max-w-[72%] border-primary bg-primary text-white p-3">
-              <p className="text-sm">Agent replies are stored as outbound messages.</p>
-              <p className="mt-2 text-xs text-white/80">Outbound</p>
-            </Card>
+            {isLoadingMessages ? (
+              <p className="text-sm text-muted-foreground">Loading messages...</p>
+            ) : null}
+            {!isLoadingMessages && selectedConversation && messages.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No messages in this thread yet.</p>
+            ) : null}
+            {!selectedConversation && !isLoadingConversations ? (
+              <p className="text-sm text-muted-foreground">Connect LINE OA and send a message.</p>
+            ) : null}
+            {messages.map((message) => (
+              <Card
+                key={message.id}
+                className={`max-w-[72%] p-3 ${
+                  message.direction === "OUTBOUND"
+                    ? "ml-auto border-primary bg-primary text-white"
+                    : ""
+                }`}
+              >
+                <p className="whitespace-pre-wrap text-sm">{message.text ?? "(Unsupported message)"}</p>
+                <p
+                  className={`mt-2 text-xs ${
+                    message.direction === "OUTBOUND" ? "text-white/80" : "text-muted-foreground"
+                  }`}
+                >
+                  {message.direction === "OUTBOUND" ? "Outbound" : "Inbound"} ·{" "}
+                  {formatDateTime(message.createdAt)}
+                </p>
+              </Card>
+            ))}
           </div>
 
-          <ReplyComposer conversationId={sampleConversations[0].id} />
+          <ReplyComposer
+            conversationId={selectedConversation?.id ?? null}
+            onSent={async () => {
+              if (selectedConversation) {
+                await loadMessages(selectedConversation.id);
+              }
+            }}
+          />
         </section>
 
         <aside className="border-l border-border bg-white" aria-labelledby="context-heading">
@@ -102,16 +238,39 @@ export default function InboxPage() {
               <dd className="mt-1 font-medium">LINE OA</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Assignment</dt>
-              <dd className="mt-1 font-medium">Unassigned</dd>
+              <dt className="text-xs text-muted-foreground">Customer ID</dt>
+              <dd className="mt-1 break-all font-medium">
+                {selectedConversation?.customerExternalId ?? "-"}
+              </dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">Priority</dt>
-              <dd className="mt-1 font-medium">Normal</dd>
+              <dt className="text-xs text-muted-foreground">Channel</dt>
+              <dd className="mt-1 font-medium">{selectedConversation?.lineChannel.name ?? "-"}</dd>
             </div>
           </dl>
         </aside>
       </div>
     </section>
   );
+}
+
+function readMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function formatRelativeTime(value?: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat("th-TH", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string): string {
+  return new Intl.DateTimeFormat("th-TH", {
+    dateStyle: "short",
+    timeStyle: "short"
+  }).format(new Date(value));
 }

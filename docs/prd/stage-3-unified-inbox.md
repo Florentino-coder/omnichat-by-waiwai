@@ -30,6 +30,7 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - [x] Checkpoint B: Inbox web route renders conversation list, thread, and empty states.
 - [x] Checkpoint C: Reply UI posts through the existing LINE reply route.
 - [x] Checkpoint D: Docs, verification, and GitHub main checkpoint complete.
+- [x] Checkpoint E: Web inbox and LINE settings use live authenticated API calls instead of mock data.
 
 ## Verification - 2026-06-13
 
@@ -47,3 +48,10 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: secret scan for Supabase/Postgres credentials.
 - Not run: API integration/e2e tests against Supabase.
 - Safety note: Supabase pooler credentials were provided, but current API integration/e2e fixtures reset core tenant, user, workspace, LINE, conversation, message, and audit tables. Do not run those tests against a non-disposable Supabase database.
+
+## Verification - 2026-06-14
+
+- Passed: `npm run web:test -- apps/web/__tests__/inbox-page.test.tsx apps/web/__tests__/app-shell.test.tsx --runInBand`
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run lint`
+- Passed: `NEXT_PUBLIC_API_BASE_URL=https://omnichat-by-waiwai.onrender.com npm run web:build`
