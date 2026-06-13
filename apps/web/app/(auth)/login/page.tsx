@@ -1,4 +1,4 @@
-import { Button, Input, Label } from "@omnichat/ui";
+import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
@@ -9,19 +9,7 @@ export default function LoginPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">Access your tenant workspace.</p>
       </div>
-      <form className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" autoComplete="email" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input id="password" type="password" autoComplete="current-password" />
-        </div>
-        <Button className="w-full" type="submit">
-          Sign in
-        </Button>
-      </form>
+      <LoginForm />
       <a className="text-sm font-medium text-primary" href="/forgot-password">
         Forgot password
       </a>
