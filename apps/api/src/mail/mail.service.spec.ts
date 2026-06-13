@@ -1,5 +1,8 @@
 import { ServiceUnavailableException } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import { ConfigService } from "@nestjs/config";
+import { Test } from "@nestjs/testing";
+import { MailModule } from "./mail.module";
 import { MailService } from "./mail.service";
 
 type ResendEmailSend = jest.Mock<Promise<unknown>, [unknown]>;
@@ -95,5 +98,29 @@ describe("MailService", () => {
         displayName: "Nicha"
       })
     ).rejects.toThrow(new ServiceUnavailableException("Email delivery failed"));
+  });
+
+  it("can be created by Nest dependency injection", async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        ConfigModule.forRoot({
+          isGlobal: true,
+          ignoreEnvFile: true,
+          load: [
+            () => ({
+              APP_BASE_URL: "https://app.omnichat.test",
+              EMAIL_FROM: "OmniChat <no-reply@omnichat.test>",
+              RESEND_API_KEY: "re_test"
+            })
+          ]
+        }),
+        MailModule
+      ]
+    }).compile();
+
+    const service = moduleRef.get(MailService);
+
+    expect(service).toBeDefined();
+    await moduleRef.close();
   });
 });

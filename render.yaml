@@ -6,7 +6,7 @@ services:
     region: singapore
     branch: main
     autoDeploy: true
-    buildCommand: npm ci && npx prisma generate && npm run api:build
+    buildCommand: npm ci && npm run api:deploy:build
     startCommand: npm run api:start
     healthCheckPath: /api/v1/health
     envVars:

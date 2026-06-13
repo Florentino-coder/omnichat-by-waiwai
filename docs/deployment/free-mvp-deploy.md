@@ -52,7 +52,7 @@ The web app proxies `/api/v1/*` to `NEXT_PUBLIC_API_BASE_URL` through `apps/web/
 - Runtime: Node
 - Region: Singapore
 - Plan: Free
-- Build command: `npm ci && npx prisma generate && npm run api:build`
+- Build command: `npm ci && npm run api:deploy:build`
 - Start command: `npm run api:start`
 - Health check path: `/api/v1/health`
 
@@ -83,6 +83,15 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 Render generates `JWT_SECRET` and `JWT_REFRESH_SECRET` from the Blueprint. If you need stable secrets across service recreation, set them manually in Render instead.
 
 ## Migration Rule
+
+Render Free does not include interactive Shell access. The API build command runs Prisma deploy tasks automatically:
+
+```bash
+npx prisma generate
+npx prisma migrate deploy
+npm run prisma:seed
+npm run api:build
+```
 
 Run Prisma migrations only against the intended database target. For Supabase, use:
 

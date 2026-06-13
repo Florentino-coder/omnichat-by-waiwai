@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { Inject, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Resend } from "resend";
 import {
@@ -8,18 +8,17 @@ import {
   WelcomeEmailPayload
 } from "./types/mail.types";
 
+export const MAIL_PROVIDER = "MAIL_PROVIDER";
+
+export const createResendEmailProvider = (apiKey: string): EmailProvider =>
+  new Resend(apiKey) as unknown as EmailProvider;
+
 @Injectable()
 export class MailService {
-  private readonly provider: EmailProvider;
-
   constructor(
     private readonly configService: ConfigService,
-    provider?: EmailProvider
-  ) {
-    this.provider =
-      provider ??
-      (new Resend(this.requiredConfig("RESEND_API_KEY")) as unknown as EmailProvider);
-  }
+    @Inject(MAIL_PROVIDER) private readonly provider: EmailProvider
+  ) {}
 
   async sendInvitationEmail(payload: InvitationEmailPayload): Promise<void> {
     const link = this.link("/invite/accept", payload.inviteToken);
