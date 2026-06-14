@@ -76,7 +76,7 @@ describe("InboxPage", () => {
 
     render(<InboxPage />);
 
-    expect(screen.getByRole("heading", { name: "Inbox" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "กล่องข้อความ" })).toBeInTheDocument();
     expect(await screen.findAllByText("Somchai LINE")).toHaveLength(2);
     expect(screen.getByText("สวัสดีครับ")).toBeInTheDocument();
     expect(screen.queryByText("Messages from LINE will render here after API binding.")).not.toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("InboxPage", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/inbox/conversations/conversation-1/messages", {
       headers: { Authorization: "Bearer access-token" }
     });
-    expect(screen.getByText("Customer context")).toBeInTheDocument();
+    expect(screen.getByText("ข้อมูลลูกค้า")).toBeInTheDocument();
     expect(screen.getAllByText("Main LINE").length).toBeGreaterThan(0);
     expect(screen.getByText("1234567890")).toBeInTheDocument();
     expect(screen.getByText("U123")).toBeInTheDocument();
@@ -157,7 +157,7 @@ describe("InboxPage", () => {
 
     render(<InboxPage />);
 
-    expect(await screen.findByText("No LINE conversations yet.")).toBeInTheDocument();
+    expect(await screen.findByText("ยังไม่มีแชท LINE")).toBeInTheDocument();
 
     await act(async () => {
       jest.advanceTimersByTime(5000);
@@ -661,6 +661,51 @@ describe("InboxPage", () => {
       );
     });
     expect((await screen.findAllByText("Customer F")).length).toBeGreaterThan(0);
+  });
+
+  it("shows inbox operation controls for assignment, priority, tags, notes, and saved replies", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              displayName: "Customer Ops",
+              status: "OPEN",
+              priority: "NORMAL",
+              assignedToMemberId: null,
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect((await screen.findAllByText("Customer Ops")).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Assign conversation" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Priority" })).toBeInTheDocument();
+    expect(screen.getByText("แท็ก")).toBeInTheDocument();
+    expect(screen.getByText("โน้ตภายใน")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Insert saved reply" })).toBeInTheDocument();
   });
 
   it("posts reply text through the existing LINE conversation reply route with auth", async () => {

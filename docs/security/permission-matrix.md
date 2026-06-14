@@ -57,8 +57,17 @@ Version: 1.0 | Stage: 0 (Architecture)
 | Close Conversation            | ✅    | ✅    | ⚡    | ❌  | ❌     |
 | Reopen Conversation           | ✅    | ✅    | ⚡    | ❌  | ❌     |
 | Add Tag to Conversation       | ✅    | ✅    | ✅    | ❌  | ❌     |
+| Manage Conversation Tags      | ✅    | ✅    | ❌    | ❌  | ❌     |
+| Remove Tag from Conversation  | ✅    | ✅    | ✅    | ❌  | ❌     |
 | Set Priority                  | ✅    | ✅    | ✅    | ❌  | ❌     |
-| Add Internal Note             | ✅    | ✅    | ✅    | ✅  | ❌     |
+| View Internal Notes           | ✅    | ✅    | ✅    | 👁  | ❌     |
+| Add Internal Note             | ✅    | ✅    | ✅    | ❌  | ❌     |
+| Delete Internal Note          | ✅    | ✅    | ✅    | ❌  | ❌     |
+| Create Saved Reply Lite       | ✅    | ✅    | ❌    | ❌  | ❌     |
+| Edit Saved Reply Lite         | ✅    | ✅    | ❌    | ❌  | ❌     |
+| Delete Saved Reply Lite       | ✅    | ✅    | ❌    | ❌  | ❌     |
+| Use Saved Reply Lite          | ✅    | ✅    | ✅    | 👁  | ❌     |
+| Change Inbox Language         | ✅    | ✅    | ✅    | ✅  | ❌     |
 | Delete Message (own)          | ✅    | ✅    | ⚡    | ❌  | ❌     |
 | Delete Any Message            | ✅    | ✅    | ❌    | ❌  | ❌     |
 

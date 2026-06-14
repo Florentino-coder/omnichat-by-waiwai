@@ -8,9 +8,22 @@ import {
   useState,
   type CSSProperties
 } from "react";
-import { AlertTriangle, Check, Clock, Pencil, Search, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Clock,
+  Flag,
+  MessageSquareQuote,
+  Pencil,
+  Search,
+  StickyNote,
+  Tags,
+  UserPlus,
+  X
+} from "lucide-react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
+import { getMessages } from "../../lib/i18n";
 import { ReplyComposer } from "./reply-composer";
 
 type MessageDirection = "INBOUND" | "OUTBOUND";
@@ -30,6 +43,8 @@ type InboxConversation = {
   displayName?: string | null;
   nickname?: string | null;
   status?: string | null;
+  priority?: ConversationPriority | null;
+  assignedToMemberId?: string | null;
   inProgressStartedAt?: string | null;
   lastMessageAt?: string | null;
   lineChannel: {
@@ -42,6 +57,7 @@ type InboxConversation = {
 };
 
 type ConversationStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
+type ConversationPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
 const CONVERSATION_PAGE_SIZE = 10;
 
@@ -125,6 +141,7 @@ function getReadState(
 }
 
 export default function InboxPage() {
+  const t = getMessages("th");
   const [conversations, setConversations] = useState<InboxConversation[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
@@ -142,6 +159,12 @@ export default function InboxPage() {
   const [inProgressAlertMinutes, setInProgressAlertMinutes] = useState(10);
   const [alertMinutesDraft, setAlertMinutesDraft] = useState("10");
   const [isSavingAlertMinutes, setIsSavingAlertMinutes] = useState(false);
+  const [assigneeDraft, setAssigneeDraft] = useState("");
+  const [isSavingAssignment, setIsSavingAssignment] = useState(false);
+  const [isSavingPriority, setIsSavingPriority] = useState(false);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [composerInsertText, setComposerInsertText] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const isMountedRef = useRef(false);
   const conversationsRef = useRef<InboxConversation[]>([]);
@@ -291,6 +314,8 @@ export default function InboxPage() {
   useEffect(() => {
     setIsEditingName(false);
     setNicknameDraft(selectedCustomerName);
+    setAssigneeDraft(selectedConversation?.assignedToMemberId ?? "");
+    setNoteDraft("");
   }, [selectedCustomerName, selectedId]);
 
   async function loadMessages(
@@ -431,6 +456,89 @@ export default function InboxPage() {
     }
   }
 
+  async function saveAssignment(): Promise<void> {
+    if (!selectedConversation || isSavingAssignment) {
+      return;
+    }
+
+    const memberId = assigneeDraft.trim() || null;
+    setIsSavingAssignment(true);
+    setError(null);
+    try {
+      const updated = await apiFetch<InboxConversation>(
+        `/api/v1/inbox/conversations/${selectedConversation.id}/assignment`,
+        {
+          body: JSON.stringify({ memberId }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        }
+      );
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? { ...conversation, assignedToMemberId: updated.assignedToMemberId ?? memberId }
+            : conversation
+        )
+      );
+    } catch (assignmentError) {
+      setError(readMessage(assignmentError, "Could not assign conversation."));
+    } finally {
+      setIsSavingAssignment(false);
+    }
+  }
+
+  async function updatePriority(): Promise<void> {
+    if (!selectedConversation || isSavingPriority) {
+      return;
+    }
+
+    const priority = nextPriority(conversationPriority(selectedConversation));
+    setIsSavingPriority(true);
+    setError(null);
+    try {
+      const updated = await apiFetch<InboxConversation>(
+        `/api/v1/inbox/conversations/${selectedConversation.id}/priority`,
+        {
+          body: JSON.stringify({ priority }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        }
+      );
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? { ...conversation, priority: updated.priority ?? priority }
+            : conversation
+        )
+      );
+    } catch (priorityError) {
+      setError(readMessage(priorityError, "Could not update priority."));
+    } finally {
+      setIsSavingPriority(false);
+    }
+  }
+
+  async function createInternalNote(): Promise<void> {
+    if (!selectedConversation || isSavingNote || !noteDraft.trim()) {
+      return;
+    }
+
+    setIsSavingNote(true);
+    setError(null);
+    try {
+      await apiFetch(`/api/v1/inbox/conversations/${selectedConversation.id}/notes`, {
+        body: JSON.stringify({ body: noteDraft.trim() }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      setNoteDraft("");
+    } catch (noteError) {
+      setError(readMessage(noteError, "Could not save internal note."));
+    } finally {
+      setIsSavingNote(false);
+    }
+  }
+
   function handleSelectConversation(id: string) {
     const conv = conversations.find((c) => c.id === id);
     const latestMsg = conv?.messages?.[0];
@@ -449,10 +557,10 @@ export default function InboxPage() {
       <div className="flex shrink-0 items-center justify-between gap-4 px-6 py-4 border-b border-border bg-background">
         <div>
           <h1 id="inbox-heading" className="font-heading text-2xl font-medium">
-            Inbox
+            {t.inboxTitle}
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            LINE conversations synced from verified webhooks.
+            {t.inboxSubtitle}
           </p>
         </div>
         <Badge variant="primary">Stage 3</Badge>
@@ -470,7 +578,7 @@ export default function InboxPage() {
           {/* Sidebar header */}
           <div className="shrink-0 border-b border-border px-4 py-3">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="font-heading text-sm font-medium">Conversations</h2>
+              <h2 className="font-heading text-sm font-medium">{t.conversations}</h2>
             </div>
             {/* Counter badges */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -493,7 +601,7 @@ export default function InboxPage() {
                 </span>
               )}
               {unreadCount === 0 && readNotRepliedCount === 0 && (
-                <p className="text-xs text-muted-foreground">ตอบครบทุกแชทแล้ว 🎉</p>
+                <p className="text-xs text-muted-foreground">{t.allReplied}</p>
               )}
             </div>
             {overdueInProgressConversations.length > 0 ? (
@@ -531,7 +639,7 @@ export default function InboxPage() {
                 type="number"
                 value={alertMinutesDraft}
               />
-              <span className="text-xs text-muted-foreground">นาทีเตือน</span>
+              <span className="text-xs text-muted-foreground">{t.alertMinutes}</span>
               <button
                 type="button"
                 aria-label="Save alert minutes"
@@ -539,7 +647,7 @@ export default function InboxPage() {
                 disabled={isSavingAlertMinutes}
                 onClick={saveAlertMinutes}
               >
-                Save
+                {t.save}
               </button>
             </div>
             {/* Search */}
@@ -551,7 +659,7 @@ export default function InboxPage() {
               />
               <input
                 type="search"
-                placeholder="ค้นหาชื่อ, แชท, ช่อง..."
+                placeholder={t.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full rounded-md border border-border bg-secondary py-1.5 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
@@ -562,11 +670,11 @@ export default function InboxPage() {
           {/* Conversation list */}
           <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border">
             {isLoadingConversations ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">Loading conversations...</p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">{t.loadingConversations}</p>
             ) : null}
             {!isLoadingConversations && conversations.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
-                No LINE conversations yet.
+                {t.noConversations}
               </p>
             ) : null}
             {filteredConversations.map((conversation) => {
@@ -665,7 +773,7 @@ export default function InboxPage() {
               );
             })}
             {filteredConversations.length === 0 && !isLoadingConversations && searchQuery ? (
-              <p className="px-4 py-3 text-sm text-muted-foreground">ไม่พบผลลัพธ์</p>
+              <p className="px-4 py-3 text-sm text-muted-foreground">{t.noResults}</p>
             ) : null}
             {hasMoreConversations ? (
               <div className="p-3">
@@ -676,7 +784,7 @@ export default function InboxPage() {
                   disabled={isLoadingMoreConversations}
                   onClick={loadMoreConversations}
                 >
-                  {isLoadingMoreConversations ? "Loading..." : "ดูแชทเก่ากว่า"}
+                  {isLoadingMoreConversations ? t.loadingConversations : t.olderConversations}
                 </button>
               </div>
             ) : null}
@@ -691,11 +799,32 @@ export default function InboxPage() {
           <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-border bg-white px-4 py-3 lg:px-5">
             <div>
               <h2 id="thread-heading" className="font-heading text-sm font-medium">
-                Message thread
+                {t.messageThread}
               </h2>
-              <p className="text-xs text-muted-foreground">Replies use Stage 2 LINE API.</p>
+              <p className="text-xs text-muted-foreground">{t.threadSubtitle}</p>
             </div>
-            <div className="relative">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                aria-label="Priority"
+                className={priorityButtonClass(conversationPriority(selectedConversation))}
+                disabled={!selectedConversation || isSavingPriority}
+                onClick={updatePriority}
+              >
+                <Flag size={14} aria-hidden="true" />
+                {priorityLabel(conversationPriority(selectedConversation))}
+              </button>
+              <button
+                type="button"
+                aria-label="Insert saved reply"
+                className="inline-flex min-h-8 items-center gap-1 rounded-md border border-border bg-white px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary disabled:opacity-60"
+                disabled={!selectedConversation}
+                onClick={() => setComposerInsertText("สวัสดีค่ะ แอดมินกำลังตรวจสอบให้นะคะ")}
+              >
+                <MessageSquareQuote size={14} aria-hidden="true" />
+                Quick reply
+              </button>
+              <div className="relative">
               <button
                 type="button"
                 aria-label="Change conversation status"
@@ -727,19 +856,20 @@ export default function InboxPage() {
                   ))}
                 </div>
               ) : null}
+              </div>
             </div>
           </div>
 
           {/* Scrollable messages */}
           <div className="flex-1 min-h-0 overflow-y-auto space-y-3 p-4 lg:p-5">
             {isLoadingMessages ? (
-              <p className="text-sm text-muted-foreground">Loading messages...</p>
+              <p className="text-sm text-muted-foreground">{t.loadingMessages}</p>
             ) : null}
             {!isLoadingMessages && selectedConversation && messages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No messages in this thread yet.</p>
+              <p className="text-sm text-muted-foreground">{t.noThreadMessages}</p>
             ) : null}
             {!selectedConversation && !isLoadingConversations ? (
-              <p className="text-sm text-muted-foreground">Connect LINE OA and send a message.</p>
+              <p className="text-sm text-muted-foreground">{t.connectLine}</p>
             ) : null}
             {(Array.isArray(messages) ? messages : []).map((message) => (
               <Card
@@ -770,6 +900,7 @@ export default function InboxPage() {
 
           <ReplyComposer
             conversationId={selectedConversation?.id ?? null}
+            insertText={composerInsertText}
             onSent={async () => {
               if (selectedConversation) {
                 await loadMessages(selectedConversation.id);
@@ -785,11 +916,77 @@ export default function InboxPage() {
         >
           <div className="shrink-0 border-b border-border px-4 py-3">
             <h2 id="context-heading" className="font-heading text-sm font-medium">
-              Customer context
+              {t.customerContext}
             </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">LINE profile and channel detail</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t.customerContextSubtitle}</p>
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="border-b border-border px-4 py-3">
+              <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <UserPlus size={12} aria-hidden="true" />
+                Assignment
+              </p>
+              <div className="grid gap-2">
+                <label className="sr-only" htmlFor="assignee-member-id">
+                  Workspace member ID
+                </label>
+                <input
+                  id="assignee-member-id"
+                  className="h-9 rounded-md border border-border bg-white px-2 text-xs"
+                  disabled={!selectedConversation || isSavingAssignment}
+                  onChange={(event) => setAssigneeDraft(event.target.value)}
+                  placeholder="Workspace member ID"
+                  value={assigneeDraft}
+                />
+                <button
+                  type="button"
+                  aria-label="Assign conversation"
+                  className="inline-flex h-9 items-center justify-center gap-1 rounded-md border border-border px-2 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+                  disabled={!selectedConversation || isSavingAssignment}
+                  onClick={saveAssignment}
+                >
+                  <UserPlus size={14} aria-hidden="true" />
+                  Assign
+                </button>
+              </div>
+            </div>
+
+            <div className="border-b border-border px-4 py-3">
+              <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Tags size={12} aria-hidden="true" />
+                แท็ก
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <span className="rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">
+                  พร้อมเชื่อม tag master
+                </span>
+              </div>
+            </div>
+
+            <div className="border-b border-border px-4 py-3">
+              <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <StickyNote size={12} aria-hidden="true" />
+                โน้ตภายใน
+              </p>
+              <textarea
+                aria-label="Internal note"
+                className="min-h-20 w-full resize-none rounded-md border border-border bg-white px-2 py-2 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                disabled={!selectedConversation || isSavingNote}
+                maxLength={2000}
+                onChange={(event) => setNoteDraft(event.target.value)}
+                placeholder="บันทึกเฉพาะทีม ไม่ส่งให้ลูกค้า"
+                value={noteDraft}
+              />
+              <button
+                type="button"
+                className="mt-2 inline-flex h-8 items-center justify-center rounded-md border border-border px-2 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+                disabled={!selectedConversation || isSavingNote || !noteDraft.trim()}
+                onClick={createInternalNote}
+              >
+                {t.save}
+              </button>
+            </div>
+
             {/* Section: Identity */}
             {(lineProfile?.pictureUrl || lineProfile?.displayName) && (
               <div className="border-b border-border bg-gradient-to-b from-slate-50 to-white px-4 py-4">
@@ -810,7 +1007,7 @@ export default function InboxPage() {
                       {lineProfile?.displayName ?? "-"}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {lineProfile?.statusMessage || "No status message"}
+                      {lineProfile?.statusMessage || t.noStatusMessage}
                     </p>
                     {lineProfile?.language && (
                       <span className="mt-1 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
@@ -825,11 +1022,11 @@ export default function InboxPage() {
             {/* Section: Contact */}
             <div className="border-b border-border px-4 py-3">
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Contact
+                {t.contact}
               </p>
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Customer name</dt>
+                  <dt className="text-xs text-muted-foreground">{t.customerName}</dt>
                   <dd className="mt-1">
                     {isEditingName && selectedConversation ? (
                       <div className="grid gap-2">
@@ -888,7 +1085,7 @@ export default function InboxPage() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Customer ID</dt>
+                  <dt className="text-xs text-muted-foreground">{t.customerId}</dt>
                   <dd className="mt-1 break-all font-mono text-xs font-medium text-foreground">
                     {lineSource?.userId ??
                       lineSource?.groupId ??
@@ -903,23 +1100,23 @@ export default function InboxPage() {
             {/* Section: Channel */}
             <div className="border-b border-border px-4 py-3">
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Channel
+                {t.channel}
               </p>
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Source</dt>
+                  <dt className="text-xs text-muted-foreground">{t.source}</dt>
                   <dd className="mt-1 font-medium">LINE OA</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">LINE source type</dt>
+                  <dt className="text-xs text-muted-foreground">{t.lineSourceType}</dt>
                   <dd className="mt-1 font-medium">{lineSource?.type ?? "-"}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">OA channel name</dt>
+                  <dt className="text-xs text-muted-foreground">{t.oaChannelName}</dt>
                   <dd className="mt-1 font-medium">{selectedConversation?.lineChannel.name ?? "-"}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">OA channel ID</dt>
+                  <dt className="text-xs text-muted-foreground">{t.oaChannelId}</dt>
                   <dd className="mt-1 break-all font-mono text-xs font-medium text-foreground">
                     {selectedConversation?.lineChannel.lineChannelId ?? "-"}
                   </dd>
@@ -930,15 +1127,15 @@ export default function InboxPage() {
             {/* Section: Message */}
             <div className="px-4 py-3">
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Latest message
+                {t.latestMessage}
               </p>
               <dl className="space-y-3 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Message type</dt>
+                  <dt className="text-xs text-muted-foreground">{t.messageType}</dt>
                   <dd className="mt-1 font-medium">{lineMessage?.type ?? "-"}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Message ID</dt>
+                  <dt className="text-xs text-muted-foreground">{t.messageId}</dt>
                   <dd className="mt-1 break-all font-mono text-xs font-medium text-foreground">
                     {lineMessage?.id ?? "-"}
                   </dd>
@@ -1081,6 +1278,59 @@ function statusButtonClass(conversation: InboxConversation | null): string {
   }
 
   return `${base} border-border bg-secondary text-muted-foreground`;
+}
+
+function conversationPriority(conversation: InboxConversation | null): ConversationPriority {
+  return isConversationPriority(conversation?.priority) ? conversation.priority : "NORMAL";
+}
+
+function isConversationPriority(
+  priority: string | null | undefined
+): priority is ConversationPriority {
+  return priority === "LOW" || priority === "NORMAL" || priority === "HIGH" || priority === "URGENT";
+}
+
+function nextPriority(priority: ConversationPriority): ConversationPriority {
+  switch (priority) {
+    case "LOW":
+      return "NORMAL";
+    case "NORMAL":
+      return "HIGH";
+    case "HIGH":
+      return "URGENT";
+    case "URGENT":
+      return "LOW";
+  }
+}
+
+function priorityLabel(priority: ConversationPriority): string {
+  switch (priority) {
+    case "LOW":
+      return "Low";
+    case "HIGH":
+      return "High";
+    case "URGENT":
+      return "Urgent";
+    case "NORMAL":
+      return "Normal";
+  }
+}
+
+function priorityButtonClass(priority: ConversationPriority): string {
+  const base =
+    "inline-flex min-h-8 items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-60";
+
+  if (priority === "URGENT") {
+    return `${base} border-danger bg-red-50 text-danger hover:bg-red-100`;
+  }
+  if (priority === "HIGH") {
+    return `${base} border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100`;
+  }
+  if (priority === "LOW") {
+    return `${base} border-slate-300 bg-slate-50 text-slate-600 hover:bg-slate-100`;
+  }
+
+  return `${base} border-border bg-white text-muted-foreground hover:bg-secondary`;
 }
 
 function isInProgressOverdue(

@@ -59,6 +59,19 @@ enum AuditAction {
   LINE_CHANNEL_DISCONNECTED
   CONVERSATION_CUSTOMER_RENAMED
   CONVERSATION_STATUS_CHANGED
+  CONVERSATION_ASSIGNED
+  CONVERSATION_UNASSIGNED
+  CONVERSATION_PRIORITY_CHANGED
+  CONVERSATION_TAG_CREATED
+  CONVERSATION_TAG_UPDATED
+  CONVERSATION_TAG_DELETED
+  CONVERSATION_TAG_ADDED
+  CONVERSATION_TAG_REMOVED
+  CONVERSATION_NOTE_CREATED
+  CONVERSATION_NOTE_DELETED
+  SAVED_REPLY_CREATED
+  SAVED_REPLY_UPDATED
+  SAVED_REPLY_DELETED
   INBOX_SETTINGS_UPDATED
   LINE_MESSAGE_RECEIVED
   LINE_REPLY_SENT
@@ -80,32 +93,43 @@ enum MessageType {
   UNKNOWN
 }
 
+enum ConversationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 // ============================================================
 // TENANT
 // ============================================================
 
 model Tenant {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
-  slug        String   @unique  // URL-safe identifier e.g. "acme-corp"
+  slug        String    @unique // URL-safe identifier e.g. "acme-corp"
   logoUrl     String?
-  planId      String   @default("free")
+  planId      String    @default("free")
   trialEndsAt DateTime?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   // Relations
-  workspaces  Workspace[]
-  users       WorkspaceMember[]
-  invitations Invitation[]
-  auditLogs   AuditLog[]
-  settings    TenantSettings?
-  usageCounters UsageCounter[]
-  lineChannels LineChannel[]
-  conversations Conversation[]
-  messages Message[]
+  workspaces                Workspace[]
+  users                     WorkspaceMember[]
+  invitations               Invitation[]
+  auditLogs                 AuditLog[]
+  settings                  TenantSettings?
+  usageCounters             UsageCounter[]
+  lineChannels              LineChannel[]
+  conversations             Conversation[]
+  messages                  Message[]
+  conversationTags          ConversationTag[]
+  conversationTagLinks      ConversationTagLink[]
+  conversationInternalNotes ConversationInternalNote[]
+  savedReplies              SavedReply[]
 
   @@index([slug])
   @@index([planId])
@@ -113,30 +137,30 @@ model Tenant {
 }
 
 model PlanLimit {
-  id                    String   @id @default(uuid())
-  planId                String   @unique
-  maxWorkspaces         Int
-  maxAgents             Int
-  maxAiCreditsPerMonth  Int      @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  planId               String   @unique
+  maxWorkspaces        Int
+  maxAgents            Int
+  maxAiCreditsPerMonth Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@map("plan_limits")
 }
 
 model TenantSettings {
-  id                    String   @id @default(uuid())
-  tenantId              String   @unique
-  tenant                Tenant   @relation(fields: [tenantId], references: [id])
+  id                     String   @id @default(uuid())
+  tenantId               String   @unique
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id])
   // Defaults
-  defaultLanguage       String   @default("th")
-  timezone              String   @default("Asia/Bangkok")
+  defaultLanguage        String   @default("th")
+  timezone               String   @default("Asia/Bangkok")
   // Feature flags (expand per stage)
-  enableTwoFa           Boolean  @default(false)
-  maxAgents             Int      @default(10)
-  inProgressAlertMinutes Int     @default(10)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  enableTwoFa            Boolean  @default(false)
+  maxAgents              Int      @default(10)
+  inProgressAlertMinutes Int      @default(10)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@map("tenant_settings")
 }
@@ -147,20 +171,20 @@ model TenantSettings {
 // ============================================================
 
 model Workspace {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
   name        String
   description String?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isDefault   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
   // Relations
-  members     WorkspaceMember[]
-  invitations Invitation[]
-  lineChannels LineChannel[]
+  members       WorkspaceMember[]
+  invitations   Invitation[]
+  lineChannels  LineChannel[]
   conversations Conversation[]
 
   @@index([tenantId])
@@ -173,29 +197,29 @@ model Workspace {
 // ============================================================
 
 model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
-  passwordHash     String
-  displayName      String
-  avatarUrl        String?
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  displayName     String
+  avatarUrl       String?
   // 2FA
-  twoFaSecret      String?  // encrypted AES-256
-  twoFaEnabled     Boolean  @default(false)
+  twoFaSecret     String? // encrypted AES-256
+  twoFaEnabled    Boolean   @default(false)
   // Security
-  emailVerified    Boolean  @default(false)
-  emailVerifiedAt  DateTime?
-  lastLoginAt      DateTime?
-  lastLoginIp      String?
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  deletedAt        DateTime?
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
 
   // Relations
-  memberships      WorkspaceMember[]
-  refreshTokens    RefreshToken[]
-  sentInvitations  Invitation[]     @relation("InvitedBy")
-  auditLogs        AuditLog[]
+  memberships     WorkspaceMember[]
+  refreshTokens   RefreshToken[]
+  sentInvitations Invitation[]      @relation("InvitedBy")
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -207,7 +231,7 @@ model User {
 
 model WorkspaceMember {
   id          String    @id @default(uuid())
-  tenantId    String                          // denormalized for easy filtering
+  tenantId    String // denormalized for easy filtering
   tenant      Tenant    @relation(fields: [tenantId], references: [id])
   workspaceId String
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
@@ -217,6 +241,9 @@ model WorkspaceMember {
   isActive    Boolean   @default(true)
   joinedAt    DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  assignedConversations Conversation[]             @relation("AssignedConversations")
+  internalNotes         ConversationInternalNote[]
 
   @@unique([workspaceId, userId])
   @@index([tenantId])
@@ -229,21 +256,21 @@ model WorkspaceMember {
 // ============================================================
 
 model Invitation {
-  id            String           @id @default(uuid())
-  tenantId      String
-  tenant        Tenant           @relation(fields: [tenantId], references: [id])
-  workspaceId   String
-  workspace     Workspace        @relation(fields: [workspaceId], references: [id])
+  id              String           @id @default(uuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  workspaceId     String
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id])
   invitedByUserId String
-  invitedBy     User             @relation("InvitedBy", fields: [invitedByUserId], references: [id])
-  email         String
-  role          Role             @default(AGENT)
-  token         String           @unique  // secure random token, emailed to invitee
-  status        InvitationStatus @default(PENDING)
-  expiresAt     DateTime
-  acceptedAt    DateTime?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  invitedBy       User             @relation("InvitedBy", fields: [invitedByUserId], references: [id])
+  email           String
+  role            Role             @default(AGENT)
+  token           String           @unique // secure random token, emailed to invitee
+  status          InvitationStatus @default(PENDING)
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([tenantId])
   @@index([workspaceId])
@@ -258,15 +285,15 @@ model Invitation {
 // ============================================================
 
 model RefreshToken {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  tokenHash   String   @unique  // store hash only, never raw token
-  deviceInfo  String?
-  ipAddress   String?
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  createdAt   DateTime @default(now())
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  tokenHash  String    @unique // store hash only, never raw token
+  deviceInfo String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([userId])
   @@map("refresh_tokens")
@@ -278,18 +305,18 @@ model RefreshToken {
 // ============================================================
 
 model AuditLog {
-  id          String      @id @default(uuid())
-  tenantId    String
-  tenant      Tenant      @relation(fields: [tenantId], references: [id])
-  userId      String?
-  user        User?       @relation(fields: [userId], references: [id])
-  action      AuditAction
-  targetType  String?     // e.g. "User", "Conversation"
-  targetId    String?     // ID of the affected resource
-  metadata    Json?       // extra context (IP, user agent, old/new values)
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime    @default(now())
+  id         String      @id @default(uuid())
+  tenantId   String
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  userId     String?
+  user       User?       @relation(fields: [userId], references: [id])
+  action     AuditAction
+  targetType String? // e.g. "User", "Conversation"
+  targetId   String? // ID of the affected resource
+  metadata   Json? // extra context (IP, user agent, old/new values)
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime    @default(now())
 
   @@index([tenantId])
   @@index([userId])
@@ -343,32 +370,108 @@ model LineChannel {
 }
 
 model Conversation {
-  id               String        @id @default(uuid())
-  tenantId         String
-  tenant           Tenant        @relation(fields: [tenantId], references: [id])
-  workspaceId      String
-  workspace        Workspace     @relation(fields: [workspaceId], references: [id])
-  lineChannelId    String
-  lineChannel      LineChannel   @relation(fields: [lineChannelId], references: [id])
-  source           MessageSource @default(LINE)
-  externalThreadId String
-  displayName      String?
-  nickname         String?
-  status           String        @default("OPEN")
+  id                  String               @id @default(uuid())
+  tenantId            String
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  workspaceId         String
+  workspace           Workspace            @relation(fields: [workspaceId], references: [id])
+  lineChannelId       String
+  lineChannel         LineChannel          @relation(fields: [lineChannelId], references: [id])
+  source              MessageSource        @default(LINE)
+  externalThreadId    String
+  displayName         String?
+  nickname            String?
+  status              String               @default("OPEN")
+  priority            ConversationPriority @default(NORMAL)
+  assignedToMemberId  String?
+  assignedToMember    WorkspaceMember?     @relation("AssignedConversations", fields: [assignedToMemberId], references: [id])
   inProgressStartedAt DateTime?
-  lastMessageAt    DateTime?
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  deletedAt        DateTime?
+  lastMessageAt       DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  deletedAt           DateTime?
 
-  messages Message[]
+  messages      Message[]
+  tagLinks      ConversationTagLink[]
+  internalNotes ConversationInternalNote[]
 
   @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
   @@index([workspaceId])
   @@index([lineChannelId])
+  @@index([assignedToMemberId])
+  @@index([priority])
   @@index([lastMessageAt])
   @@map("conversations")
+}
+
+model ConversationTag {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  name      String
+  color     String    @default("#64748b")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  conversations ConversationTagLink[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("conversation_tags")
+}
+
+model ConversationTagLink {
+  id             String          @id @default(uuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  conversationId String
+  conversation   Conversation    @relation(fields: [conversationId], references: [id])
+  tagId          String
+  tag            ConversationTag @relation(fields: [tagId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  @@unique([conversationId, tagId])
+  @@index([tenantId])
+  @@index([tagId])
+  @@map("conversation_tag_links")
+}
+
+model ConversationInternalNote {
+  id             String          @id @default(uuid())
+  tenantId       String
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  conversationId String
+  conversation   Conversation    @relation(fields: [conversationId], references: [id])
+  authorMemberId String
+  authorMember   WorkspaceMember @relation(fields: [authorMemberId], references: [id])
+  body           String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([authorMemberId])
+  @@map("conversation_internal_notes")
+}
+
+model SavedReply {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  title     String
+  body      String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([tenantId])
+  @@map("saved_replies")
 }
 
 model Message {

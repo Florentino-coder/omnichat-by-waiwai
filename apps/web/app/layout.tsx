@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, JetBrains_Mono, Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
-const heading = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: "500",
+const heading = Noto_Sans_Thai({
+  subsets: ["thai", "latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-heading"
 });
 
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${heading.variable} ${sans.variable} ${mono.variable}`}>
+    <html lang="th" className={`${heading.variable} ${sans.variable} ${mono.variable}`}>
       <body className="font-sans">{children}</body>
     </html>
   );

@@ -1,16 +1,17 @@
 "use client";
 
-import { ClipboardEvent, FormEvent, KeyboardEvent, useRef, useState } from "react";
+import { ClipboardEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { Button } from "@omnichat/ui";
 import { ImagePlus, SendHorizontal, X } from "lucide-react";
 import { apiFetch } from "../../lib/api-client";
 
 interface ReplyComposerProps {
   conversationId: string | null;
+  insertText?: string;
   onSent?: () => Promise<void> | void;
 }
 
-export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
+export function ReplyComposer({ conversationId, insertText, onSent }: ReplyComposerProps) {
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [isImagePanelOpen, setIsImagePanelOpen] = useState(false);
@@ -21,6 +22,12 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
   const trimmedText = text.trim();
   const trimmedImageUrl = imageUrl.trim();
   const canSend = Boolean(conversationId && !isSending && (trimmedText || trimmedImageUrl));
+
+  useEffect(() => {
+    if (insertText) {
+      setText(insertText);
+    }
+  }, [insertText]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

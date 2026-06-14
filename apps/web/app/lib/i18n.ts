@@ -1,0 +1,82 @@
+export type Locale = "th" | "en";
+
+export const defaultLocale: Locale = "th";
+
+export const messages = {
+  th: {
+    inboxTitle: "กล่องข้อความ",
+    inboxSubtitle: "แชท LINE ที่ซิงก์จาก webhook ที่ยืนยันแล้ว",
+    conversations: "แชท",
+    allReplied: "ตอบครบทุกแชทแล้ว",
+    messageThread: "ข้อความ",
+    threadSubtitle: "ตอบกลับผ่าน LINE API จาก Stage 2",
+    customerContext: "ข้อมูลลูกค้า",
+    customerContextSubtitle: "โปรไฟล์ LINE และข้อมูลช่องทาง",
+    save: "บันทึก",
+    loadingConversations: "กำลังโหลดแชท...",
+    loadingMessages: "กำลังโหลดข้อความ...",
+    noConversations: "ยังไม่มีแชท LINE",
+    noThreadMessages: "ยังไม่มีข้อความในแชทนี้",
+    connectLine: "เชื่อมต่อ LINE OA แล้วส่งข้อความเพื่อเริ่มต้น",
+    olderConversations: "ดูแชทเก่ากว่า",
+    noResults: "ไม่พบผลลัพธ์",
+    searchPlaceholder: "ค้นหาชื่อ, แชท, ช่อง...",
+    alertMinutes: "นาทีเตือน",
+    contact: "ข้อมูลติดต่อ",
+    customerName: "ชื่อลูกค้า",
+    customerId: "รหัสลูกค้า",
+    channel: "ช่องทาง",
+    source: "ที่มา",
+    lineSourceType: "ชนิด LINE source",
+    oaChannelName: "ชื่อ OA",
+    oaChannelId: "รหัส OA",
+    latestMessage: "ข้อความล่าสุด",
+    messageType: "ชนิดข้อความ",
+    messageId: "รหัสข้อความ",
+    noStatusMessage: "ไม่มีสถานะ",
+    open: "เปิด",
+    inProgress: "กำลังดำเนินการ",
+    resolved: "ดำเนินการแล้ว",
+    noConversation: "ยังไม่ได้เลือกแชท"
+  },
+  en: {
+    inboxTitle: "Inbox",
+    inboxSubtitle: "LINE conversations synced from verified webhooks.",
+    conversations: "Conversations",
+    allReplied: "All conversations replied",
+    messageThread: "Message thread",
+    threadSubtitle: "Replies use Stage 2 LINE API.",
+    customerContext: "Customer context",
+    customerContextSubtitle: "LINE profile and channel detail",
+    save: "Save",
+    loadingConversations: "Loading conversations...",
+    loadingMessages: "Loading messages...",
+    noConversations: "No LINE conversations yet.",
+    noThreadMessages: "No messages in this thread yet.",
+    connectLine: "Connect LINE OA and send a message.",
+    olderConversations: "Load older conversations",
+    noResults: "No results",
+    searchPlaceholder: "Search name, chat, channel...",
+    alertMinutes: "alert minutes",
+    contact: "Contact",
+    customerName: "Customer name",
+    customerId: "Customer ID",
+    channel: "Channel",
+    source: "Source",
+    lineSourceType: "LINE source type",
+    oaChannelName: "OA channel name",
+    oaChannelId: "OA channel ID",
+    latestMessage: "Latest message",
+    messageType: "Message type",
+    messageId: "Message ID",
+    noStatusMessage: "No status message",
+    open: "Open",
+    inProgress: "In progress",
+    resolved: "Resolved",
+    noConversation: "No conversation"
+  }
+} as const;
+
+export function getMessages(locale: Locale = defaultLocale) {
+  return messages[locale] ?? messages.th;
+}

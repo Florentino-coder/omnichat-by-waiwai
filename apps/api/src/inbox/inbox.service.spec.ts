@@ -1,5 +1,11 @@
 import { NotFoundException } from "@nestjs/common";
-import { AuditAction, MessageDirection, MessageSource, MessageType } from "@prisma/client";
+import {
+  AuditAction,
+  ConversationPriority,
+  MessageDirection,
+  MessageSource,
+  MessageType
+} from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { InboxService } from "./inbox.service";
 
@@ -8,6 +14,25 @@ type MockPrisma = {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  workspaceMember: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  conversationTag: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    findMany: jest.Mock<Promise<unknown>, [unknown]>;
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  conversationTagLink: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  conversationInternalNote: {
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  savedReply: {
+    findMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
   tenantSettings: {
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
@@ -27,6 +52,25 @@ const createPrisma = (): MockPrisma => ({
     findMany: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
   },
+  workspaceMember: {
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  conversationTag: {
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    findMany: jest.fn<Promise<unknown>, [unknown]>(),
+    create: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  conversationTagLink: {
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    create: jest.fn<Promise<unknown>, [unknown]>(),
+    update: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  conversationInternalNote: {
+    create: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  savedReply: {
+    findMany: jest.fn<Promise<unknown>, [unknown]>()
+  },
   tenantSettings: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>(),
     upsert: jest.fn<Promise<unknown>, [unknown]>()
@@ -41,6 +85,48 @@ const createPrisma = (): MockPrisma => ({
 
 const createService = (prisma: MockPrisma): InboxService =>
   new InboxService(prisma as unknown as PrismaService);
+
+type Stage3BInboxService = InboxService & {
+  assignConversation: (
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    memberId: string | null
+  ) => Promise<unknown>;
+  updatePriority: (
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    priority: ConversationPriority
+  ) => Promise<unknown>;
+  createTag: (
+    tenantId: string,
+    userId: string,
+    input: { name: string; color?: string }
+  ) => Promise<unknown>;
+  addConversationTag: (
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    tagId: string
+  ) => Promise<unknown>;
+  removeConversationTag: (
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    tagId: string
+  ) => Promise<unknown>;
+  createNote: (
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    body: string
+  ) => Promise<unknown>;
+  listSavedReplies: (tenantId: string) => Promise<unknown>;
+};
+
+const createStage3BService = (prisma: MockPrisma): Stage3BInboxService =>
+  createService(prisma) as Stage3BInboxService;
 
 describe("InboxService", () => {
   it("lists active conversations inside the current tenant ordered by newest activity", async () => {
@@ -272,6 +358,238 @@ describe("InboxService", () => {
           nickname: "คุณเอฟ"
         }
       })
+    });
+  });
+
+  it("assigns a tenant conversation to a member in the same tenant", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      assignedToMemberId: null
+    });
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "member-1",
+      tenantId: "tenant-1",
+      userId: "agent-1"
+    });
+    prisma.conversation.update.mockResolvedValue({
+      id: "conversation-1",
+      assignedToMemberId: "member-1"
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createStage3BService(prisma).assignConversation(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      "member-1"
+    );
+
+    expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "member-1",
+        tenantId: "tenant-1",
+        isActive: true
+      }
+    });
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conversation-1" },
+      data: { assignedToMemberId: "member-1" }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: "user-1",
+        action: AuditAction.CONVERSATION_ASSIGNED,
+        targetType: "Conversation",
+        targetId: "conversation-1",
+        metadata: {
+          previousAssignedToMemberId: null,
+          assignedToMemberId: "member-1"
+        }
+      })
+    });
+  });
+
+  it("rejects assignment to a member from another tenant", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      assignedToMemberId: null
+    });
+    prisma.workspaceMember.findFirst.mockResolvedValue(null);
+
+    await expect(
+      createStage3BService(prisma).assignConversation(
+        "tenant-1",
+        "user-1",
+        "conversation-1",
+        "member-other"
+      )
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.conversation.update).not.toHaveBeenCalled();
+  });
+
+  it("updates priority and writes an audit log", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      priority: ConversationPriority.NORMAL
+    });
+    prisma.conversation.update.mockResolvedValue({
+      id: "conversation-1",
+      priority: ConversationPriority.URGENT
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createStage3BService(prisma).updatePriority(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      ConversationPriority.URGENT
+    );
+
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conversation-1" },
+      data: { priority: ConversationPriority.URGENT }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: AuditAction.CONVERSATION_PRIORITY_CHANGED,
+        metadata: {
+          previousPriority: ConversationPriority.NORMAL,
+          priority: ConversationPriority.URGENT
+        }
+      })
+    });
+  });
+
+  it("adds and removes tenant tags from a conversation", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({ id: "conversation-1", tenantId: "tenant-1" });
+    prisma.conversationTag.create.mockResolvedValue({
+      id: "tag-1",
+      tenantId: "tenant-1",
+      name: "VIP",
+      color: "#f59e0b"
+    });
+    prisma.conversationTag.findFirst.mockResolvedValue({
+      id: "tag-1",
+      tenantId: "tenant-1",
+      name: "VIP"
+    });
+    prisma.conversationTagLink.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "tag-link-1",
+        deletedAt: null
+      });
+    prisma.conversationTagLink.create.mockResolvedValue({ id: "tag-link-1" });
+    prisma.conversationTagLink.update.mockResolvedValue({
+      id: "tag-link-1",
+      deletedAt: new Date("2026-06-14T01:00:00.000Z")
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createStage3BService(prisma).createTag("tenant-1", "user-1", {
+      name: " VIP ",
+      color: "#f59e0b"
+    });
+    await createStage3BService(prisma).addConversationTag(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      "tag-1"
+    );
+    await createStage3BService(prisma).removeConversationTag(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      "tag-1"
+    );
+
+    expect(prisma.conversationTag.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: "tenant-1",
+        name: "VIP",
+        color: "#f59e0b"
+      }
+    });
+    expect(prisma.conversationTagLink.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        tagId: "tag-1"
+      }
+    });
+    expect(prisma.conversationTagLink.update).toHaveBeenCalledWith({
+      where: { id: "tag-link-1" },
+      data: { deletedAt: expect.any(Date) }
+    });
+  });
+
+  it("creates an internal note without creating a LINE message", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({ id: "conversation-1", tenantId: "tenant-1" });
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "member-1",
+      tenantId: "tenant-1",
+      userId: "user-1"
+    });
+    prisma.conversationInternalNote.create.mockResolvedValue({
+      id: "note-1",
+      body: "Call customer tomorrow"
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createStage3BService(prisma).createNote(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      " Call customer tomorrow "
+    );
+
+    expect(prisma.conversationInternalNote.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        authorMemberId: "member-1",
+        body: "Call customer tomorrow"
+      }
+    });
+    expect(prisma.message.findMany).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: AuditAction.CONVERSATION_NOTE_CREATED,
+        targetType: "Conversation",
+        targetId: "conversation-1"
+      })
+    });
+  });
+
+  it("lists saved replies for the current tenant only", async () => {
+    const prisma = createPrisma();
+    prisma.savedReply.findMany.mockResolvedValue([
+      {
+        id: "reply-1",
+        tenantId: "tenant-1",
+        title: "Greeting",
+        body: "Hello"
+      }
+    ]);
+
+    await createStage3BService(prisma).listSavedReplies("tenant-1");
+
+    expect(prisma.savedReply.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        deletedAt: null,
+        isActive: true
+      },
+      orderBy: [{ title: "asc" }, { createdAt: "desc" }]
     });
   });
 });

@@ -37,6 +37,10 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - [x] Checkpoint I: Inbox supports per-channel conversation identity, customer nicknames, LINE OA badge colors, and sticker message display.
 - [x] Checkpoint J: Inbox viewport fits desktop/tablet/mobile better, same LINE customer can appear separately per OA, and old cross-OA message rows are repaired during migration.
 - [x] Checkpoint K: Inbox supports LINE-like in-progress status, live status timer, configurable alert threshold, paged conversation loading, Enter-to-send replies, and HTTPS image URL replies.
+- [x] Checkpoint L: Inbox assignment, priority, tags, and internal notes API with tenant-scoped audit logs.
+- [x] Checkpoint M: Inbox UI operations for assignment, priority, tags, internal notes, and quick saved reply insertion.
+- [x] Checkpoint N: Saved reply lite API for tenant-scoped quick replies.
+- [x] Checkpoint O: Thai UI foundation and Noto Sans Thai font.
 
 ## Verification - 2026-06-13
 
@@ -107,3 +111,17 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `NEXT_PUBLIC_API_BASE_URL=https://omnichat-by-waiwai.onrender.com npm run web:build`
 - Passed with CRLF-only warnings: `git diff --check`
 - Note: copied binary images need an upload/storage layer before LINE can receive them as image messages. Stage 3 now supports HTTPS image URL replies and shows pasted-image previews instead of pretending local clipboard blobs are sendable.
+
+## Verification - 2026-06-14 Checkpoint L-O
+
+- Passed: `npm run web:test -- apps/web/__tests__/inbox-page.test.tsx --runInBand`
+- Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts --runInBand`
+- Passed: `npm run api:build`
+- Passed: `npm run api:typecheck`
+- Passed: `npm run lint`
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts apps/api/src/line/line-reply.service.spec.ts --runInBand`
+- Passed: `DATABASE_URL=postgresql://user:pass@localhost:5432/omnichat DIRECT_URL=postgresql://user:pass@localhost:5432/omnichat npx prisma validate`
+- Passed: `npm run web:build`
+- Passed with CRLF-only warnings: `git diff --check`
+- Not run: `npx prisma migrate dev --name stage_3b_inbox_operations` because Docker/local PostgreSQL was not running in this environment. Migration SQL was created and Prisma schema validation/generation passed; apply against a disposable/local DB before deploying.
