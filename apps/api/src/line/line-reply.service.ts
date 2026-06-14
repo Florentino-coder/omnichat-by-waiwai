@@ -14,7 +14,7 @@ export class LineReplyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cryptoSecret: CryptoSecretService
-  ) {}
+  ) { }
 
   async replyText(
     tenantId: string,
@@ -48,6 +48,19 @@ export class LineReplyService {
     }
 
     const token = this.cryptoSecret.decrypt(channel.encryptedChannelAccessToken);
+    const lineMessage = dto.imageUrl
+      ? {
+          type: "image",
+          originalContentUrl: dto.imageUrl,
+          previewImageUrl: dto.imageUrl
+        }
+      : {
+          type: "text",
+          text: dto.text
+        };
+    const storedText = dto.imageUrl ? `Image: ${dto.imageUrl}` : dto.text;
+    const storedType = dto.imageUrl ? MessageType.UNKNOWN : MessageType.TEXT;
+
     const response = await fetch("https://api.line.me/v2/bot/message/push", {
       method: "POST",
       headers: {
@@ -56,7 +69,7 @@ export class LineReplyService {
       },
       body: JSON.stringify({
         to: conversation.externalThreadId,
-        messages: [{ type: "text", text: dto.text }]
+        messages: [lineMessage]
       })
     });
 
@@ -71,8 +84,8 @@ export class LineReplyService {
         lineChannelId: channel.id,
         direction: MessageDirection.OUTBOUND,
         source: MessageSource.LINE,
-        type: MessageType.TEXT,
-        text: dto.text,
+        type: storedType,
+        text: storedText,
         sentAt: new Date()
       }
     });
@@ -92,4 +105,3 @@ export class LineReplyService {
     });
   }
 }
-

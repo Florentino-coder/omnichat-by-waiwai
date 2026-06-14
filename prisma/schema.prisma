@@ -58,6 +58,8 @@ enum AuditAction {
   LINE_CHANNEL_UPDATED
   LINE_CHANNEL_DISCONNECTED
   CONVERSATION_CUSTOMER_RENAMED
+  CONVERSATION_STATUS_CHANGED
+  INBOX_SETTINGS_UPDATED
   LINE_MESSAGE_RECEIVED
   LINE_REPLY_SENT
   LINE_WEBHOOK_FAILED
@@ -132,6 +134,7 @@ model TenantSettings {
   // Feature flags (expand per stage)
   enableTwoFa           Boolean  @default(false)
   maxAgents             Int      @default(10)
+  inProgressAlertMinutes Int     @default(10)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -351,6 +354,8 @@ model Conversation {
   externalThreadId String
   displayName      String?
   nickname         String?
+  status           String        @default("OPEN")
+  inProgressStartedAt DateTime?
   lastMessageAt    DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

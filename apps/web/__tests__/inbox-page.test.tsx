@@ -80,7 +80,7 @@ describe("InboxPage", () => {
     expect(await screen.findAllByText("Somchai LINE")).toHaveLength(2);
     expect(screen.getByText("สวัสดีครับ")).toBeInTheDocument();
     expect(screen.queryByText("Messages from LINE will render here after API binding.")).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/inbox/conversations", {
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/inbox/conversations?limit=10&offset=0", {
       headers: { Authorization: "Bearer access-token" }
     });
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/inbox/conversations/conversation-1/messages", {
@@ -437,6 +437,160 @@ describe("InboxPage", () => {
     expect(layout).toHaveClass("lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,300px)]");
   });
 
+  it("changes a conversation to in progress, shows a running timer, and saves the alert threshold", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              displayName: "Customer A",
+              status: "OPEN",
+              inProgressStartedAt: null,
+              lastMessageAt: "2026-06-14T01:00:00.000Z",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Line OA 1",
+                badgeColor: "#4f46e5",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            id: "conversation-1",
+            status: "IN_PROGRESS",
+            inProgressStartedAt: "2026-06-14T01:00:00.000Z"
+          }
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: { inProgressAlertMinutes: 5 }
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect((await screen.findAllByText("Customer A")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Change conversation status" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "กำลังดำเนินการ" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/inbox/conversations/conversation-1/status",
+        {
+          body: JSON.stringify({ status: "IN_PROGRESS" }),
+          headers: {
+            Authorization: "Bearer access-token",
+            "Content-Type": "application/json"
+          },
+          method: "PATCH"
+        }
+      );
+    });
+    expect(await screen.findAllByText(/กำลังดำเนินการ/)).not.toHaveLength(0);
+
+    fireEvent.change(screen.getByLabelText("In-progress alert minutes"), {
+      target: { value: "5" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save alert minutes" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/settings", {
+        body: JSON.stringify({ inProgressAlertMinutes: 5 }),
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json"
+        },
+        method: "PATCH"
+      });
+    });
+  });
+
+  it("loads more conversations in pages of 10", async () => {
+    const firstPage = Array.from({ length: 10 }, (_, index) => ({
+      id: `conversation-${index + 1}`,
+      externalThreadId: `U${index + 1}`,
+      displayName: `Customer ${index + 1}`,
+      status: "OPEN",
+      lineChannel: {
+        id: "line-channel-1",
+        name: "Line OA 1",
+        badgeColor: "#4f46e5",
+        lineChannelId: "1234567890"
+      },
+      messages: []
+    }));
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: firstPage })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-11",
+              externalThreadId: "U11",
+              displayName: "Customer 11",
+              status: "OPEN",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Line OA 1",
+                badgeColor: "#4f46e5",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect(await screen.findByText("Customer 10")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Load older conversations" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations?limit=10&offset=10", {
+        headers: { Authorization: "Bearer access-token" }
+      });
+    });
+    expect(await screen.findByText("Customer 11")).toBeInTheDocument();
+  });
+
   it("renames the selected customer from the inbox context panel", async () => {
     const fetchMock = jest
       .fn()
@@ -576,6 +730,92 @@ describe("InboxPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
         body: JSON.stringify({ text: "Hello from inbox" }),
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+    });
+  });
+
+  it("sends a reply with Enter and sends HTTPS image URLs as LINE image replies", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              status: "OPEN",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: null })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: null })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
+    fireEvent.change(screen.getByRole("textbox", { name: "Reply text" }), {
+      target: { value: "Enter reply" }
+    });
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Reply text" }), {
+      key: "Enter"
+    });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
+        body: JSON.stringify({ text: "Enter reply" }),
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+    });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Reply image URL" }), {
+      target: { value: "https://cdn.example.com/image.png" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send reply" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
+        body: JSON.stringify({ imageUrl: "https://cdn.example.com/image.png" }),
         headers: {
           Authorization: "Bearer access-token",
           "Content-Type": "application/json"

@@ -8,7 +8,7 @@ import {
   useState,
   type CSSProperties
 } from "react";
-import { Check, Pencil, Search, X } from "lucide-react";
+import { AlertTriangle, Check, Clock, Pencil, Search, X } from "lucide-react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { ReplyComposer } from "./reply-composer";
@@ -30,6 +30,7 @@ type InboxConversation = {
   displayName?: string | null;
   nickname?: string | null;
   status?: string | null;
+  inProgressStartedAt?: string | null;
   lastMessageAt?: string | null;
   lineChannel: {
     id: string;
@@ -39,6 +40,10 @@ type InboxConversation = {
   };
   messages: ConversationPreviewMessage[];
 };
+
+type ConversationStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
+
+const CONVERSATION_PAGE_SIZE = 10;
 
 type InboxMessage = {
   id: string;
@@ -97,7 +102,7 @@ function getReadState(
   conversation: InboxConversation,
   selectedId: string | null
 ): ConvReadState {
-  const latestMsg = conversation.messages[0];
+  const latestMsg = conversation.messages?.[0];
   if (!latestMsg) {
     return "normal";
   }
@@ -130,7 +135,16 @@ export default function InboxPage() {
   const [nicknameDraft, setNicknameDraft] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [hasMoreConversations, setHasMoreConversations] = useState(false);
+  const [isLoadingMoreConversations, setIsLoadingMoreConversations] = useState(false);
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [inProgressAlertMinutes, setInProgressAlertMinutes] = useState(10);
+  const [alertMinutesDraft, setAlertMinutesDraft] = useState("10");
+  const [isSavingAlertMinutes, setIsSavingAlertMinutes] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const isMountedRef = useRef(false);
+  const conversationsRef = useRef<InboxConversation[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
 
@@ -138,10 +152,13 @@ export default function InboxPage() {
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId]
   );
-  const latestInboundMessage = useMemo(
-    () => [...messages].reverse().find((message) => message.direction === "INBOUND") ?? null,
-    [messages]
-  );
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+  const latestInboundMessage = useMemo(() => {
+    const safeMessages = Array.isArray(messages) ? messages : [];
+    return [...safeMessages].reverse().find((message) => message.direction === "INBOUND") ?? null;
+  }, [messages]);
   const lineProfile = latestInboundMessage?.rawPayload?.lineProfile ?? null;
   const lineSource = latestInboundMessage?.rawPayload?.source ?? null;
   const lineMessage = latestInboundMessage?.rawPayload?.message ?? null;
@@ -154,7 +171,7 @@ export default function InboxPage() {
     return conversations.filter((c) => {
       const name = customerLabel(c).toLowerCase();
       const channel = c.lineChannel.name.toLowerCase();
-      const lastMsg = c.messages[0] ? messageSummary(c.messages[0]).toLowerCase() : "";
+      const lastMsg = c.messages?.[0] ? messageSummary(c.messages[0]).toLowerCase() : "";
       return name.includes(q) || channel.includes(q) || lastMsg.includes(q);
     });
   }, [conversations, searchQuery]);
@@ -170,23 +187,43 @@ export default function InboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [conversations, selectedId]
   );
+  const overdueInProgressConversations = useMemo(
+    () =>
+      conversations.filter((conversation) =>
+        isInProgressOverdue(conversation, now, inProgressAlertMinutes)
+      ),
+    [conversations, inProgressAlertMinutes, now]
+  );
 
-  const loadConversations = useCallback(async (options?: { quiet?: boolean }): Promise<void> => {
+  const loadConversations = useCallback(async (options?: {
+    append?: boolean;
+    offset?: number;
+    quiet?: boolean;
+  }): Promise<void> => {
     if (!options?.quiet) {
       setIsLoadingConversations(true);
     }
     setError(null);
     try {
-      const data = await apiFetch<InboxConversation[]>("/api/v1/inbox/conversations");
+      const offset = options?.offset ?? 0;
+      const data = await apiFetch<InboxConversation[]>(
+        `/api/v1/inbox/conversations?limit=${CONVERSATION_PAGE_SIZE}&offset=${offset}`
+      );
       if (!isMountedRef.current) {
         return;
       }
-      setConversations(data);
+      const safeData = Array.isArray(data) ? data : [];
+      const nextConversations = options?.append
+        ? [...conversationsRef.current, ...safeData]
+        : safeData;
+      setHasMoreConversations(safeData.length === CONVERSATION_PAGE_SIZE);
+      conversationsRef.current = nextConversations;
+      setConversations(nextConversations);
       setSelectedId((current) => {
-        if (current && data.some((conversation) => conversation.id === current)) {
+        if (current && nextConversations.some((conversation) => conversation.id === current)) {
           return current;
         }
-        return data[0]?.id ?? null;
+        return nextConversations[0]?.id ?? null;
       });
     } catch (loadError) {
       if (isMountedRef.current) {
@@ -205,10 +242,14 @@ export default function InboxPage() {
     const refreshTimer = window.setInterval(() => {
       void loadConversations({ quiet: true });
     }, 3000);
+    const clockTimer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
 
     return () => {
       isMountedRef.current = false;
       window.clearInterval(refreshTimer);
+      window.clearInterval(clockTimer);
     };
   }, [loadConversations]);
 
@@ -216,7 +257,7 @@ export default function InboxPage() {
   useEffect(() => {
     if (selectedId) {
       const selectedConv = conversations.find((c) => c.id === selectedId);
-      const latestMsg = selectedConv?.messages[0];
+      const latestMsg = selectedConv?.messages?.[0];
       if (latestMsg) {
         markRead(selectedId, latestMsg.id);
       }
@@ -242,7 +283,7 @@ export default function InboxPage() {
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
     }
     prevMessageCountRef.current = messages.length;
   }, [messages]);
@@ -265,7 +306,7 @@ export default function InboxPage() {
         `/api/v1/inbox/conversations/${conversationId}/messages`
       );
       if (isMountedRef.current) {
-        setMessages(data);
+        setMessages(Array.isArray(data) ? data : []);
       }
     } catch (loadError) {
       if (isMountedRef.current && !options?.quiet) {
@@ -310,9 +351,89 @@ export default function InboxPage() {
     }
   }
 
+  async function loadMoreConversations(): Promise<void> {
+    if (isLoadingMoreConversations) {
+      return;
+    }
+
+    setIsLoadingMoreConversations(true);
+    try {
+      await loadConversations({
+        append: true,
+        offset: conversations.length,
+        quiet: true
+      });
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingMoreConversations(false);
+      }
+    }
+  }
+
+  async function updateConversationStatus(status: ConversationStatus): Promise<void> {
+    if (!selectedConversation || isSavingStatus) {
+      return;
+    }
+
+    setIsSavingStatus(true);
+    setError(null);
+    try {
+      const updated = await apiFetch<InboxConversation>(
+        `/api/v1/inbox/conversations/${selectedConversation.id}/status`,
+        {
+          body: JSON.stringify({ status }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        }
+      );
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? {
+                ...conversation,
+                status: updated.status ?? status,
+                inProgressStartedAt:
+                  updated.inProgressStartedAt ??
+                  (status === "IN_PROGRESS" ? new Date().toISOString() : null)
+              }
+            : conversation
+        )
+      );
+      setIsStatusMenuOpen(false);
+    } catch (statusError) {
+      setError(readMessage(statusError, "Could not update conversation status."));
+    } finally {
+      setIsSavingStatus(false);
+    }
+  }
+
+  async function saveAlertMinutes(): Promise<void> {
+    const nextMinutes = Number.parseInt(alertMinutesDraft, 10);
+    if (!Number.isFinite(nextMinutes) || nextMinutes < 1 || nextMinutes > 1440) {
+      setError("Alert minutes must be between 1 and 1440.");
+      return;
+    }
+
+    setIsSavingAlertMinutes(true);
+    setError(null);
+    try {
+      const updated = await apiFetch<{ inProgressAlertMinutes: number }>("/api/v1/inbox/settings", {
+        body: JSON.stringify({ inProgressAlertMinutes: nextMinutes }),
+        headers: { "Content-Type": "application/json" },
+        method: "PATCH"
+      });
+      setInProgressAlertMinutes(updated.inProgressAlertMinutes);
+      setAlertMinutesDraft(String(updated.inProgressAlertMinutes));
+    } catch (settingsError) {
+      setError(readMessage(settingsError, "Could not save inbox alert setting."));
+    } finally {
+      setIsSavingAlertMinutes(false);
+    }
+  }
+
   function handleSelectConversation(id: string) {
     const conv = conversations.find((c) => c.id === id);
-    const latestMsg = conv?.messages[0];
+    const latestMsg = conv?.messages?.[0];
     if (latestMsg) {
       markRead(id, latestMsg.id);
     }
@@ -342,10 +463,10 @@ export default function InboxPage() {
       {/* 3-column layout */}
       <div
         data-testid="inbox-layout"
-        className="flex flex-1 min-h-0 overflow-hidden"
+        className="grid h-[calc(100vh-12rem)] min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,300px)]"
       >
         {/* Conversation sidebar */}
-        <aside className="flex w-[280px] shrink-0 flex-col border-r border-border bg-white">
+        <aside className="flex min-h-0 w-full shrink-0 flex-col border-r border-border bg-white lg:w-[280px]">
           {/* Sidebar header */}
           <div className="shrink-0 border-b border-border px-4 py-3">
             <div className="flex items-center justify-between gap-2">
@@ -375,6 +496,52 @@ export default function InboxPage() {
                 <p className="text-xs text-muted-foreground">ตอบครบทุกแชทแล้ว 🎉</p>
               )}
             </div>
+            {overdueInProgressConversations.length > 0 ? (
+              <details className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+                <summary className="flex cursor-pointer list-none items-center gap-1 font-semibold">
+                  <AlertTriangle size={14} aria-hidden="true" />
+                  {overdueInProgressConversations.length} กำลังดำเนินการเกิน {inProgressAlertMinutes} นาที
+                </summary>
+                <div className="mt-1 grid gap-1">
+                  {overdueInProgressConversations.slice(0, 5).map((conversation) => (
+                    <button
+                      key={conversation.id}
+                      type="button"
+                      className="truncate rounded bg-white px-2 py-1 text-left hover:bg-amber-100"
+                      onClick={() => handleSelectConversation(conversation.id)}
+                    >
+                      {customerLabel(conversation)} · {formatElapsed(conversation.inProgressStartedAt, now)}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+            <div className="mt-2 flex items-center gap-2">
+              <label className="sr-only" htmlFor="in-progress-alert-minutes">
+                In-progress alert minutes
+              </label>
+              <input
+                id="in-progress-alert-minutes"
+                aria-label="In-progress alert minutes"
+                className="h-8 w-20 rounded-md border border-border bg-white px-2 text-xs"
+                inputMode="numeric"
+                min={1}
+                max={1440}
+                onChange={(event) => setAlertMinutesDraft(event.target.value)}
+                type="number"
+                value={alertMinutesDraft}
+              />
+              <span className="text-xs text-muted-foreground">นาทีเตือน</span>
+              <button
+                type="button"
+                aria-label="Save alert minutes"
+                className="ml-auto h-8 rounded-md border border-border px-2 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+                disabled={isSavingAlertMinutes}
+                onClick={saveAlertMinutes}
+              >
+                Save
+              </button>
+            </div>
             {/* Search */}
             <div className="relative mt-2">
               <Search
@@ -403,11 +570,13 @@ export default function InboxPage() {
               </p>
             ) : null}
             {filteredConversations.map((conversation) => {
-              const latestMessage = conversation.messages[0];
+              const latestMessage = conversation.messages?.[0];
               const isSelected = conversation.id === selectedId;
               const readState = getReadState(conversation, selectedId);
               const isUnread = readState === "unread";
               const isReadNotReplied = readState === "read-not-replied";
+              const isInProgress = conversationStatus(conversation) === "IN_PROGRESS";
+              const isOverdue = isInProgressOverdue(conversation, now, inProgressAlertMinutes);
 
               return (
                 <button
@@ -481,11 +650,35 @@ export default function InboxPage() {
                       {isUnread ? "⬤ ยังไม่ได้อ่าน" : isReadNotReplied ? "◎ อ่านแล้วไม่ตอบ" : conversationStatus(conversation)}
                     </span>
                   </div>
+                  {isInProgress ? (
+                    <div
+                      className={[
+                        "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                        isOverdue ? "bg-amber-200 text-amber-900" : "bg-emerald-100 text-emerald-700"
+                      ].join(" ")}
+                    >
+                      <Clock size={12} aria-hidden="true" />
+                      กำลังดำเนินการ {formatElapsed(conversation.inProgressStartedAt, now)}
+                    </div>
+                  ) : null}
                 </button>
               );
             })}
             {filteredConversations.length === 0 && !isLoadingConversations && searchQuery ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">ไม่พบผลลัพธ์</p>
+            ) : null}
+            {hasMoreConversations ? (
+              <div className="p-3">
+                <button
+                  type="button"
+                  aria-label="Load older conversations"
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-60"
+                  disabled={isLoadingMoreConversations}
+                  onClick={loadMoreConversations}
+                >
+                  {isLoadingMoreConversations ? "Loading..." : "ดูแชทเก่ากว่า"}
+                </button>
+              </div>
             ) : null}
           </div>
         </aside>
@@ -502,9 +695,39 @@ export default function InboxPage() {
               </h2>
               <p className="text-xs text-muted-foreground">Replies use Stage 2 LINE API.</p>
             </div>
-            <Badge variant={conversationStatus(selectedConversation) === "OPEN" ? "success" : "muted"}>
-              {conversationStatus(selectedConversation)}
-            </Badge>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Change conversation status"
+                className={statusButtonClass(selectedConversation)}
+                disabled={!selectedConversation || isSavingStatus}
+                onClick={() => setIsStatusMenuOpen((current) => !current)}
+              >
+                {statusLabel(conversationStatus(selectedConversation))}
+                {conversationStatus(selectedConversation) === "IN_PROGRESS" &&
+                selectedConversation?.inProgressStartedAt
+                  ? ` · ${formatElapsed(selectedConversation.inProgressStartedAt, now)}`
+                  : ""}
+              </button>
+              {isStatusMenuOpen && selectedConversation ? (
+                <div
+                  role="menu"
+                  className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-border bg-white p-1 shadow-sm"
+                >
+                  {(["OPEN", "IN_PROGRESS", "RESOLVED"] as ConversationStatus[]).map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      role="menuitem"
+                      className="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-secondary"
+                      onClick={() => updateConversationStatus(status)}
+                    >
+                      {statusLabel(status)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           {/* Scrollable messages */}
@@ -518,7 +741,7 @@ export default function InboxPage() {
             {!selectedConversation && !isLoadingConversations ? (
               <p className="text-sm text-muted-foreground">Connect LINE OA and send a message.</p>
             ) : null}
-            {messages.map((message) => (
+            {(Array.isArray(messages) ? messages : []).map((message) => (
               <Card
                 key={message.id}
                 className={`max-w-[min(34rem,88%)] p-3 ${
@@ -557,7 +780,7 @@ export default function InboxPage() {
 
         {/* Customer context */}
         <aside
-          className="flex w-[280px] shrink-0 flex-col border-l border-border bg-white min-h-0"
+          className="flex min-h-0 w-full shrink-0 flex-col border-l border-border bg-white lg:w-[280px]"
           aria-labelledby="context-heading"
         >
           <div className="shrink-0 border-b border-border px-4 py-3">
@@ -591,7 +814,7 @@ export default function InboxPage() {
                     </p>
                     {lineProfile?.language && (
                       <span className="mt-1 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-                        {lineProfile.language.toUpperCase()}
+                        {lineProfile.language}
                       </span>
                     )}
                   </div>
@@ -756,7 +979,10 @@ function StickerDisplay({
           onError={() => setImgError(true)}
         />
         <p className={`text-xs ${isOutbound ? "text-white/70" : "text-muted-foreground"}`}>
-          Sticker {stickerId} · Package {packageId ?? "-"}
+          Sticker {stickerId}
+        </p>
+        <p className={`text-xs ${isOutbound ? "text-white/70" : "text-muted-foreground"}`}>
+          Package {packageId ?? "-"}
         </p>
       </div>
     );
@@ -814,8 +1040,83 @@ function lineChannelBadgeStyle(lineChannel: InboxConversation["lineChannel"]): C
   };
 }
 
-function conversationStatus(conversation: InboxConversation | null): string {
-  return conversation?.status ?? (conversation ? "OPEN" : "No conversation");
+function conversationStatus(conversation: InboxConversation | null): ConversationStatus | "No conversation" {
+  if (!conversation) {
+    return "No conversation";
+  }
+
+  return isConversationStatus(conversation.status) ? conversation.status : "OPEN";
+}
+
+function isConversationStatus(status: string | null | undefined): status is ConversationStatus {
+  return status === "OPEN" || status === "IN_PROGRESS" || status === "RESOLVED";
+}
+
+function statusLabel(status: ConversationStatus | "No conversation"): string {
+  switch (status) {
+    case "IN_PROGRESS":
+      return "กำลังดำเนินการ";
+    case "RESOLVED":
+      return "ดำเนินการแล้ว";
+    case "OPEN":
+      return "OPEN";
+    default:
+      return "No conversation";
+  }
+}
+
+function statusButtonClass(conversation: InboxConversation | null): string {
+  const status = conversationStatus(conversation);
+  const base =
+    "inline-flex min-h-8 items-center rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-60";
+
+  if (status === "IN_PROGRESS") {
+    return `${base} border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100`;
+  }
+  if (status === "RESOLVED") {
+    return `${base} border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`;
+  }
+  if (status === "OPEN") {
+    return `${base} border-success bg-success-soft text-success hover:bg-success-soft`;
+  }
+
+  return `${base} border-border bg-secondary text-muted-foreground`;
+}
+
+function isInProgressOverdue(
+  conversation: InboxConversation,
+  now: number,
+  alertMinutes: number
+): boolean {
+  if (conversationStatus(conversation) !== "IN_PROGRESS" || !conversation.inProgressStartedAt) {
+    return false;
+  }
+
+  const startedAt = new Date(conversation.inProgressStartedAt).getTime();
+  return Number.isFinite(startedAt) && now - startedAt >= alertMinutes * 60_000;
+}
+
+function formatElapsed(value: string | null | undefined, now: number): string {
+  if (!value) {
+    return "0m";
+  }
+
+  const startedAt = new Date(value).getTime();
+  if (!Number.isFinite(startedAt)) {
+    return "0m";
+  }
+
+  const totalSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
+  return `${minutes}m ${seconds}s`;
 }
 
 function formatRelativeTime(value?: string | null): string {
@@ -829,8 +1130,13 @@ function formatRelativeTime(value?: string | null): string {
 }
 
 function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
   return new Intl.DateTimeFormat("th-TH", {
     dateStyle: "short",
     timeStyle: "short"
-  }).format(new Date(value));
+  }).format(date);
 }

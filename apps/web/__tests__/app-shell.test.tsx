@@ -35,7 +35,7 @@ describe("App shell", () => {
       "href",
       "/app/inbox"
     );
-    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Settings" })[0]).toHaveAttribute(
       "href",
       "/app/settings"
     );

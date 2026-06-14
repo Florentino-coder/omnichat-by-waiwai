@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { ClipboardEvent, FormEvent, KeyboardEvent, useRef, useState } from "react";
 import { Button } from "@omnichat/ui";
-import { SendHorizontal } from "lucide-react";
+import { ImagePlus, SendHorizontal, X } from "lucide-react";
 import { apiFetch } from "../../lib/api-client";
 
 interface ReplyComposerProps {
@@ -12,14 +12,19 @@ interface ReplyComposerProps {
 
 export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
   const [text, setText] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [pastedImagePreview, setPastedImagePreview] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const trimmedText = text.trim();
+  const trimmedImageUrl = imageUrl.trim();
+  const canSend = Boolean(conversationId && !isSending && (trimmedText || trimmedImageUrl));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!conversationId || !trimmedText || isSending) {
+    if (!conversationId || !canSend) {
       return;
     }
 
@@ -30,9 +35,11 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
       await apiFetch<null>(`/api/v1/line/conversations/${conversationId}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmedText })
+        body: JSON.stringify(trimmedImageUrl ? { imageUrl: trimmedImageUrl } : { text: trimmedText })
       });
       setText("");
+      setImageUrl("");
+      setPastedImagePreview(null);
       await onSent?.();
     } catch {
       setError("Reply failed. Try again.");
@@ -41,8 +48,49 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
     }
   }
 
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+
+    event.preventDefault();
+    formRef.current?.requestSubmit();
+  }
+
+  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const pastedText = event.clipboardData.getData("text/plain").trim();
+    if (isHttpsImageUrl(pastedText)) {
+      event.preventDefault();
+      setImageUrl(pastedText);
+      setError(null);
+      return;
+    }
+
+    const imageItem = Array.from(event.clipboardData.items).find((item) =>
+      item.type.startsWith("image/")
+    );
+    const imageFile = imageItem?.getAsFile();
+    if (!imageFile) {
+      return;
+    }
+
+    event.preventDefault();
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setPastedImagePreview(reader.result);
+        setError("Pasted image ready for preview. Upload storage is needed before LINE can send copied image files.");
+      }
+    };
+    reader.readAsDataURL(imageFile);
+  }
+
   return (
-    <form className="shrink-0 border-t border-border bg-white p-3 lg:p-4" onSubmit={handleSubmit}>
+    <form
+      ref={formRef}
+      className="shrink-0 border-t border-border bg-white p-3 lg:p-4"
+      onSubmit={handleSubmit}
+    >
       <div className="flex flex-col gap-3 sm:flex-row">
         <label className="sr-only" htmlFor="reply-text">
           Reply text
@@ -54,12 +102,65 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
           disabled={!conversationId || isSending}
           maxLength={5000}
           onChange={(event) => setText(event.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder="Type LINE reply"
           value={text}
         />
+        <div className="grid gap-2 sm:w-64">
+          <label className="sr-only" htmlFor="reply-image-url">
+            Reply image URL
+          </label>
+          <div className="flex items-center gap-2 rounded-md border border-border bg-white px-2">
+            <ImagePlus aria-hidden="true" size={16} className="text-muted-foreground" />
+            <input
+              id="reply-image-url"
+              aria-label="Reply image URL"
+              className="h-10 min-w-0 flex-1 text-sm outline-none placeholder:text-muted-foreground"
+              disabled={!conversationId || isSending}
+              onChange={(event) => setImageUrl(event.target.value)}
+              placeholder="https image URL"
+              type="url"
+              value={imageUrl}
+            />
+            {imageUrl ? (
+              <button
+                type="button"
+                aria-label="Clear image URL"
+                className="rounded p-1 text-muted-foreground hover:bg-secondary"
+                onClick={() => setImageUrl("")}
+              >
+                <X aria-hidden="true" size={14} />
+              </button>
+            ) : null}
+          </div>
+          {pastedImagePreview ? (
+            <div className="flex items-center gap-2 rounded-md border border-border p-2">
+              <img
+                src={pastedImagePreview}
+                alt="Pasted preview"
+                className="h-10 w-10 rounded object-cover"
+              />
+              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                Clipboard image preview
+              </span>
+              <button
+                type="button"
+                aria-label="Clear pasted image"
+                className="rounded p-1 text-muted-foreground hover:bg-secondary"
+                onClick={() => {
+                  setPastedImagePreview(null);
+                  setError(null);
+                }}
+              >
+                <X aria-hidden="true" size={14} />
+              </button>
+            </div>
+          ) : null}
+        </div>
         <Button
           className="gap-2 self-stretch sm:self-end"
-          disabled={!conversationId || !trimmedText || isSending}
+          disabled={!canSend}
           type="submit"
         >
           <SendHorizontal aria-hidden="true" size={16} />
@@ -69,4 +170,8 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
       {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
     </form>
   );
+}
+
+function isHttpsImageUrl(value: string): boolean {
+  return /^https:\/\/\S+\.(png|jpe?g|gif|webp)(\?\S*)?$/i.test(value);
 }

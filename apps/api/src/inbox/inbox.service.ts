@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Conversation, Message } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { ConversationStatus } from "./dto/update-conversation-status.dto";
 
 export type InboxConversation = Conversation & {
   lineChannel: {
@@ -20,11 +21,26 @@ export type InboxConversation = Conversation & {
   }[];
 };
 
+export type InboxSettings = {
+  inProgressAlertMinutes: number;
+};
+
+export type ListConversationsOptions = {
+  limit?: number;
+  offset?: number;
+};
+
 @Injectable()
 export class InboxService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
-  listConversations(tenantId: string): Promise<InboxConversation[]> {
+  listConversations(
+    tenantId: string,
+    options: ListConversationsOptions = {}
+  ): Promise<InboxConversation[]> {
+    const limit = clampInteger(options.limit ?? 10, 1, 50);
+    const offset = Math.max(0, Math.trunc(options.offset ?? 0));
+
     return this.prisma.conversation.findMany({
       where: {
         tenantId,
@@ -54,7 +70,8 @@ export class InboxService {
         }
       },
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-      take: 100
+      skip: offset,
+      take: limit
     });
   }
 
@@ -125,4 +142,95 @@ export class InboxService {
 
     return updatedConversation;
   }
+
+  async updateStatus(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    status: ConversationStatus
+  ): Promise<Conversation> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId,
+        deletedAt: null
+      }
+    });
+
+    if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
+    const updatedConversation = await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: {
+        status,
+        inProgressStartedAt:
+          status === "IN_PROGRESS"
+            ? conversation.inProgressStartedAt ?? new Date()
+            : null
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.CONVERSATION_STATUS_CHANGED,
+        targetType: "Conversation",
+        targetId: conversation.id,
+        metadata: {
+          previousStatus: conversation.status,
+          status
+        }
+      }
+    });
+
+    return updatedConversation;
+  }
+
+  async getSettings(tenantId: string): Promise<InboxSettings> {
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+      select: { inProgressAlertMinutes: true }
+    });
+
+    return {
+      inProgressAlertMinutes: settings?.inProgressAlertMinutes ?? 10
+    };
+  }
+
+  async updateSettings(
+    tenantId: string,
+    userId: string,
+    inProgressAlertMinutes: number
+  ): Promise<InboxSettings> {
+    const settings = await this.prisma.tenantSettings.upsert({
+      where: { tenantId },
+      create: { tenantId, inProgressAlertMinutes },
+      update: { inProgressAlertMinutes },
+      select: { inProgressAlertMinutes: true }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.INBOX_SETTINGS_UPDATED,
+        targetType: "TenantSettings",
+        targetId: tenantId,
+        metadata: { inProgressAlertMinutes }
+      }
+    });
+
+    return settings;
+  }
+}
+
+function clampInteger(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+
+  return Math.min(max, Math.max(min, Math.trunc(value)));
 }

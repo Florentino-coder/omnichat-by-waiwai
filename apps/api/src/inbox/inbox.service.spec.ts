@@ -9,6 +9,10 @@ type MockPrisma = {
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  tenantSettings: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+    upsert: jest.Mock<Promise<unknown>, [unknown]>;
+  };
   message: {
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
@@ -22,6 +26,10 @@ const createPrisma = (): MockPrisma => ({
     findFirst: jest.fn<Promise<unknown>, [unknown]>(),
     findMany: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  tenantSettings: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>(),
+    upsert: jest.fn<Promise<unknown>, [unknown]>()
   },
   message: {
     findMany: jest.fn<Promise<unknown>, [unknown]>()
@@ -45,7 +53,7 @@ describe("InboxService", () => {
       }
     ]);
 
-    await createService(prisma).listConversations("tenant-1");
+    await createService(prisma).listConversations("tenant-1", { limit: 10, offset: 20 });
 
     expect(prisma.conversation.findMany).toHaveBeenCalledWith({
       where: {
@@ -76,7 +84,107 @@ describe("InboxService", () => {
         }
       },
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
-      take: 100
+      skip: 20,
+      take: 10
+    });
+  });
+
+  it("moves a tenant conversation into in-progress status and starts the timer once", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      status: "OPEN",
+      inProgressStartedAt: null
+    });
+    prisma.conversation.update.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      status: "IN_PROGRESS"
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createService(prisma).updateStatus(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      "IN_PROGRESS"
+    );
+
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conversation-1" },
+      data: {
+        status: "IN_PROGRESS",
+        inProgressStartedAt: expect.any(Date)
+      }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: "user-1",
+        action: AuditAction.CONVERSATION_STATUS_CHANGED,
+        targetType: "Conversation",
+        targetId: "conversation-1",
+        metadata: {
+          previousStatus: "OPEN",
+          status: "IN_PROGRESS"
+        }
+      })
+    });
+  });
+
+  it("clears the in-progress timer when a conversation leaves in-progress status", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      status: "IN_PROGRESS",
+      inProgressStartedAt: new Date("2026-06-14T01:00:00.000Z")
+    });
+    prisma.conversation.update.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      status: "OPEN"
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createService(prisma).updateStatus("tenant-1", "user-1", "conversation-1", "OPEN");
+
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conversation-1" },
+      data: {
+        status: "OPEN",
+        inProgressStartedAt: null
+      }
+    });
+  });
+
+  it("reads and updates the tenant inbox alert setting with audit log", async () => {
+    const prisma = createPrisma();
+    prisma.tenantSettings.findUnique.mockResolvedValue({ inProgressAlertMinutes: 15 });
+    prisma.tenantSettings.upsert.mockResolvedValue({ inProgressAlertMinutes: 5 });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await expect(createService(prisma).getSettings("tenant-1")).resolves.toEqual({
+      inProgressAlertMinutes: 15
+    });
+    await createService(prisma).updateSettings("tenant-1", "user-1", 5);
+
+    expect(prisma.tenantSettings.upsert).toHaveBeenCalledWith({
+      where: { tenantId: "tenant-1" },
+      create: { tenantId: "tenant-1", inProgressAlertMinutes: 5 },
+      update: { inProgressAlertMinutes: 5 },
+      select: { inProgressAlertMinutes: true }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: "user-1",
+        action: AuditAction.INBOX_SETTINGS_UPDATED,
+        targetType: "TenantSettings",
+        targetId: "tenant-1",
+        metadata: { inProgressAlertMinutes: 5 }
+      })
     });
   });
 
