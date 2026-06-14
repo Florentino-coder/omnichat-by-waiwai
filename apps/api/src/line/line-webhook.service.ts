@@ -43,7 +43,7 @@ export class LineWebhookService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cryptoSecret: CryptoSecretService
-  ) {}
+  ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
     const channel = await this.prisma.lineChannel.findFirst({

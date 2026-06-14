@@ -48,8 +48,8 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
       <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
           <div>
-            <p className="font-heading text-sm font-medium">OmniChat</p>
-            <p className="text-xs text-muted-foreground">Stage 1 foundation</p>
+            <p className="font-heading text-sm font-medium">Chat-Wai</p>
+            <p className="text-xs text-muted-foreground">By Florentino.</p>
           </div>
           <UserMenu />
         </header>
