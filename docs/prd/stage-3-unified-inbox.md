@@ -41,6 +41,8 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - [x] Checkpoint M: Inbox UI operations for assignment, priority, tags, internal notes, and quick saved reply insertion.
 - [x] Checkpoint N: Saved reply lite API for tenant-scoped quick replies.
 - [x] Checkpoint O: Thai UI foundation and Noto Sans Thai font.
+- [x] Checkpoint P: LINE OA-scoped Quick Reply in inbox with Auto Enter.
+- [x] Checkpoint Q: Settings Quick Reply CRUD per LINE OA.
 
 ## Verification - 2026-06-13
 
@@ -154,3 +156,16 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run web:test -- --runInBand`
 - Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts apps/api/src/line/line-reply.service.spec.ts --runInBand`
 - Passed: `npm run web:build`
+
+## Verification - 2026-06-15 Checkpoint Q Quick Reply Management
+
+- Added: Settings page Quick Reply manager for creating, editing, and deleting replies per LINE OA.
+- Added: manager reloads replies through `?lineChannelId=` and writes through existing audited saved-reply APIs.
+- Added: Settings test coverage for per-OA reply list, create, and delete flows.
+- Passed: `npm run web:test -- apps/web/__tests__/app-shell.test.tsx --runInBand`
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run lint`
+- Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts apps/api/src/line/line-reply.service.spec.ts --runInBand`
+- Passed: `npm run api:build`
+- Passed: `npm run web:build`
+- Passed with CRLF-only warnings: `git diff --check`

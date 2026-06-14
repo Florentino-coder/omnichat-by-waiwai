@@ -1,5 +1,6 @@
 import { Card } from "@omnichat/ui";
 import { LineChannelForm } from "./line-channel-form";
+import { QuickReplyManager } from "./quick-reply-manager";
 
 export default function SettingsPage() {
   return (
@@ -19,6 +20,15 @@ export default function SettingsPage() {
             </p>
           </div>
           <LineChannelForm />
+        </Card>
+        <Card className="mt-6 p-5">
+          <div className="flex flex-col gap-1">
+            <h2 className="font-heading text-base font-medium">Quick Reply</h2>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Manage reusable replies per LINE OA. Agents see only replies for the selected conversation channel.
+            </p>
+          </div>
+          <QuickReplyManager />
         </Card>
       </section>
     </div>
