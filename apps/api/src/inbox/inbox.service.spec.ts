@@ -1,10 +1,11 @@
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import {
   AuditAction,
   ConversationPriority,
   MessageDirection,
   MessageSource,
-  MessageType
+  MessageType,
+  Role
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { InboxService } from "./inbox.service";
@@ -30,6 +31,8 @@ type MockPrisma = {
   };
   conversationInternalNote: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
   };
   savedReply: {
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
@@ -66,7 +69,9 @@ const createPrisma = (): MockPrisma => ({
     update: jest.fn<Promise<unknown>, [unknown]>()
   },
   conversationInternalNote: {
-    create: jest.fn<Promise<unknown>, [unknown]>()
+    create: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    update: jest.fn<Promise<unknown>, [unknown]>()
   },
   savedReply: {
     findMany: jest.fn<Promise<unknown>, [unknown]>()
@@ -122,6 +127,13 @@ type Stage3BInboxService = InboxService & {
     conversationId: string,
     body: string
   ) => Promise<unknown>;
+  deleteNote: (
+    tenantId: string,
+    userId: string,
+    role: Role,
+    conversationId: string,
+    noteId: string
+  ) => Promise<unknown>;
   listSavedReplies: (tenantId: string) => Promise<unknown>;
 };
 
@@ -166,6 +178,12 @@ describe("InboxService", () => {
             rawPayload: true,
             createdAt: true,
             sentAt: true
+          }
+        },
+        tagLinks: {
+          where: { deletedAt: null },
+          include: {
+            tag: true
           }
         }
       },
@@ -568,6 +586,34 @@ describe("InboxService", () => {
         targetId: "conversation-1"
       })
     });
+  });
+
+  it("rejects agent deleting another member internal note", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({ id: "conversation-1", tenantId: "tenant-1" });
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "member-1",
+      tenantId: "tenant-1",
+      userId: "user-1"
+    });
+    prisma.conversationInternalNote.findFirst.mockResolvedValue({
+      id: "note-1",
+      tenantId: "tenant-1",
+      conversationId: "conversation-1",
+      authorMemberId: "member-2"
+    });
+
+    await expect(
+      createStage3BService(prisma).deleteNote(
+        "tenant-1",
+        "user-1",
+        Role.AGENT,
+        "conversation-1",
+        "note-1"
+      )
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.conversationInternalNote.update).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 
   it("lists saved replies for the current tenant only", async () => {

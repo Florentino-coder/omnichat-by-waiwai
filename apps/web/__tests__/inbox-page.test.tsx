@@ -708,6 +708,106 @@ describe("InboxPage", () => {
     expect(screen.getByRole("button", { name: "Insert saved reply" })).toBeInTheDocument();
   });
 
+  it("loads usable inbox operation data for tags, notes, and saved replies", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              displayName: "Customer Ops",
+              status: "OPEN",
+              priority: "NORMAL",
+              assignedToMemberId: null,
+              tagLinks: [],
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [{ id: "tag-vip", name: "VIP", color: "#f97316" }]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "reply-1",
+              title: "Greeting",
+              body: "สวัสดีค่ะ ทีมงานกำลังตรวจสอบให้ค่ะ",
+              isActive: true
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "note-1",
+              body: "ลูกค้ารอใบเสนอราคา",
+              createdAt: "2026-06-14T01:00:00.000Z",
+              authorMemberId: "member-1"
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { id: "link-1" } })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect((await screen.findAllByText("Customer Ops")).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("button", { name: "Add tag VIP" })).toBeInTheDocument();
+    expect(await screen.findByText("Greeting")).toBeInTheDocument();
+    expect((await screen.findAllByText("ลูกค้ารอใบเสนอราคา")).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add tag VIP" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/inbox/conversations/conversation-1/tags/tag-vip",
+        {
+          headers: { Authorization: "Bearer access-token" },
+          method: "POST"
+        }
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Insert saved reply Greeting" }));
+    expect(screen.getByRole("textbox", { name: "Reply text" })).toHaveValue(
+      "สวัสดีค่ะ ทีมงานกำลังตรวจสอบให้ค่ะ"
+    );
+  });
+
   it("posts reply text through the existing LINE conversation reply route with auth", async () => {
     const fetchMock = jest
       .fn()

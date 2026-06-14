@@ -45,6 +45,7 @@ type InboxConversation = {
   status?: string | null;
   priority?: ConversationPriority | null;
   assignedToMemberId?: string | null;
+  tagLinks?: ConversationTagLink[];
   inProgressStartedAt?: string | null;
   lastMessageAt?: string | null;
   lineChannel: {
@@ -60,6 +61,33 @@ type ConversationStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 type ConversationPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
 const CONVERSATION_PAGE_SIZE = 10;
+
+type ConversationTag = {
+  id: string;
+  name: string;
+  color?: string | null;
+};
+
+type ConversationTagLink = {
+  id: string;
+  tagId: string;
+  deletedAt?: string | null;
+  tag?: ConversationTag | null;
+};
+
+type SavedReply = {
+  id: string;
+  title: string;
+  body: string;
+  isActive?: boolean;
+};
+
+type ConversationInternalNote = {
+  id: string;
+  body: string;
+  createdAt: string;
+  authorMemberId?: string | null;
+};
 
 type InboxMessage = {
   id: string;
@@ -165,6 +193,10 @@ export default function InboxPage() {
   const [noteDraft, setNoteDraft] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [composerInsertText, setComposerInsertText] = useState("");
+  const [tags, setTags] = useState<ConversationTag[]>([]);
+  const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
+  const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
+  const isLoadingOperations = false;
   const [now, setNow] = useState(() => Date.now());
   const isMountedRef = useRef(false);
   const conversationsRef = useRef<InboxConversation[]>([]);
@@ -186,6 +218,14 @@ export default function InboxPage() {
   const lineSource = latestInboundMessage?.rawPayload?.source ?? null;
   const lineMessage = latestInboundMessage?.rawPayload?.message ?? null;
   const selectedCustomerName = selectedConversation ? customerLabel(selectedConversation) : "";
+  const selectedTagIds = useMemo(() => {
+    const links = selectedConversation?.tagLinks ?? [];
+    return new Set(
+      links
+        .filter((link) => !link.deletedAt)
+        .map((link) => link.tagId)
+    );
+  }, [selectedConversation]);
 
   // Filtered conversations for search
   const filteredConversations = useMemo(() => {
@@ -317,6 +357,37 @@ export default function InboxPage() {
     setAssigneeDraft(selectedConversation?.assignedToMemberId ?? "");
     setNoteDraft("");
   }, [selectedCustomerName, selectedId]);
+
+  useEffect(() => {
+    if (!selectedId || !selectedConversation || !("tagLinks" in selectedConversation)) {
+      setInternalNotes([]);
+      return;
+    }
+
+    void loadInboxOperations(selectedId);
+  }, [selectedConversation, selectedId]);
+
+  async function loadInboxOperations(conversationId: string): Promise<void> {
+    const [tagResult, replyResult, noteResult] = await Promise.allSettled([
+      apiFetch<ConversationTag[]>("/api/v1/inbox/tags"),
+      apiFetch<SavedReply[]>("/api/v1/inbox/saved-replies"),
+      apiFetch<ConversationInternalNote[]>(`/api/v1/inbox/conversations/${conversationId}/notes`)
+    ]);
+
+    if (!isMountedRef.current || conversationsRef.current.every((item) => item.id !== conversationId)) {
+      return;
+    }
+
+    if (tagResult.status === "fulfilled") {
+      setTags(Array.isArray(tagResult.value) ? tagResult.value : []);
+    }
+    if (replyResult.status === "fulfilled") {
+      setSavedReplies(Array.isArray(replyResult.value) ? replyResult.value : []);
+    }
+    if (noteResult.status === "fulfilled") {
+      setInternalNotes(Array.isArray(noteResult.value) ? noteResult.value : []);
+    }
+  }
 
   async function loadMessages(
     conversationId: string,
@@ -532,10 +603,65 @@ export default function InboxPage() {
         method: "POST"
       });
       setNoteDraft("");
+      await loadInboxOperations(selectedConversation.id);
     } catch (noteError) {
       setError(readMessage(noteError, "Could not save internal note."));
     } finally {
       setIsSavingNote(false);
+    }
+  }
+
+  async function addTagToConversation(tag: ConversationTag): Promise<void> {
+    if (!selectedConversation || selectedTagIds.has(tag.id)) {
+      return;
+    }
+
+    setError(null);
+    try {
+      const link = await apiFetch<ConversationTagLink>(
+        `/api/v1/inbox/conversations/${selectedConversation.id}/tags/${tag.id}`,
+        { method: "POST" }
+      );
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? {
+                ...conversation,
+                tagLinks: [
+                  ...(conversation.tagLinks ?? []).filter((item) => item.tagId !== tag.id),
+                  { ...link, tagId: tag.id, tag }
+                ]
+              }
+            : conversation
+        )
+      );
+    } catch (tagError) {
+      setError(readMessage(tagError, "Could not add tag."));
+    }
+  }
+
+  async function removeTagFromConversation(tag: ConversationTag): Promise<void> {
+    if (!selectedConversation || !selectedTagIds.has(tag.id)) {
+      return;
+    }
+
+    setError(null);
+    try {
+      await apiFetch(`/api/v1/inbox/conversations/${selectedConversation.id}/tags/${tag.id}`, {
+        method: "DELETE"
+      });
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === selectedConversation.id
+            ? {
+                ...conversation,
+                tagLinks: (conversation.tagLinks ?? []).filter((item) => item.tagId !== tag.id)
+              }
+            : conversation
+        )
+      );
+    } catch (tagError) {
+      setError(readMessage(tagError, "Could not remove tag."));
     }
   }
 
@@ -649,6 +775,22 @@ export default function InboxPage() {
               >
                 {t.save}
               </button>
+              <div className="hidden">
+                {internalNotes.length === 0 && !isLoadingOperations ? (
+                  <p className="text-xs text-muted-foreground">ยังไม่มีโน้ต</p>
+                ) : null}
+                {internalNotes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="rounded-md border border-border bg-secondary px-2 py-2 text-xs"
+                  >
+                    <p className="whitespace-pre-wrap text-foreground">{note.body}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {formatDateTime(note.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
             {/* Search */}
             <div className="relative mt-2">
@@ -818,7 +960,7 @@ export default function InboxPage() {
                 type="button"
                 aria-label="Insert saved reply"
                 className="inline-flex min-h-8 items-center gap-1 rounded-md border border-border bg-white px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary disabled:opacity-60"
-                disabled={!selectedConversation}
+                disabled={!selectedConversation || savedReplies.length === 0}
                 onClick={() => setComposerInsertText("สวัสดีค่ะ แอดมินกำลังตรวจสอบให้นะคะ")}
               >
                 <MessageSquareQuote size={14} aria-hidden="true" />
@@ -965,6 +1107,74 @@ export default function InboxPage() {
 
             <div className="border-b border-border px-4 py-3">
               <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <Tags size={12} aria-hidden="true" />
+                Tags from API
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {tags.length === 0 && !isLoadingOperations ? (
+                  <span className="rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground">
+                    ยังไม่มีแท็ก
+                  </span>
+                ) : null}
+                {tags.map((tag) => {
+                  const attached = selectedTagIds.has(tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      aria-label={`${attached ? "Remove" : "Add"} tag ${tag.name}`}
+                      className={[
+                        "rounded-full border px-2 py-1 text-xs font-medium",
+                        attached ? "text-white" : "bg-white text-foreground hover:bg-secondary"
+                      ].join(" ")}
+                      disabled={!selectedConversation}
+                      onClick={() =>
+                        attached ? removeTagFromConversation(tag) : addTagToConversation(tag)
+                      }
+                      style={
+                        attached
+                          ? { backgroundColor: tag.color ?? "#64748b", borderColor: tag.color ?? "#64748b" }
+                          : { borderColor: tag.color ?? "#cbd5e1" }
+                      }
+                    >
+                      {tag.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="border-b border-border px-4 py-3">
+              <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <MessageSquareQuote size={12} aria-hidden="true" />
+                Saved replies
+              </p>
+              <div className="grid gap-1.5">
+                {savedReplies.length === 0 && !isLoadingOperations ? (
+                  <p className="text-xs text-muted-foreground">ยังไม่มีคำตอบสำเร็จรูป</p>
+                ) : null}
+                {savedReplies
+                  .filter((reply) => reply.isActive !== false)
+                  .map((reply) => (
+                    <button
+                      key={reply.id}
+                      type="button"
+                      aria-label={`Insert saved reply ${reply.title}`}
+                      className="rounded-md border border-border px-2 py-1.5 text-left text-xs hover:bg-secondary"
+                      disabled={!selectedConversation}
+                      onClick={() => setComposerInsertText(reply.body)}
+                    >
+                      <span className="block font-medium text-foreground">{reply.title}</span>
+                      <span className="mt-0.5 line-clamp-2 block text-muted-foreground">
+                        {reply.body}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            <div className="border-b border-border px-4 py-3">
+              <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <StickyNote size={12} aria-hidden="true" />
                 โน้ตภายใน
               </p>
@@ -985,6 +1195,22 @@ export default function InboxPage() {
               >
                 {t.save}
               </button>
+              <div className="mt-3 grid gap-2">
+                {internalNotes.length === 0 && !isLoadingOperations ? (
+                  <p className="text-xs text-muted-foreground">ยังไม่มีโน้ต</p>
+                ) : null}
+                {internalNotes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="rounded-md border border-border bg-secondary px-2 py-2 text-xs"
+                  >
+                    <p className="whitespace-pre-wrap text-foreground">{note.body}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {formatDateTime(note.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Section: Identity */}

@@ -125,3 +125,14 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run web:build`
 - Passed with CRLF-only warnings: `git diff --check`
 - Not run: `npx prisma migrate dev --name stage_3b_inbox_operations` because Docker/local PostgreSQL was not running in this environment. Migration SQL was created and Prisma schema validation/generation passed; apply against a disposable/local DB before deploying.
+
+## Verification - 2026-06-14 Checkpoint L-O API Wiring
+
+- Added: inbox conversation list now returns active tag links with tag metadata so the UI can render real tag state.
+- Added: inbox UI loads tenant tags, saved replies, and selected conversation internal notes from Stage 3B APIs.
+- Added: saved reply buttons insert API-backed reply bodies into the composer; tag chips attach/remove tags through inbox APIs.
+- Hardened: internal note delete now rejects AGENT deletion of another member note; ADMIN/OWNER can delete tenant notes.
+- Applied: `20260614110000_stage_3b_inbox_operations` with `npx prisma migrate deploy`; `npx prisma migrate status` reports database schema is up to date.
+- Passed: `npm run web:test -- apps/web/__tests__/inbox-page.test.tsx --runInBand`
+- Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts --runInBand`
+- Passed: `npx prisma validate`

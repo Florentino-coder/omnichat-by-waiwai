@@ -219,7 +219,7 @@ export class InboxController {
     @Param("id") id: string,
     @Param("noteId") noteId: string
   ): Promise<ConversationInternalNote> {
-    return this.inboxService.deleteNote(ctx.tenantId, ctx.sub, id, noteId);
+    return this.inboxService.deleteNote(ctx.tenantId, ctx.sub, ctx.role, id, noteId);
   }
 
   @Patch("settings")

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   AuditAction,
   Conversation,
@@ -7,6 +7,7 @@ import {
   ConversationTag,
   ConversationTagLink,
   Message,
+  Role,
   SavedReply,
   WorkspaceMember
 } from "@prisma/client";
@@ -92,6 +93,12 @@ export class InboxService {
             rawPayload: true,
             createdAt: true,
             sentAt: true
+          }
+        },
+        tagLinks: {
+          where: { deletedAt: null },
+          include: {
+            tag: true
           }
         }
       },
@@ -526,10 +533,12 @@ export class InboxService {
   async deleteNote(
     tenantId: string,
     userId: string,
+    role: Role,
     conversationId: string,
     noteId: string
   ): Promise<ConversationInternalNote> {
     const conversation = await this.findTenantConversation(tenantId, conversationId);
+    const actor = await this.findActorMember(tenantId, userId);
     const note = await this.prisma.conversationInternalNote.findFirst({
       where: {
         id: noteId,
@@ -541,6 +550,9 @@ export class InboxService {
 
     if (!note) {
       throw new NotFoundException("Conversation note not found");
+    }
+    if (role !== Role.ADMIN && role !== Role.OWNER && note.authorMemberId !== actor.id) {
+      throw new ForbiddenException("Cannot delete another member's note");
     }
 
     const deletedNote = await this.prisma.conversationInternalNote.update({
