@@ -15,6 +15,7 @@ import {
   Flag,
   MessageSquareQuote,
   Pencil,
+  Plus,
   Search,
   StickyNote,
   Tags,
@@ -77,6 +78,7 @@ type ConversationTagLink = {
 
 type SavedReply = {
   id: string;
+  lineChannelId?: string | null;
   title: string;
   body: string;
   isActive?: boolean;
@@ -193,6 +195,14 @@ export default function InboxPage() {
   const [noteDraft, setNoteDraft] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [composerInsertText, setComposerInsertText] = useState("");
+  const [composerInsertNonce, setComposerInsertNonce] = useState(0);
+  const [isQuickReplyAutoEnter, setIsQuickReplyAutoEnter] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return window.localStorage.getItem("omni_quick_reply_auto_enter") === "true";
+  });
+  const [isSendingQuickReply, setIsSendingQuickReply] = useState(false);
   const [tags, setTags] = useState<ConversationTag[]>([]);
   const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
   const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
@@ -226,6 +236,15 @@ export default function InboxPage() {
         .map((link) => link.tagId)
     );
   }, [selectedConversation]);
+  const activeSavedReplies = useMemo(
+    () =>
+      savedReplies.filter(
+        (reply) =>
+          reply.isActive !== false &&
+          (!selectedConversation || reply.lineChannelId === selectedConversation.lineChannel.id)
+      ),
+    [savedReplies, selectedConversation]
+  );
 
   // Filtered conversations for search
   const filteredConversations = useMemo(() => {
@@ -368,9 +387,14 @@ export default function InboxPage() {
   }, [selectedConversation, selectedId]);
 
   async function loadInboxOperations(conversationId: string): Promise<void> {
+    const lineChannelId = selectedConversation?.lineChannel.id;
     const [tagResult, replyResult, noteResult] = await Promise.allSettled([
       apiFetch<ConversationTag[]>("/api/v1/inbox/tags"),
-      apiFetch<SavedReply[]>("/api/v1/inbox/saved-replies"),
+      apiFetch<SavedReply[]>(
+        lineChannelId
+          ? `/api/v1/inbox/saved-replies?lineChannelId=${encodeURIComponent(lineChannelId)}`
+          : "/api/v1/inbox/saved-replies"
+      ),
       apiFetch<ConversationInternalNote[]>(`/api/v1/inbox/conversations/${conversationId}/notes`)
     ]);
 
@@ -662,6 +686,49 @@ export default function InboxPage() {
       );
     } catch (tagError) {
       setError(readMessage(tagError, "Could not remove tag."));
+    }
+  }
+
+  function insertComposerText(body: string): void {
+    setComposerInsertText(body);
+    setComposerInsertNonce((current) => current + 1);
+  }
+
+  function toggleQuickReplyAutoEnter(): void {
+    setIsQuickReplyAutoEnter((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem("omni_quick_reply_auto_enter", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
+
+  async function useQuickReply(reply: SavedReply): Promise<void> {
+    if (!selectedConversation || isSendingQuickReply) {
+      return;
+    }
+
+    if (!isQuickReplyAutoEnter) {
+      insertComposerText(reply.body);
+      return;
+    }
+
+    setIsSendingQuickReply(true);
+    setError(null);
+    try {
+      await apiFetch<null>(`/api/v1/line/conversations/${selectedConversation.id}/reply`, {
+        body: JSON.stringify({ text: reply.body }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      await loadMessages(selectedConversation.id);
+    } catch (quickReplyError) {
+      setError(readMessage(quickReplyError, "Could not send quick reply."));
+    } finally {
+      setIsSendingQuickReply(false);
     }
   }
 
@@ -960,8 +1027,13 @@ export default function InboxPage() {
                 type="button"
                 aria-label="Insert saved reply"
                 className="inline-flex min-h-8 items-center gap-1 rounded-md border border-border bg-white px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:bg-secondary disabled:opacity-60"
-                disabled={!selectedConversation || savedReplies.length === 0}
-                onClick={() => setComposerInsertText("สวัสดีค่ะ แอดมินกำลังตรวจสอบให้นะคะ")}
+                disabled={!selectedConversation || activeSavedReplies.length === 0}
+                onClick={() => {
+                  const firstReply = activeSavedReplies[0];
+                  if (firstReply) {
+                    void useQuickReply(firstReply);
+                  }
+                }}
               >
                 <MessageSquareQuote size={14} aria-hidden="true" />
                 Quick reply
@@ -1043,6 +1115,7 @@ export default function InboxPage() {
           <ReplyComposer
             conversationId={selectedConversation?.id ?? null}
             insertText={composerInsertText}
+            insertNonce={composerInsertNonce}
             onSent={async () => {
               if (selectedConversation) {
                 await loadMessages(selectedConversation.id);
@@ -1147,29 +1220,56 @@ export default function InboxPage() {
             <div className="border-b border-border px-4 py-3">
               <p className="mb-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 <MessageSquareQuote size={12} aria-hidden="true" />
-                Saved replies
+                Quick Reply
               </p>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isQuickReplyAutoEnter}
+                aria-label="Quick Reply Auto Enter"
+                className={[
+                  "mb-2 inline-flex h-8 w-full items-center justify-between rounded-md border px-2 text-xs font-medium",
+                  isQuickReplyAutoEnter
+                    ? "border-primary bg-primary-soft text-primary"
+                    : "border-border bg-white text-muted-foreground"
+                ].join(" ")}
+                onClick={toggleQuickReplyAutoEnter}
+              >
+                <span>Auto Enter</span>
+                <span>{isQuickReplyAutoEnter ? "ON" : "OFF"}</span>
+              </button>
               <div className="grid gap-1.5">
-                {savedReplies.length === 0 && !isLoadingOperations ? (
+                {activeSavedReplies.length === 0 && !isLoadingOperations ? (
                   <p className="text-xs text-muted-foreground">ยังไม่มีคำตอบสำเร็จรูป</p>
                 ) : null}
-                {savedReplies
-                  .filter((reply) => reply.isActive !== false)
-                  .map((reply) => (
-                    <button
+                {activeSavedReplies.map((reply) => {
+                  const quickReplyLabel = `${selectedConversation?.lineChannel.name ?? "LINE OA"} : Quick Reply ${reply.title}`;
+
+                  return (
+                    <div
                       key={reply.id}
-                      type="button"
-                      aria-label={`Insert saved reply ${reply.title}`}
-                      className="rounded-md border border-border px-2 py-1.5 text-left text-xs hover:bg-secondary"
-                      disabled={!selectedConversation}
-                      onClick={() => setComposerInsertText(reply.body)}
+                      className="grid gap-1 rounded-md border border-border px-2 py-1.5 text-xs"
                     >
-                      <span className="block font-medium text-foreground">{reply.title}</span>
-                      <span className="mt-0.5 line-clamp-2 block text-muted-foreground">
-                        {reply.body}
-                      </span>
-                    </button>
-                  ))}
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          <span className="block font-medium text-foreground">{quickReplyLabel}</span>
+                          <span className="mt-0.5 line-clamp-2 block text-muted-foreground">
+                            {reply.body}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={`Add ${selectedConversation?.lineChannel.name ?? "LINE OA"} Quick Reply ${reply.title}`}
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border bg-white text-foreground hover:bg-secondary disabled:opacity-60"
+                          disabled={!selectedConversation || isSendingQuickReply}
+                          onClick={() => void useQuickReply(reply)}
+                        >
+                          <Plus size={14} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 

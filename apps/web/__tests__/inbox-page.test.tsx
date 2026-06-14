@@ -753,6 +753,7 @@ describe("InboxPage", () => {
           data: [
             {
               id: "reply-1",
+              lineChannelId: "line-channel-1",
               title: "Greeting",
               body: "สวัสดีค่ะ ทีมงานกำลังตรวจสอบให้ค่ะ",
               isActive: true
@@ -787,7 +788,7 @@ describe("InboxPage", () => {
 
     expect((await screen.findAllByText("Customer Ops")).length).toBeGreaterThan(0);
     expect(await screen.findByRole("button", { name: "Add tag VIP" })).toBeInTheDocument();
-    expect(await screen.findByText("Greeting")).toBeInTheDocument();
+    expect(await screen.findByText("Main LINE : Quick Reply Greeting")).toBeInTheDocument();
     expect((await screen.findAllByText("ลูกค้ารอใบเสนอราคา")).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Add tag VIP" }));
@@ -802,10 +803,121 @@ describe("InboxPage", () => {
       );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Insert saved reply Greeting" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Main LINE Quick Reply Greeting" }));
     expect(screen.getByRole("textbox", { name: "Reply text" })).toHaveValue(
       "สวัสดีค่ะ ทีมงานกำลังตรวจสอบให้ค่ะ"
     );
+  });
+
+  it("loads LINE OA quick replies, inserts with plus, and auto-enters when enabled", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              displayName: "Customer QR",
+              status: "OPEN",
+              tagLinks: [],
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Line OA 1",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "reply-1",
+              lineChannelId: "line-channel-1",
+              title: "Greeting",
+              body: "Hello from Line OA 1",
+              isActive: true
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: null })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "message-2",
+              direction: "OUTBOUND",
+              text: "Hello from Line OA 1",
+              createdAt: "2026-06-14T01:01:00.000Z"
+            }
+          ]
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect(await screen.findByText("Line OA 1 : Quick Reply Greeting")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/inbox/saved-replies?lineChannelId=line-channel-1",
+        {
+          headers: { Authorization: "Bearer access-token" }
+        }
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Add Line OA 1 Quick Reply Greeting" }));
+    expect(screen.getByRole("textbox", { name: "Reply text" })).toHaveValue(
+      "Hello from Line OA 1"
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/api/v1/line/conversations/conversation-1/reply",
+      expect.anything()
+    );
+
+    fireEvent.click(screen.getByRole("switch", { name: "Quick Reply Auto Enter" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add Line OA 1 Quick Reply Greeting" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
+        body: JSON.stringify({ text: "Hello from Line OA 1" }),
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+    });
   });
 
   it("posts reply text through the existing LINE conversation reply route with auth", async () => {

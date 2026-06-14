@@ -1,6 +1,10 @@
-import { IsString, MaxLength, MinLength } from "class-validator";
+import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 export class CreateSavedReplyDto {
+  @IsOptional()
+  @IsString()
+  lineChannelId?: string;
+
   @IsString()
   @MinLength(1)
   @MaxLength(80)

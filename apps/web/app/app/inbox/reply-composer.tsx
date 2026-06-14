@@ -8,10 +8,11 @@ import { apiFetch } from "../../lib/api-client";
 interface ReplyComposerProps {
   conversationId: string | null;
   insertText?: string;
+  insertNonce?: number;
   onSent?: () => Promise<void> | void;
 }
 
-export function ReplyComposer({ conversationId, insertText, onSent }: ReplyComposerProps) {
+export function ReplyComposer({ conversationId, insertText, insertNonce, onSent }: ReplyComposerProps) {
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [isImagePanelOpen, setIsImagePanelOpen] = useState(false);
@@ -27,7 +28,7 @@ export function ReplyComposer({ conversationId, insertText, onSent }: ReplyCompo
     if (insertText) {
       setText(insertText);
     }
-  }, [insertText]);
+  }, [insertNonce, insertText]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

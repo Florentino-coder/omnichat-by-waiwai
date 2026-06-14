@@ -36,6 +36,12 @@ type MockPrisma = {
   };
   savedReply: {
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  lineChannel: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
   };
   tenantSettings: {
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
@@ -74,7 +80,13 @@ const createPrisma = (): MockPrisma => ({
     update: jest.fn<Promise<unknown>, [unknown]>()
   },
   savedReply: {
-    findMany: jest.fn<Promise<unknown>, [unknown]>()
+    findMany: jest.fn<Promise<unknown>, [unknown]>(),
+    create: jest.fn<Promise<unknown>, [unknown]>(),
+    update: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  lineChannel: {
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
   },
   tenantSettings: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>(),
@@ -134,7 +146,12 @@ type Stage3BInboxService = InboxService & {
     conversationId: string,
     noteId: string
   ) => Promise<unknown>;
-  listSavedReplies: (tenantId: string) => Promise<unknown>;
+  listSavedReplies: (tenantId: string, options?: { lineChannelId?: string }) => Promise<unknown>;
+  createSavedReply: (
+    tenantId: string,
+    userId: string,
+    input: { title: string; body: string; lineChannelId?: string }
+  ) => Promise<unknown>;
 };
 
 const createStage3BService = (prisma: MockPrisma): Stage3BInboxService =>
@@ -636,6 +653,82 @@ describe("InboxService", () => {
         isActive: true
       },
       orderBy: [{ title: "asc" }, { createdAt: "desc" }]
+    });
+  });
+
+  it("lists saved replies for one LINE OA only when lineChannelId is provided", async () => {
+    const prisma = createPrisma();
+    prisma.savedReply.findMany.mockResolvedValue([
+      {
+        id: "reply-1",
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        title: "Greeting",
+        body: "Hello"
+      }
+    ]);
+
+    await createStage3BService(prisma).listSavedReplies("tenant-1", {
+      lineChannelId: "line-channel-1"
+    });
+
+    expect(prisma.savedReply.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        deletedAt: null,
+        isActive: true
+      },
+      orderBy: [{ title: "asc" }, { createdAt: "desc" }]
+    });
+  });
+
+  it("creates saved replies scoped to a tenant LINE OA", async () => {
+    const prisma = createPrisma();
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-1",
+      tenantId: "tenant-1"
+    });
+    prisma.savedReply.create.mockResolvedValue({
+      id: "reply-1",
+      tenantId: "tenant-1",
+      lineChannelId: "line-channel-1",
+      title: "Greeting",
+      body: "Hello"
+    });
+
+    await createStage3BService(prisma).createSavedReply("tenant-1", "user-1", {
+      lineChannelId: "line-channel-1",
+      title: " Greeting ",
+      body: " Hello "
+    });
+
+    expect(prisma.lineChannel.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "line-channel-1",
+        tenantId: "tenant-1",
+        deletedAt: null,
+        isActive: true
+      }
+    });
+    expect(prisma.savedReply.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        title: "Greeting",
+        body: "Hello"
+      }
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: "user-1",
+        action: AuditAction.SAVED_REPLY_CREATED,
+        metadata: {
+          lineChannelId: "line-channel-1",
+          title: "Greeting"
+        }
+      })
     });
   });
 });

@@ -136,3 +136,21 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run web:test -- apps/web/__tests__/inbox-page.test.tsx --runInBand`
 - Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts --runInBand`
 - Passed: `npx prisma validate`
+
+## Verification - 2026-06-15 Checkpoint P Quick Reply
+
+- Added: saved replies can be scoped to one LINE OA through `lineChannelId`, with tenant validation before create/update.
+- Added: inbox saved-reply API supports `?lineChannelId=` so each conversation loads Quick Reply data for its own LINE OA only.
+- Added: inbox UI labels entries as `{LINE OA name} : Quick Reply {title}` and uses a `+` button to insert the body into the reply composer.
+- Added: Quick Reply Auto Enter switch. OFF inserts into composer; ON sends through the existing LINE reply endpoint immediately.
+- Added migration: `20260615090000_scope_saved_replies_to_line_channel`.
+- Applied: `20260615090000_scope_saved_replies_to_line_channel` with `npx prisma migrate deploy`; `npx prisma migrate status` returned success.
+- Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts --runInBand`
+- Passed: `npm run web:test -- apps/web/__tests__/inbox-page.test.tsx --runInBand`
+- Passed: `npx prisma validate`
+- Passed: `npm run lint`
+- Passed: `npm run api:typecheck`
+- Passed: `npm run api:build`
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts apps/api/src/line/line-reply.service.spec.ts --runInBand`
+- Passed: `npm run web:build`

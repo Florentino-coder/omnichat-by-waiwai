@@ -9,6 +9,7 @@ import {
   Message,
   Role,
   SavedReply,
+  LineChannel,
   WorkspaceMember
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -41,17 +42,23 @@ export type ListConversationsOptions = {
   offset?: number;
 };
 
+export type ListSavedRepliesOptions = {
+  lineChannelId?: string;
+};
+
 export type CreateTagInput = {
   name: string;
   color?: string;
 };
 
 export type CreateSavedReplyInput = {
+  lineChannelId?: string;
   title: string;
   body: string;
 };
 
 export type UpdateSavedReplyInput = {
+  lineChannelId?: string;
   title?: string;
   body?: string;
   isActive?: boolean;
@@ -576,10 +583,14 @@ export class InboxService {
     return deletedNote;
   }
 
-  listSavedReplies(tenantId: string): Promise<SavedReply[]> {
+  listSavedReplies(
+    tenantId: string,
+    options: ListSavedRepliesOptions = {}
+  ): Promise<SavedReply[]> {
     return this.prisma.savedReply.findMany({
       where: {
         tenantId,
+        ...(options.lineChannelId ? { lineChannelId: options.lineChannelId } : {}),
         deletedAt: null,
         isActive: true
       },
@@ -592,9 +603,15 @@ export class InboxService {
     userId: string,
     input: CreateSavedReplyInput
   ): Promise<SavedReply> {
+    const lineChannelId = input.lineChannelId?.trim();
+    if (lineChannelId) {
+      await this.findTenantLineChannel(tenantId, lineChannelId);
+    }
+
     const savedReply = await this.prisma.savedReply.create({
       data: {
         tenantId,
+        lineChannelId,
         title: input.title.trim(),
         body: input.body.trim()
       }
@@ -608,6 +625,7 @@ export class InboxService {
         targetType: "SavedReply",
         targetId: savedReply.id,
         metadata: {
+          lineChannelId: savedReply.lineChannelId,
           title: savedReply.title
         }
       }
@@ -623,7 +641,18 @@ export class InboxService {
     input: UpdateSavedReplyInput
   ): Promise<SavedReply> {
     const savedReply = await this.findTenantSavedReply(tenantId, id);
-    const data: { title?: string; body?: string; isActive?: boolean } = {};
+    const data: {
+      lineChannelId?: string;
+      title?: string;
+      body?: string;
+      isActive?: boolean;
+    } = {};
+
+    if (input.lineChannelId !== undefined) {
+      const lineChannelId = input.lineChannelId.trim();
+      await this.findTenantLineChannel(tenantId, lineChannelId);
+      data.lineChannelId = lineChannelId;
+    }
 
     if (input.title !== undefined) {
       data.title = input.title.trim();
@@ -805,6 +834,23 @@ export class InboxService {
     }
 
     return savedReply;
+  }
+
+  private async findTenantLineChannel(tenantId: string, id: string): Promise<LineChannel> {
+    const lineChannel = await this.prisma.lineChannel.findFirst({
+      where: {
+        id,
+        tenantId,
+        deletedAt: null,
+        isActive: true
+      }
+    });
+
+    if (!lineChannel) {
+      throw new NotFoundException("LINE channel not found");
+    }
+
+    return lineChannel;
   }
 }
 

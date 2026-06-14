@@ -96,8 +96,11 @@ export class InboxController {
 
   @Get("saved-replies")
   @Roles(Role.ADMIN, Role.AGENT, Role.QC)
-  listSavedReplies(@TenantCtx() ctx: JwtTenantPayload): Promise<SavedReply[]> {
-    return this.inboxService.listSavedReplies(ctx.tenantId);
+  listSavedReplies(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Query("lineChannelId") lineChannelId?: string
+  ): Promise<SavedReply[]> {
+    return this.inboxService.listSavedReplies(ctx.tenantId, { lineChannelId });
   }
 
   @Post("saved-replies")
