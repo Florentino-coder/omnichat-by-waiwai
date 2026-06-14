@@ -13,6 +13,7 @@ interface ReplyComposerProps {
 export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [isImagePanelOpen, setIsImagePanelOpen] = useState(false);
   const [pastedImagePreview, setPastedImagePreview] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
     if (isHttpsImageUrl(pastedText)) {
       event.preventDefault();
       setImageUrl(pastedText);
+      setIsImagePanelOpen(true);
       setError(null);
       return;
     }
@@ -91,39 +93,65 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
       className="shrink-0 border-t border-border bg-white p-3 lg:p-4"
       onSubmit={handleSubmit}
     >
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col gap-3">
         <label className="sr-only" htmlFor="reply-text">
           Reply text
         </label>
-        <textarea
-          id="reply-text"
-          aria-label="Reply text"
-          className="min-h-16 flex-1 resize-none rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground sm:min-h-20"
-          disabled={!conversationId || isSending}
-          maxLength={5000}
-          onChange={(event) => setText(event.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder="Type LINE reply"
-          value={text}
-        />
-        <div className="grid gap-2 sm:w-64">
-          <label className="sr-only" htmlFor="reply-image-url">
-            Reply image URL
-          </label>
-          <div className="flex items-center gap-2 rounded-md border border-border bg-white px-2">
-            <ImagePlus aria-hidden="true" size={16} className="text-muted-foreground" />
-            <input
-              id="reply-image-url"
-              aria-label="Reply image URL"
-              className="h-10 min-w-0 flex-1 text-sm outline-none placeholder:text-muted-foreground"
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <textarea
+            id="reply-text"
+            aria-label="Reply text"
+            className="min-h-16 flex-1 resize-none rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground sm:min-h-20"
+            disabled={!conversationId || isSending}
+            maxLength={5000}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder="Type LINE reply"
+            value={text}
+          />
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              aria-label="Add image URL"
+              className={[
+                "inline-flex h-10 w-10 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-60",
+                imageUrl ? "border-primary bg-primary-soft text-primary" : "border-border bg-white"
+              ].join(" ")}
               disabled={!conversationId || isSending}
-              onChange={(event) => setImageUrl(event.target.value)}
-              placeholder="https image URL"
-              type="url"
-              value={imageUrl}
-            />
-            {imageUrl ? (
+              onClick={() => setIsImagePanelOpen((current) => !current)}
+              title="Add image URL"
+            >
+              <ImagePlus aria-hidden="true" size={16} />
+            </button>
+            <Button
+              className="gap-2 self-stretch sm:self-end"
+              disabled={!canSend}
+              type="submit"
+            >
+              <SendHorizontal aria-hidden="true" size={16} />
+              {isSending ? "Sending" : "Send reply"}
+            </Button>
+          </div>
+        </div>
+        {isImagePanelOpen ? (
+          <div className="grid gap-2 rounded-md border border-border bg-white p-2">
+            <div className="flex items-center gap-2">
+              <ImagePlus aria-hidden="true" size={16} className="text-muted-foreground" />
+              <label className="sr-only" htmlFor="reply-image-url">
+                Reply image URL
+              </label>
+              <input
+                id="reply-image-url"
+                aria-label="Reply image URL"
+                className="h-10 min-w-0 flex-1 text-sm outline-none placeholder:text-muted-foreground"
+                disabled={!conversationId || isSending}
+                onChange={(event) => setImageUrl(event.target.value)}
+                placeholder="Paste https image URL"
+                type="url"
+                value={imageUrl}
+              />
+              {imageUrl ? (
               <button
                 type="button"
                 aria-label="Clear image URL"
@@ -132,9 +160,9 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
               >
                 <X aria-hidden="true" size={14} />
               </button>
-            ) : null}
-          </div>
-          {pastedImagePreview ? (
+              ) : null}
+            </div>
+            {pastedImagePreview ? (
             <div className="flex items-center gap-2 rounded-md border border-border p-2">
               <img
                 src={pastedImagePreview}
@@ -156,16 +184,9 @@ export function ReplyComposer({ conversationId, onSent }: ReplyComposerProps) {
                 <X aria-hidden="true" size={14} />
               </button>
             </div>
-          ) : null}
-        </div>
-        <Button
-          className="gap-2 self-stretch sm:self-end"
-          disabled={!canSend}
-          type="submit"
-        >
-          <SendHorizontal aria-hidden="true" size={16} />
-          {isSending ? "Sending" : "Send reply"}
-        </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
       {error ? <p className="mt-2 text-xs text-danger">{error}</p> : null}
     </form>

@@ -808,6 +808,7 @@ describe("InboxPage", () => {
       });
     });
 
+    fireEvent.click(screen.getByRole("button", { name: "Add image URL" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Reply image URL" }), {
       target: { value: "https://cdn.example.com/image.png" }
     });
@@ -823,5 +824,47 @@ describe("InboxPage", () => {
         method: "POST"
       });
     });
+  });
+
+  it("keeps the image URL field behind an attachment button", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              status: "OPEN",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByRole("textbox", { name: "Reply image URL" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add image URL" }));
+
+    expect(screen.getByRole("textbox", { name: "Reply image URL" })).toBeInTheDocument();
   });
 });
