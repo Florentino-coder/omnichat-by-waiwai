@@ -9,10 +9,17 @@ interface ReplyComposerProps {
   conversationId: string | null;
   insertText?: string;
   insertNonce?: number;
+  lineChannelName?: string | null;
   onSent?: () => Promise<void> | void;
 }
 
-export function ReplyComposer({ conversationId, insertText, insertNonce, onSent }: ReplyComposerProps) {
+export function ReplyComposer({
+  conversationId,
+  insertText,
+  insertNonce,
+  lineChannelName,
+  onSent
+}: ReplyComposerProps) {
   const [text, setText] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [isImagePanelOpen, setIsImagePanelOpen] = useState(false);
@@ -98,10 +105,31 @@ export function ReplyComposer({ conversationId, insertText, insertNonce, onSent 
   return (
     <form
       ref={formRef}
-      className="shrink-0 border-t border-border bg-white p-3 lg:p-4"
+      className="shrink-0 border-t border-border bg-white"
       onSubmit={handleSubmit}
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex min-h-10 items-center justify-between gap-3 border-b border-border px-3 py-2 text-xs text-muted-foreground lg:px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            aria-label="Add image URL"
+            className={[
+              "inline-flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-60",
+              imageUrl ? "border-primary bg-primary-soft text-primary" : "border-border bg-white"
+            ].join(" ")}
+            disabled={!conversationId || isSending}
+            onClick={() => setIsImagePanelOpen((current) => !current)}
+            title="Add image URL"
+          >
+            <ImagePlus aria-hidden="true" size={15} />
+          </button>
+          <span className="truncate font-medium">
+            LINE OA: {lineChannelName ?? "-"}
+          </span>
+        </div>
+        <span className="hidden shrink-0 sm:inline">Enter sends</span>
+      </div>
+      <div className="flex flex-col gap-3 p-3 lg:p-4">
         <label className="sr-only" htmlFor="reply-text">
           Reply text
         </label>
@@ -119,19 +147,6 @@ export function ReplyComposer({ conversationId, insertText, insertNonce, onSent 
             value={text}
           />
           <div className="flex items-end gap-2">
-            <button
-              type="button"
-              aria-label="Add image URL"
-              className={[
-                "inline-flex h-10 w-10 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-60",
-                imageUrl ? "border-primary bg-primary-soft text-primary" : "border-border bg-white"
-              ].join(" ")}
-              disabled={!conversationId || isSending}
-              onClick={() => setIsImagePanelOpen((current) => !current)}
-              title="Add image URL"
-            >
-              <ImagePlus aria-hidden="true" size={16} />
-            </button>
             <Button
               className="gap-2 self-stretch sm:self-end"
               disabled={!canSend}

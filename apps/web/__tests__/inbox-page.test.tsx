@@ -237,10 +237,98 @@ describe("InboxPage", () => {
     expect(await screen.findByText("first message")).toBeInTheDocument();
 
     await act(async () => {
-      jest.advanceTimersByTime(2000);
+      jest.advanceTimersByTime(3000);
     });
 
     expect(await screen.findByText("second live message")).toBeInTheDocument();
+  });
+
+  it("ignores stale message responses after switching conversations", async () => {
+    let resolveFirstMessages: (value: { success: true; data: unknown[] }) => void = () => {};
+    const firstMessages = new Promise<{ success: true; data: unknown[] }>((resolve) => {
+      resolveFirstMessages = resolve;
+    });
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-a",
+              externalThreadId: "UA",
+              displayName: "Customer A",
+              status: "OPEN",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            },
+            {
+              id: "conversation-b",
+              externalThreadId: "UB",
+              displayName: "Customer B",
+              status: "OPEN",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => firstMessages
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "message-b",
+              direction: "INBOUND",
+              text: "fresh B message",
+              createdAt: "2026-06-14T01:00:02.000Z"
+            }
+          ]
+        })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    const customerB = await screen.findByText("Customer B");
+    fireEvent.click(customerB.closest("button") as HTMLButtonElement);
+
+    expect(await screen.findByText("fresh B message")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirstMessages({
+        success: true,
+        data: [
+          {
+            id: "message-a",
+            direction: "INBOUND",
+            text: "stale A message",
+            createdAt: "2026-06-14T01:00:01.000Z"
+          }
+        ]
+      });
+    });
+
+    expect(screen.queryByText("stale A message")).not.toBeInTheDocument();
   });
 
   it("renders sticker messages and applies the LINE OA badge color", async () => {
@@ -433,8 +521,51 @@ describe("InboxPage", () => {
     render(<InboxPage />);
 
     const layout = await screen.findByTestId("inbox-layout");
-    expect(layout).toHaveClass("h-[calc(100vh-12rem)]");
-    expect(layout).toHaveClass("lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,300px)]");
+    expect(layout).toHaveClass("h-[calc(100dvh-8.5rem)]");
+    expect(layout).toHaveClass("lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]");
+    expect(screen.getByTestId("conversation-list-panel")).toHaveClass("hidden");
+    expect(screen.getByTestId("conversation-list-panel")).toHaveClass("md:flex");
+    expect(screen.getByTestId("customer-context-panel")).toHaveClass("hidden");
+    expect(screen.getByTestId("customer-context-panel")).toHaveClass("xl:flex");
+    expect(screen.getByRole("navigation", { name: "Inbox mobile sections" })).toBeInTheDocument();
+  });
+
+  it("shows selected LINE channel in the premium composer toolbar", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              displayName: "Customer LINE",
+              status: "OPEN",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Main LINE",
+                badgeColor: "#0ea5e9",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(<InboxPage />);
+
+    expect(await screen.findByText("LINE OA: Main LINE")).toBeInTheDocument();
   });
 
   it("changes a conversation to in progress, shows a running timer, and saves the alert threshold", async () => {

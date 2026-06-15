@@ -26,6 +26,7 @@ import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { getMessages } from "../../lib/i18n";
 import { ReplyComposer } from "./reply-composer";
+import { STATUS_CONFIG } from "./status-config";
 
 type MessageDirection = "INBOUND" | "OUTBOUND";
 
@@ -60,6 +61,7 @@ type InboxConversation = {
 
 type ConversationStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 type ConversationPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
+type MobileInboxSection = "list" | "thread" | "context";
 
 const CONVERSATION_PAGE_SIZE = 10;
 
@@ -206,10 +208,12 @@ export default function InboxPage() {
   const [tags, setTags] = useState<ConversationTag[]>([]);
   const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
   const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
+  const [mobileSection, setMobileSection] = useState<MobileInboxSection>("thread");
   const isLoadingOperations = false;
   const [now, setNow] = useState(() => Date.now());
   const isMountedRef = useRef(false);
   const conversationsRef = useRef<InboxConversation[]>([]);
+  const selectedIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
 
@@ -220,6 +224,9 @@ export default function InboxPage() {
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
+  useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
   const latestInboundMessage = useMemo(() => {
     const safeMessages = Array.isArray(messages) ? messages : [];
     return [...safeMessages].reverse().find((message) => message.direction === "INBOUND") ?? null;
@@ -303,9 +310,12 @@ export default function InboxPage() {
       setConversations(nextConversations);
       setSelectedId((current) => {
         if (current && nextConversations.some((conversation) => conversation.id === current)) {
+          selectedIdRef.current = current;
           return current;
         }
-        return nextConversations[0]?.id ?? null;
+        const nextSelectedId = nextConversations[0]?.id ?? null;
+        selectedIdRef.current = nextSelectedId;
+        return nextSelectedId;
       });
     } catch (loadError) {
       if (isMountedRef.current) {
@@ -322,8 +332,10 @@ export default function InboxPage() {
     isMountedRef.current = true;
     void loadConversations();
     const refreshTimer = window.setInterval(() => {
-      void loadConversations({ quiet: true });
-    }, 3000);
+      if (document.visibilityState === "visible") {
+        void loadConversations({ quiet: true });
+      }
+    }, 5000);
     const clockTimer = window.setInterval(() => {
       setNow(Date.now());
     }, 1000);
@@ -354,8 +366,10 @@ export default function InboxPage() {
 
     void loadMessages(selectedId);
     const refreshTimer = window.setInterval(() => {
-      void loadMessages(selectedId, { quiet: true });
-    }, 2000);
+      if (document.visibilityState === "visible") {
+        void loadMessages(selectedId, { quiet: true });
+      }
+    }, 3000);
 
     return () => {
       window.clearInterval(refreshTimer);
@@ -425,7 +439,7 @@ export default function InboxPage() {
       const data = await apiFetch<InboxMessage[]>(
         `/api/v1/inbox/conversations/${conversationId}/messages`
       );
-      if (isMountedRef.current) {
+      if (isMountedRef.current && selectedIdRef.current === conversationId) {
         setMessages(Array.isArray(data) ? data : []);
       }
     } catch (loadError) {
@@ -433,7 +447,7 @@ export default function InboxPage() {
         setError(readMessage(loadError, "Could not load messages."));
       }
     } finally {
-      if (isMountedRef.current && !options?.quiet) {
+      if (isMountedRef.current && selectedIdRef.current === conversationId && !options?.quiet) {
         setIsLoadingMessages(false);
       }
     }
@@ -738,7 +752,9 @@ export default function InboxPage() {
     if (latestMsg) {
       markRead(id, latestMsg.id);
     }
+    selectedIdRef.current = id;
     setSelectedId(id);
+    setMobileSection("thread");
   }
 
   return (
@@ -764,10 +780,16 @@ export default function InboxPage() {
       {/* 3-column layout */}
       <div
         data-testid="inbox-layout"
-        className="grid h-[calc(100vh-12rem)] min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)_minmax(220px,300px)]"
+        className="grid h-[calc(100dvh-8.5rem)] min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(17rem,21rem)_minmax(0,1fr)] lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]"
       >
         {/* Conversation sidebar */}
-        <aside className="flex min-h-0 w-full shrink-0 flex-col border-r border-border bg-white lg:w-[280px]">
+        <aside
+          data-testid="conversation-list-panel"
+          className={[
+            "min-h-0 w-full shrink-0 flex-col border-r border-border bg-white md:flex",
+            mobileSection === "list" ? "flex" : "hidden"
+          ].join(" ")}
+        >
           {/* Sidebar header */}
           <div className="shrink-0 border-b border-border px-4 py-3">
             <div className="flex items-center justify-between gap-2">
@@ -1002,7 +1024,10 @@ export default function InboxPage() {
 
         {/* Message thread */}
         <section
-          className="flex flex-1 min-w-0 min-h-0 flex-col bg-secondary/50"
+          className={[
+            "flex-1 min-w-0 min-h-0 flex-col bg-secondary/50 md:flex",
+            mobileSection === "thread" ? "flex" : "hidden"
+          ].join(" ")}
           aria-labelledby="thread-heading"
         >
           <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-border bg-white px-4 py-3 lg:px-5">
@@ -1116,6 +1141,7 @@ export default function InboxPage() {
             conversationId={selectedConversation?.id ?? null}
             insertText={composerInsertText}
             insertNonce={composerInsertNonce}
+            lineChannelName={selectedConversation?.lineChannel.name ?? null}
             onSent={async () => {
               if (selectedConversation) {
                 await loadMessages(selectedConversation.id);
@@ -1126,7 +1152,11 @@ export default function InboxPage() {
 
         {/* Customer context */}
         <aside
-          className="flex min-h-0 w-full shrink-0 flex-col border-l border-border bg-white lg:w-[280px]"
+          data-testid="customer-context-panel"
+          className={[
+            "min-h-0 w-full shrink-0 flex-col border-l border-border bg-white xl:flex",
+            mobileSection === "context" ? "flex" : "hidden"
+          ].join(" ")}
           aria-labelledby="context-heading"
         >
           <div className="shrink-0 border-b border-border px-4 py-3">
@@ -1471,6 +1501,26 @@ export default function InboxPage() {
           </div>
         </aside>
       </div>
+      <nav
+        aria-label="Inbox mobile sections"
+        className="grid shrink-0 grid-cols-3 border-t border-border bg-white md:hidden"
+      >
+        {(["list", "thread", "context"] as MobileInboxSection[]).map((section) => (
+          <button
+            key={section}
+            type="button"
+            className={[
+              "h-12 text-xs font-semibold",
+              mobileSection === section
+                ? "bg-primary-soft text-primary"
+                : "text-muted-foreground hover:bg-secondary"
+            ].join(" ")}
+            onClick={() => setMobileSection(section)}
+          >
+            {section === "list" ? "Chats" : section === "thread" ? "Thread" : "Profile"}
+          </button>
+        ))}
+      </nav>
     </section>
   );
 }
@@ -1593,17 +1643,9 @@ function statusButtonClass(conversation: InboxConversation | null): string {
   const base =
     "inline-flex min-h-8 items-center rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors disabled:opacity-60";
 
-  if (status === "IN_PROGRESS") {
-    return `${base} border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100`;
-  }
-  if (status === "RESOLVED") {
-    return `${base} border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`;
-  }
-  if (status === "OPEN") {
-    return `${base} border-success bg-success-soft text-success hover:bg-success-soft`;
-  }
-
-  return `${base} border-border bg-secondary text-muted-foreground`;
+  return status === "No conversation"
+    ? `${base} border-border bg-secondary text-muted-foreground`
+    : `${base} ${STATUS_CONFIG[status].className}`;
 }
 
 function conversationPriority(conversation: InboxConversation | null): ConversationPriority {
