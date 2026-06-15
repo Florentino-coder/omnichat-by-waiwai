@@ -2,6 +2,7 @@ services:
   - type: web
     name: omnichat-api
     runtime: node
+    # Free is for MVP smoke tests only. Use starter or higher before production LINE webhooks.
     plan: free
     region: singapore
     branch: main

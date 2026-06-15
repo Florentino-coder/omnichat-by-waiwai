@@ -4,6 +4,10 @@
 **Target:** Stage 3 deploy-ready slice
 **Decision:** Use split free hosting for the first live MVP check.
 
+For production-safe LINE webhook deployment, follow
+`docs/deployment/infra-db-safety-checkpoint.md` first. This file keeps the
+free smoke-test path; it is not the production reliability baseline.
+
 ## Recommended Free Stack
 
 | Part | Platform | Reason |
@@ -12,6 +16,16 @@
 | API | Render Free Web Service | Runs NestJS as a long-running Node service. |
 | Database | Supabase Free Postgres | Current project database target already uses Supabase pooler URLs. |
 | Redis | Upstash Redis Free | Better fit than local Redis for free hosted MVP. |
+
+## Production-Safe Upgrade Path
+
+Before pointing a real production LINE OA webhook at OmniChat:
+
+- Rotate the Supabase database password if it has ever appeared in chat, logs, screenshots, or untracked local files shared with tools.
+- Use Supabase transaction pooler for `DATABASE_URL` and direct/session URL for `DIRECT_URL`.
+- Upgrade Render API to Starter or an equivalent always-on plan to avoid cold starts.
+- Move Redis to Upstash Pay-as-you-go before quota limits affect auth/session behavior.
+- Run only read-only DB verification on shared Supabase; never run seed/e2e reset flows there.
 
 ## Current Repo Checkpoint
 
@@ -60,8 +74,8 @@ Required API environment variables:
 
 ```bash
 NODE_VERSION="20.14.0"
-DATABASE_URL="<supabase-transaction-pooler-url>"
-DIRECT_URL="<supabase-session-pooler-url>"
+DATABASE_URL="<supabase-transaction-pooler-url-port-6543>"
+DIRECT_URL="<supabase-direct-or-session-url-for-prisma>"
 REDIS_URL="<upstash-redis-url>"
 JWT_SECRET="<strong-random-secret>"
 JWT_REFRESH_SECRET="<strong-random-secret>"
@@ -99,6 +113,10 @@ Run Prisma migrations only against the intended database target. For Supabase, u
 - `DIRECT_URL` = session pooler
 
 Do not run destructive integration/e2e fixtures against the shared Supabase project unless the database is disposable.
+
+If the target is production or founder/internal dogfooding data, run the
+read-only checklist from `docs/deployment/infra-db-safety-checkpoint.md` first
+and apply migrations only during an explicitly approved deployment window.
 
 ## Production LINE Setup
 
