@@ -33,6 +33,9 @@ const roles: Role[] = [Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC, Role.VIEWER]
 
 export async function resetStage1Data(prisma: PrismaClient): Promise<void> {
   await prisma.message.deleteMany();
+  await prisma.conversationInternalNote.deleteMany();
+  await prisma.conversationTagLink.deleteMany();
+  await prisma.conversationTag.deleteMany();
   await prisma.conversation.deleteMany();
   await prisma.lineChannel.deleteMany();
   await prisma.auditLog.deleteMany();
