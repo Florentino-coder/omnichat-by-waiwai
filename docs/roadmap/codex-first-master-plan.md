@@ -50,6 +50,10 @@ Active scope is MVP Track only until founder explicitly opens a Post-MVP stage.
 
 Before Stage 5 starts, founder's own company must use OmniChat as a real tenant for 2-4 weeks after Stages 3-4 are usable. Exit criteria: no open P0/P1 dogfood bugs, tenant isolation tests pass with seed and internal tenants active, one week with zero missed/lost LINE messages, team prefers OmniChat for daily replies, and audit logs show real login/message/assignment/status events.
 
+## Infrastructure Foundation Gate
+
+Before Stage 4A CRM implementation starts, close or explicitly waive the foundation gate in `docs/deployment/infrastructure-performance-foundation.md`. This keeps production safety work ahead of new CRM scope: rotate exposed Supabase credentials, keep pooler/runtime and direct/migration URLs separated, upgrade Render before production LINE webhook use, check Upstash quota, run read-only DB verification, and complete the production smoke test.
+
 ## Stage 2 Entry Gate
 
 Stage 2 design must cover LINE webhook signature verification, encrypted LINE secrets/tokens, LINE rate limit and retry handling via queue, fast webhook `200` response, and channel token refresh strategy.

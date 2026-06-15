@@ -102,6 +102,9 @@ Source: [Supabase changelog](https://supabase.com/changelog)
 
 ## Deployment Paths
 
+For the broader foundation gate, execution order, and deferred performance work,
+see `docs/deployment/infrastructure-performance-foundation.md`.
+
 ### MVP Smoke Path
 
 Use this only for temporary manual testing:
