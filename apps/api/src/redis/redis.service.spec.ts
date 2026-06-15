@@ -4,6 +4,21 @@ import { Test } from "@nestjs/testing";
 import { RedisModule } from "./redis.module";
 import { REDIS_FACTORY, RedisService } from "./redis.service";
 
+const createRedisClient = () => ({
+  set: jest.fn(),
+  get: jest.fn(),
+  del: jest.fn(),
+  sadd: jest.fn(),
+  srem: jest.fn(),
+  smembers: jest.fn(),
+  publish: jest.fn(),
+  subscribe: jest.fn(),
+  unsubscribe: jest.fn(),
+  on: jest.fn(),
+  off: jest.fn(),
+  quit: jest.fn()
+});
+
 describe("RedisService", () => {
   it("wraps ioredis using REDIS_URL", () => {
     const config = {
@@ -14,14 +29,7 @@ describe("RedisService", () => {
 
     const service = new RedisService(config as ConfigService, (url: string) => {
       createdUrls.push(url);
-      return {
-        set: jest.fn(),
-        get: jest.fn(),
-        del: jest.fn(),
-        sadd: jest.fn(),
-        srem: jest.fn(),
-        smembers: jest.fn()
-      };
+      return createRedisClient();
     });
 
     expect(service.client).toBeDefined();
@@ -41,15 +49,7 @@ describe("RedisService", () => {
     }).overrideProvider(REDIS_FACTORY);
 
     const moduleRef = await moduleBuilder
-      .useValue(() => ({
-        set: jest.fn(),
-        get: jest.fn(),
-        del: jest.fn(),
-        sadd: jest.fn(),
-        srem: jest.fn(),
-        smembers: jest.fn(),
-        quit: jest.fn()
-      }))
+      .useValue(() => createRedisClient())
       .compile();
 
     const service = moduleRef.get(RedisService);

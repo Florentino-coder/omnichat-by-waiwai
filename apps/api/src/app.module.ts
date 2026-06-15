@@ -8,6 +8,7 @@ import { InvitationsModule } from "./invitations/invitations.module";
 import { LineModule } from "./line/line.module";
 import { MailModule } from "./mail/mail.module";
 import { PrismaModule } from "./prisma/prisma.module";
+import { RealtimeModule } from "./realtime/realtime.module";
 import { RedisModule } from "./redis/redis.module";
 import { TenantsModule } from "./tenants/tenants.module";
 import { UsersModule } from "./users/users.module";
@@ -27,6 +28,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     UsersModule,
     AuditLogsModule,
     InboxModule,
+    RealtimeModule,
     TenantsModule,
     WorkspacesModule,
     LineModule

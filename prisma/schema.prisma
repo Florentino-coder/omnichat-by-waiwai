@@ -403,6 +403,9 @@ model Conversation {
   @@index([assignedToMemberId])
   @@index([priority])
   @@index([lastMessageAt])
+  @@index([tenantId, deletedAt, lastMessageAt])
+  @@index([tenantId, status, deletedAt, lastMessageAt])
+  @@index([tenantId, assignedToMemberId, deletedAt, lastMessageAt])
   @@map("conversations")
 }
 
@@ -502,6 +505,7 @@ model Message {
   @@index([conversationId])
   @@index([lineChannelId])
   @@index([createdAt])
+  @@index([tenantId, conversationId, deletedAt, createdAt])
   @@map("messages")
 }
 

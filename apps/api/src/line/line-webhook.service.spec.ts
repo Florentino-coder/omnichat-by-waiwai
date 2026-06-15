@@ -1,6 +1,7 @@
 import { AuditAction, MessageDirection, MessageSource, MessageType } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { RealtimeService } from "../realtime/realtime.service";
 import { LineWebhookService } from "./line-webhook.service";
 
 type MockPrisma = {
@@ -117,6 +118,53 @@ describe("LineWebhookService", () => {
         targetId: "message-1"
       })
     });
+  });
+
+  it("broadcasts inbound messages to tenant SSE streams", async () => {
+    const prisma = createPrisma();
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-1",
+      tenantId: "tenant-1",
+      workspaceId: "workspace-1",
+      encryptedChannelSecret: "encrypted-secret",
+      encryptedChannelAccessToken: "encrypted-token"
+    });
+    prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
+    prisma.message.upsert.mockResolvedValue({ id: "message-1" });
+    prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-token"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+    const realtime = {
+      publishTenantEvent: jest.fn<Promise<void>, [string, string, unknown]>().mockResolvedValue(undefined)
+    };
+
+    await new LineWebhookService(
+      prisma as unknown as PrismaService,
+      crypto,
+      realtime as unknown as RealtimeService
+    ).process("line-channel-1", {
+      events: [
+        {
+          type: "message",
+          source: { type: "user", userId: "U123" },
+          message: { id: "msg-1", type: "text", text: "hello" },
+          timestamp: 1700000000000
+        }
+      ]
+    });
+
+    expect(realtime.publishTenantEvent).toHaveBeenCalledWith(
+      "tenant-1",
+      "message.created",
+      expect.objectContaining({
+        conversationId: "conversation-1",
+        messageId: "message-1",
+        direction: MessageDirection.INBOUND
+      })
+    );
   });
 
   it("uses the LINE profile API to name customer conversations", async () => {

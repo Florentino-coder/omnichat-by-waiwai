@@ -7,13 +7,15 @@ import {
 } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { RealtimeService } from "../realtime/realtime.service";
 import { ReplyLineMessageDto } from "./dto/reply-line-message.dto";
 
 @Injectable()
 export class LineReplyService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cryptoSecret: CryptoSecretService
+    private readonly cryptoSecret: CryptoSecretService,
+    private readonly realtimeService?: RealtimeService
   ) { }
 
   async replyText(
@@ -102,6 +104,13 @@ export class LineReplyService {
           lineChannelId: channel.id
         }
       }
+    });
+
+    await this.realtimeService?.publishTenantEvent(tenantId, "message.created", {
+      conversationId: conversation.id,
+      messageId: message.id,
+      lineChannelId: channel.id,
+      direction: MessageDirection.OUTBOUND
     });
   }
 }

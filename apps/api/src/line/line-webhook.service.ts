@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { RealtimeService } from "../realtime/realtime.service";
 
 type LineWebhookPayload = {
   events?: LineWebhookEvent[];
@@ -42,7 +43,8 @@ type LineProfile = {
 export class LineWebhookService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cryptoSecret: CryptoSecretService
+    private readonly cryptoSecret: CryptoSecretService,
+    private readonly realtimeService?: RealtimeService
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
@@ -148,6 +150,13 @@ export class LineWebhookService {
             externalMessageId: lineMessage.id
           }
         }
+      });
+
+      await this.realtimeService?.publishTenantEvent(channel.tenantId, "message.created", {
+        conversationId: conversation.id,
+        messageId: message.id,
+        lineChannelId: channel.id,
+        direction: MessageDirection.INBOUND
       });
     }
 

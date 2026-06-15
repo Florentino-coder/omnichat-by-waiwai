@@ -27,7 +27,7 @@ This checkpoint normalizes the local infrastructure blueprint into repo-safe exe
 - Keep tenant-scoped reads paginated.
 - Avoid N+1 Prisma reads in inbox and future CRM views.
 - Add composite indexes through reviewed Prisma migrations only; do not run ad-hoc `CREATE INDEX` against shared Supabase.
-- Defer BullMQ, SSE, storage upload, and major inbox UI redesign into approved implementation plans because they require dependency, architecture, or UX review.
+- Defer storage upload and major inbox architecture redesign into approved implementation plans because they require storage policy, dependency, architecture, or UX review.
 
 ## Current Repo Status
 
@@ -38,7 +38,9 @@ This checkpoint normalizes the local infrastructure blueprint into repo-safe exe
 | Render Free warning | Done | `render.yaml` and deployment docs mark Free as MVP smoke only. |
 | Secret-safe env templates | Done | Repo docs use placeholders only. |
 | Read-only Supabase verification | Done | `docs/deployment/infra-db-safety-checkpoint.md`. |
-| Composite index review | Pending | Needs local/disposable DB migration plan, not shared Supabase SQL. |
+| BullMQ webhook queue | Done | `apps/api/src/line/line-webhook-queue.service.ts` and processor tests. |
+| SSE Redis Pub/Sub endpoint | Done | `apps/api/src/realtime`. |
+| Composite index review | Ready to apply | Prisma migration `20260615160000_inbox_performance_indexes`; not applied to shared DB in this checkpoint. |
 | Upstash quota decision | Pending | Check provider usage before dogfooding. |
 | Render paid upgrade | Manual | Founder/provider action. |
 
@@ -52,15 +54,16 @@ This checkpoint normalizes the local infrastructure blueprint into repo-safe exe
    - Local untracked `.env`
 4. Upgrade Render API plan to Starter or equivalent.
 5. Check Upstash Redis usage and switch to Pay-as-you-go if quota risk exists.
-6. Run read-only DB verification from `docs/deployment/infra-db-safety-checkpoint.md`.
-7. Run production smoke:
+6. Apply reviewed Prisma migrations only after secrets are rotated and the intended DB target is confirmed.
+7. Run read-only DB verification from `docs/deployment/infra-db-safety-checkpoint.md`.
+8. Run production smoke:
    - `/api/v1/health`
    - login
    - LINE settings save
    - LINE webhook verify
    - inbound LINE message appears in inbox
    - inbox reply sends to LINE
-8. Only then open Stage 4A CRM implementation.
+9. Only then open Stage 4A CRM implementation.
 
 ## Index Review Rule
 
@@ -94,8 +97,5 @@ Candidate composite indexes must be planned against actual Prisma models before 
 
 These items are useful but not part of this foundation gate:
 
-- BullMQ webhook processor. Requires dependency approval and queue design.
-- SSE/Redis Pub/Sub realtime. Requires connection lifecycle and auth design.
 - Supabase Storage media upload. Requires storage policy, upload validation, and LINE media send design.
-- Premium inbox redesign. Requires frontend spec/plan and screenshot verification.
 - React Server Component refactor for inbox. Requires route/data-flow plan to avoid breaking current authenticated client API flow.

@@ -9,6 +9,12 @@ export interface RedisClient {
   sadd(key: string, member: string): Promise<unknown>;
   srem(key: string, member: string): Promise<unknown>;
   smembers(key: string): Promise<string[]>;
+  publish(channel: string, message: string): Promise<unknown>;
+  subscribe(channel: string): Promise<unknown>;
+  unsubscribe(channel: string): Promise<unknown>;
+  on(event: "message", handler: (channel: string, message: string) => void): void;
+  off(event: "message", handler: (channel: string, message: string) => void): void;
+  duplicate?(): RedisClient;
   quit?(): Promise<unknown>;
 }
 
@@ -21,6 +27,7 @@ export const defaultRedisFactory: RedisFactory = (url) => new Redis(url) as unkn
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   readonly client: RedisClient;
+  private readonly subscribers: RedisClient[] = [];
 
   constructor(
     configService: ConfigService,
@@ -30,6 +37,13 @@ export class RedisService implements OnModuleDestroy {
   }
 
   async onModuleDestroy(): Promise<void> {
+    await Promise.all(this.subscribers.map((subscriber) => subscriber.quit?.()));
     await this.client.quit?.();
+  }
+
+  createSubscriber(): RedisClient {
+    const subscriber = this.client.duplicate?.() ?? this.client;
+    this.subscribers.push(subscriber);
+    return subscriber;
   }
 }

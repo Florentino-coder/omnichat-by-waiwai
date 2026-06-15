@@ -1,0 +1,46 @@
+import { Controller, ForbiddenException, MessageEvent, Param, Sse, UseGuards } from "@nestjs/common";
+import { Role } from "@prisma/client";
+import { Observable, map } from "rxjs";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { TenantCtx } from "../auth/decorators/tenant-context.decorator";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { TenantGuard } from "../auth/guards/tenant.guard";
+import { JwtTenantPayload } from "../auth/types/auth.types";
+import { RealtimeService } from "./realtime.service";
+
+@Controller("sse")
+@UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
+export class RealtimeController {
+  constructor(private readonly realtimeService: RealtimeService) {}
+
+  @Sse("tenant/:tenantId")
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
+  streamTenantEvents(
+    @Param("tenantId") tenantId: string,
+    @TenantCtx() ctx: JwtTenantPayload
+  ): Observable<MessageEvent> {
+    if (tenantId !== ctx.tenantId) {
+      throw new ForbiddenException("Tenant stream mismatch");
+    }
+
+    return this.realtimeService.streamTenantEvents(tenantId).pipe(
+      map((event) => ({
+        type: event.type,
+        data: toMessageEventData(event.data)
+      }))
+    );
+  }
+}
+
+function toMessageEventData(data: unknown): string | object {
+  if (typeof data === "string") {
+    return data;
+  }
+
+  if (typeof data === "object" && data !== null) {
+    return data;
+  }
+
+  return { value: data };
+}

@@ -37,6 +37,11 @@ export async function createApiTestApp(): Promise<INestApplication> {
         sadd: jest.fn().mockResolvedValue(1),
         srem: jest.fn().mockResolvedValue(1),
         smembers: jest.fn().mockResolvedValue([]),
+        publish: jest.fn().mockResolvedValue(1),
+        subscribe: jest.fn().mockResolvedValue(1),
+        unsubscribe: jest.fn().mockResolvedValue(1),
+        on: jest.fn(),
+        off: jest.fn(),
         quit: jest.fn().mockResolvedValue(undefined)
       }
     })
