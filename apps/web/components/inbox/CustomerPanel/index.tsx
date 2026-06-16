@@ -197,7 +197,7 @@ export function CustomerPanel({
           </div>
         </section>
 
-        <section className="border-b border-border px-6 py-5">
+        <section id="quick-reply-section" className="border-b border-border px-6 py-5">
           <QuickReplyList
             autoEnabled={autoQuickReply}
             replies={savedReplies}

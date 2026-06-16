@@ -884,10 +884,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             messagesEndRef={messagesEndRef}
             onOpenCustomer={() => setMobileTab("customers")}
             onQuickReply={() => {
-              const firstReply = activeSavedReplies[0];
-              if (firstReply) {
-                void useQuickReply(firstReply);
-              }
+              setMobileTab("customers");
+              setTimeout(() => {
+                document.getElementById("quick-reply-section")?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
             }}
             onUpdatePriority={updatePriority}
             onUpdateStatus={(status) => void updateConversationStatus(status)}

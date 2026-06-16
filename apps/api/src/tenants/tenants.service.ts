@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { AuditAction, PlanLimit, Tenant, TenantSettings } from "@prisma/client";
+import { AuditAction, PlanLimit, Role, Tenant, TenantSettings } from "@prisma/client";
+import { randomBytes } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { UpdateTenantPlanDto } from "./dto/update-tenant-plan.dto";
 import { UpdateTenantDto } from "./dto/update-tenant.dto";
@@ -121,6 +122,65 @@ export class TenantsService {
       }
     });
     return this.getPlan(tenantId);
+  }
+
+  async createTenant(userId: string, name: string): Promise<Tenant> {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "tenant";
+    const uniqueSlug = `${slug}-${randomBytes(4).toString("hex")}`;
+
+    const tenant = await this.prisma.$transaction(async (tx) => {
+      const newTenant = await tx.tenant.create({
+        data: {
+          name,
+          slug: uniqueSlug,
+          planId: "free",
+        }
+      });
+
+      await tx.tenantSettings.create({
+        data: {
+          tenantId: newTenant.id,
+          defaultLanguage: "th",
+          timezone: "Asia/Bangkok",
+        }
+      });
+
+      const workspace = await tx.workspace.create({
+        data: {
+          tenantId: newTenant.id,
+          name: "General",
+          isDefault: true,
+        }
+      });
+
+      await tx.workspaceMember.create({
+        data: {
+          tenantId: newTenant.id,
+          workspaceId: workspace.id,
+          userId,
+          role: Role.OWNER,
+          isActive: true
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          tenantId: newTenant.id,
+          userId,
+          action: AuditAction.TENANT_CREATED,
+          targetType: "Tenant",
+          targetId: newTenant.id,
+          metadata: {
+            name,
+            slug: uniqueSlug
+          }
+        }
+      });
+
+      return newTenant;
+    });
+
+    return tenant;
   }
 
   private async getPlanLimit(planId: string): Promise<PlanLimit> {

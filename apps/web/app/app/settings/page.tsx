@@ -1,50 +1,119 @@
+"use client";
+
+import { useState } from "react";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
+import { MessageSquareQuote, Sparkles, Users, MessageSquareCode } from "lucide-react";
 import { LineChannelForm } from "./line-channel-form";
 import { QuickReplyManager } from "./quick-reply-manager";
 
+type SettingsTab = "channels" | "replies" | "team";
+
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<SettingsTab>("channels");
+
   return (
-    <div className="h-full overflow-y-auto p-6">
-      <section aria-labelledby="settings-heading" className="max-w-3xl">
-        <h1 id="settings-heading" className="font-heading text-2xl font-medium">
-          Settings
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Configure production channels and app settings.
-        </p>
-        <Card className="mt-6 flex items-center justify-between gap-4 p-5">
-          <div>
-            <h2 className="font-heading text-base font-medium">Team management</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Invite agents, review members, and adjust tenant roles.
-            </p>
+    <div className="h-full overflow-y-auto bg-[#F7F7FA] p-6 md:p-8">
+      <section aria-labelledby="settings-heading" className="mx-auto max-w-5xl space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-1.5 border-b border-[#DEDDE6]/60 pb-5">
+          <div className="flex items-center gap-3">
+            <h1 id="settings-heading" className="font-heading text-3xl font-semibold tracking-tight text-[#16182B]">
+              Settings
+            </h1>
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#ECEBFF] px-3 py-1 text-xs font-semibold text-[#4636D7]">
+              <Sparkles size={12} />
+              Premium SaaS
+            </div>
           </div>
-          <Link
-            className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-secondary px-3 text-sm font-medium text-foreground hover:bg-primary-soft"
-            href="/app/settings/team"
+          <p className="text-sm text-[#767A8C]">
+            Configure LINE OA channels, team collaboration, and quick replies for your organization.
+          </p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm max-w-md">
+          <button
+            type="button"
+            onClick={() => setActiveTab("channels")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              activeTab === "channels"
+                ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+                : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+            }`}
           >
-            Open team
-          </Link>
-        </Card>
-        <Card className="mt-6 p-5">
-          <div className="flex flex-col gap-1">
-            <h2 className="font-heading text-base font-medium">LINE channel</h2>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Save the LINE OA credentials used for webhook verification and replies.
-            </p>
+            <MessageSquareCode size={16} />
+            LINE OA
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("replies")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              activeTab === "replies"
+                ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+                : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+            }`}
+          >
+            <MessageSquareQuote size={16} />
+            Quick Replies
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("team")}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              activeTab === "team"
+                ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+                : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+            }`}
+          >
+            <Users size={16} />
+            Team
+          </button>
+        </div>
+
+        {/* Tab Content Panels (Mounted for mock fetch sequence, hidden via CSS) */}
+        <div className="transition-all duration-300">
+          <div className={`${activeTab === "channels" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+            <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+              <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
+                <h2 className="font-heading text-lg font-semibold text-[#16182B]">LINE OA Integration</h2>
+                <p className="text-sm text-[#767A8C]">
+                  Connect and configure LINE Official Accounts to sync conversations and verify webhooks.
+                </p>
+              </div>
+              <LineChannelForm />
+            </Card>
           </div>
-          <LineChannelForm />
-        </Card>
-        <Card className="mt-6 p-5">
-          <div className="flex flex-col gap-1">
-            <h2 className="font-heading text-base font-medium">Quick Reply</h2>
-            <p className="max-w-2xl text-sm text-muted-foreground">
-              Manage reusable replies per LINE OA. Agents see only replies for the selected conversation channel.
-            </p>
+
+          <div className={`${activeTab === "replies" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+            <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+              <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
+                <h2 className="font-heading text-lg font-semibold text-[#16182B]">Quick Reply Templates</h2>
+                <p className="text-sm text-[#767A8C]">
+                  Manage reusable replies scoped to specific LINE OAs. Agents can quickly insert these into composers.
+                </p>
+              </div>
+              <QuickReplyManager />
+            </Card>
           </div>
-          <QuickReplyManager />
-        </Card>
+
+          <div className={`${activeTab === "team" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+            <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div>
+                <h2 className="font-heading text-lg font-semibold text-[#16182B]">Team & Collaborators</h2>
+                <p className="text-sm text-[#767A8C] mt-1">
+                  Invite new agents, change member roles, and review access privileges for this workspace.
+                </p>
+              </div>
+              <Link
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-[#4636D7] px-6 text-sm font-semibold text-white shadow-md shadow-[#4636D7]/15 hover:bg-[#382BB5] transition-all duration-200 cursor-pointer"
+                href="/app/settings/team"
+              >
+                Open Team Settings
+              </Link>
+            </Card>
+          </div>
+        </div>
       </section>
     </div>
   );

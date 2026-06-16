@@ -72,9 +72,7 @@ export function LoginForm() {
       window.localStorage.setItem(SESSION_KEYS.refreshToken, login.data.tokens.refreshToken);
       window.localStorage.setItem(SESSION_KEYS.user, JSON.stringify(login.data.user));
       document.cookie = `omnichat.accessToken=${encodeURIComponent(login.data.tokens.accessToken)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
-      document.cookie = `omnichat.tenantId=${encodeURIComponent(login.data.user.tenantId)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
-      document.cookie = `omnichat.workspaceId=${encodeURIComponent(login.data.user.workspaceId)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
-      router.push("/app/inbox");
+      router.push("/tenant-select");
     } catch {
       setError("Cannot sign in right now. Try again.");
     } finally {

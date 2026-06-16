@@ -72,7 +72,7 @@ describe("LoginPage", () => {
       email: "owner@omnichat.local",
       role: "OWNER"
     });
-    expect(pushMock).toHaveBeenCalledWith("/app/inbox");
+    expect(pushMock).toHaveBeenCalledWith("/tenant-select");
   });
 
   it("shows the API error when credentials are rejected", async () => {

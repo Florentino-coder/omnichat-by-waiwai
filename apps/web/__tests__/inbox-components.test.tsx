@@ -8,8 +8,8 @@ import { STATUS_CONFIG } from "../components/inbox/status-config";
 describe("Inbox components", () => {
   it("exposes the Stage 2 status helper values", () => {
     expect(STATUS_CONFIG.OPEN.text).toBe("เปิดอยู่");
-    expect(STATUS_CONFIG.PENDING.dot).toBe("#D97706");
-    expect(STATUS_CONFIG.RESOLVED.avatarText).toBe("var(--text-secondary)");
+    expect(STATUS_CONFIG.PENDING.dot).toBe("#E49A27");
+    expect(STATUS_CONFIG.RESOLVED.avatarText).toBe("#71717A");
   });
 
   it("renders conversation card status, channel, and unread badge", () => {
