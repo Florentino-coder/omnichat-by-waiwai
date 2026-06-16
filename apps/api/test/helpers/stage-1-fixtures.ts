@@ -32,6 +32,29 @@ export interface Stage1Fixtures {
 const roles: Role[] = [Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC, Role.VIEWER];
 
 export async function resetStage1Data(prisma: PrismaClient): Promise<void> {
+  const dbUrl = process.env.DATABASE_URL || "";
+  const directUrl = process.env.DIRECT_URL || "";
+  
+  const isCloud = 
+    dbUrl.includes("supabase.com") || 
+    dbUrl.includes("aws-") || 
+    directUrl.includes("supabase.com") || 
+    directUrl.includes("aws-");
+    
+  const isLocal = 
+    dbUrl.includes("localhost") || 
+    dbUrl.includes("127.0.0.1") || 
+    dbUrl.includes("postgres") && !isCloud;
+
+  if (isCloud || !isLocal) {
+    const maskedUrl = dbUrl.replace(/:[^:@]+@/, ":****@");
+    throw new Error(
+      `CRITICAL SAFETY WARNING: Integration tests are blocked from running on non-local databases to prevent data loss.\n` +
+      `Detected DATABASE_URL: ${maskedUrl}\n` +
+      `Please use a local database (e.g. running 'npm run docker:up') for running automated tests.`
+    );
+  }
+
   await prisma.message.deleteMany();
   await prisma.savedReply.deleteMany();
   await prisma.conversationInternalNote.deleteMany();

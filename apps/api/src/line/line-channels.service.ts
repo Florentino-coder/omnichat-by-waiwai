@@ -38,18 +38,42 @@ export class LineChannelsService {
       throw new BadRequestException("Workspace not found for tenant");
     }
 
-    const channel = await this.prisma.lineChannel.create({
-      data: {
+    const existingChannel = await this.prisma.lineChannel.findFirst({
+      where: {
         tenantId,
-        workspaceId: dto.workspaceId,
-        name: dto.name,
-        badgeColor: dto.badgeColor,
-        lineChannelId: dto.lineChannelId,
-        encryptedChannelSecret: this.cryptoSecret.encrypt(dto.channelSecret),
-        encryptedChannelAccessToken: this.cryptoSecret.encrypt(dto.channelAccessToken),
-        tokenExpiresAt: dto.tokenExpiresAt ? new Date(dto.tokenExpiresAt) : undefined
+        lineChannelId: dto.lineChannelId
       }
     });
+
+    let channel: LineChannel;
+    if (existingChannel) {
+      channel = await this.prisma.lineChannel.update({
+        where: { id: existingChannel.id },
+        data: {
+          workspaceId: dto.workspaceId,
+          name: dto.name,
+          badgeColor: dto.badgeColor,
+          encryptedChannelSecret: this.cryptoSecret.encrypt(dto.channelSecret),
+          encryptedChannelAccessToken: this.cryptoSecret.encrypt(dto.channelAccessToken),
+          tokenExpiresAt: dto.tokenExpiresAt ? new Date(dto.tokenExpiresAt) : null,
+          deletedAt: null,
+          isActive: true
+        }
+      });
+    } else {
+      channel = await this.prisma.lineChannel.create({
+        data: {
+          tenantId,
+          workspaceId: dto.workspaceId,
+          name: dto.name,
+          badgeColor: dto.badgeColor,
+          lineChannelId: dto.lineChannelId,
+          encryptedChannelSecret: this.cryptoSecret.encrypt(dto.channelSecret),
+          encryptedChannelAccessToken: this.cryptoSecret.encrypt(dto.channelAccessToken),
+          tokenExpiresAt: dto.tokenExpiresAt ? new Date(dto.tokenExpiresAt) : undefined
+        }
+      });
+    }
 
     await this.prisma.auditLog.create({
       data: {
@@ -60,7 +84,8 @@ export class LineChannelsService {
         targetId: channel.id,
         metadata: {
           workspaceId: dto.workspaceId,
-          lineChannelId: dto.lineChannelId
+          lineChannelId: dto.lineChannelId,
+          isRestored: !!existingChannel
         }
       }
     });

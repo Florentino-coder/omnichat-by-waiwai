@@ -1,6 +1,6 @@
 "use client";
 
-import { MailPlus, Shield, Trash2, UserCog } from "lucide-react";
+import { MailPlus, Shield, Trash2, UserCog, Copy } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../../lib/api-client";
@@ -344,15 +344,33 @@ export default function TeamSettingsPage() {
                         <Badge variant="muted">{invitation.status}</Badge>
                       </div>
                     </div>
-                    <Button
-                      aria-label={`Revoke invite ${invitation.email}`}
-                      onClick={() => void revokeInvitation(invitation)}
-                      size="sm"
-                      type="button"
-                      variant="secondary"
-                    >
-                      <Trash2 size={14} aria-hidden="true" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {invitation.token ? (
+                        <Button
+                          aria-label={`Copy invitation link for ${invitation.email}`}
+                          onClick={() => {
+                            const inviteUrl = `${window.location.origin}/invite/accept?token=${invitation.token}`;
+                            void navigator.clipboard.writeText(inviteUrl);
+                            setNotice(`Copied invitation link for ${invitation.email}`);
+                            setTimeout(() => setNotice(null), 3000);
+                          }}
+                          size="sm"
+                          type="button"
+                          variant="secondary"
+                        >
+                          <Copy size={14} aria-hidden="true" />
+                        </Button>
+                      ) : null}
+                      <Button
+                        aria-label={`Revoke invite ${invitation.email}`}
+                        onClick={() => void revokeInvitation(invitation)}
+                        size="sm"
+                        type="button"
+                        variant="secondary"
+                      >
+                        <Trash2 size={14} aria-hidden="true" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -8,6 +8,8 @@ type MockPrisma = {
   lineChannel: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
   };
   workspace: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
@@ -20,7 +22,9 @@ type MockPrisma = {
 const createPrisma = (): MockPrisma => ({
   lineChannel: {
     create: jest.fn<Promise<unknown>, [unknown]>(),
-    findMany: jest.fn<Promise<unknown>, [unknown]>()
+    findMany: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    update: jest.fn<Promise<unknown>, [unknown]>()
   },
   workspace: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
@@ -39,6 +43,7 @@ describe("LineChannelsService", () => {
   it("stores encrypted LINE secrets under the current tenant", async () => {
     const prisma = createPrisma();
     prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+    prisma.lineChannel.findFirst.mockResolvedValue(null);
     prisma.lineChannel.create.mockResolvedValue({ id: "line-channel-1" });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
@@ -73,6 +78,45 @@ describe("LineChannelsService", () => {
     });
   });
 
+  it("restores and updates a soft-deleted LINE channel if it exists under the same tenant", async () => {
+    const prisma = createPrisma();
+    prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+    prisma.lineChannel.findFirst.mockResolvedValue({ id: "existing-channel-1", lineChannelId: "1650000000" });
+    prisma.lineChannel.update.mockResolvedValue({ id: "existing-channel-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await new LineChannelsService(
+      prisma as unknown as PrismaService,
+      cryptoSecret
+    ).connect("tenant-1", "user-1", {
+      workspaceId: "workspace-1",
+      name: "Restored LINE",
+      lineChannelId: "1650000000",
+      badgeColor: "#0ea5e9",
+      channelSecret: "new-plain-secret",
+      channelAccessToken: "new-plain-token"
+    });
+
+    expect(prisma.lineChannel.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        lineChannelId: "1650000000"
+      }
+    });
+    expect(prisma.lineChannel.update).toHaveBeenCalledWith({
+      where: { id: "existing-channel-1" },
+      data: expect.objectContaining({
+        workspaceId: "workspace-1",
+        name: "Restored LINE",
+        encryptedChannelSecret: "encrypted:new-plain-secret",
+        encryptedChannelAccessToken: "encrypted:new-plain-token",
+        deletedAt: null,
+        isActive: true
+      })
+    });
+    expect(prisma.lineChannel.create).not.toHaveBeenCalled();
+  });
+
   it("rejects a workspace outside the current tenant before connecting a channel", async () => {
     const prisma = createPrisma();
     prisma.workspace.findFirst.mockResolvedValue(null);
@@ -93,5 +137,6 @@ describe("LineChannelsService", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prisma.lineChannel.create).not.toHaveBeenCalled();
+    expect(prisma.lineChannel.update).not.toHaveBeenCalled();
   });
 });
