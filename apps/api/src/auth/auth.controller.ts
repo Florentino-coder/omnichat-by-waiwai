@@ -1,12 +1,18 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
 import { TenantCtx } from "./decorators/tenant-context.decorator";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
+import { SwitchTenantDto } from "./dto/switch-tenant.dto";
 import { TwoFaCodeDto } from "./dto/two-fa-code.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { TenantGuard } from "./guards/tenant.guard";
-import { AuthResponse, AuthTokens, JwtTenantPayload } from "./types/auth.types";
+import {
+  AuthResponse,
+  AuthTokens,
+  JwtTenantPayload,
+  TenantMembershipResponse
+} from "./types/auth.types";
 
 @Controller("auth")
 export class AuthController {
@@ -28,6 +34,22 @@ export class AuthController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(@Body() dto: RefreshTokenDto): Promise<void> {
     await this.authService.logout(dto.refreshToken);
+  }
+
+  @Get("memberships")
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  listMemberships(@TenantCtx() ctx: JwtTenantPayload): Promise<TenantMembershipResponse[]> {
+    return this.authService.listMemberships(ctx.sub);
+  }
+
+  @Post("switch-tenant")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  switchTenant(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Body() dto: SwitchTenantDto
+  ): Promise<AuthResponse> {
+    return this.authService.switchTenant(ctx, dto.workspaceId);
   }
 
   @Post("2fa/setup")

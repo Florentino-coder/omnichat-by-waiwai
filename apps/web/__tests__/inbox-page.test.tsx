@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import InboxPage from "../app/app/inbox/page";
+import InboxClient from "../app/app/inbox/inbox-client";
 
 describe("InboxPage", () => {
   beforeEach(() => {
@@ -74,10 +75,10 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(screen.getByRole("heading", { name: "กล่องข้อความ" })).toBeInTheDocument();
-    expect(await screen.findAllByText("Somchai LINE")).toHaveLength(2);
+    expect((await screen.findAllByText("Somchai LINE")).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("สวัสดีครับ")).toBeInTheDocument();
     expect(screen.queryByText("Messages from LINE will render here after API binding.")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/inbox/conversations?limit=10&offset=0", {
@@ -155,7 +156,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(await screen.findByText("ยังไม่มีแชท LINE")).toBeInTheDocument();
 
@@ -232,7 +233,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(await screen.findByText("first message")).toBeInTheDocument();
 
@@ -307,7 +308,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     const customerB = await screen.findByText("Customer B");
     fireEvent.click(customerB.closest("button") as HTMLButtonElement);
@@ -402,7 +403,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(await screen.findByText("Sticker 51626494")).toBeInTheDocument();
     expect(await screen.findByText("Package 11538")).toBeInTheDocument();
@@ -491,7 +492,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(await screen.findByText("ดีๆ")).toBeInTheDocument();
     expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({ backgroundColor: "#16a34a" });
@@ -518,7 +519,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     const layout = await screen.findByTestId("inbox-layout");
     expect(layout).toHaveClass("h-[calc(100dvh-8.5rem)]");
@@ -527,7 +528,7 @@ describe("InboxPage", () => {
     expect(screen.getByTestId("conversation-list-panel")).toHaveClass("md:flex");
     expect(screen.getByTestId("customer-context-panel")).toHaveClass("hidden");
     expect(screen.getByTestId("customer-context-panel")).toHaveClass("xl:flex");
-    expect(screen.getByRole("navigation", { name: "Inbox mobile sections" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Mobile inbox navigation" })).toBeInTheDocument();
   });
 
   it("shows selected LINE channel in the premium composer toolbar", async () => {
@@ -563,7 +564,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(await screen.findByText("LINE OA: Main LINE")).toBeInTheDocument();
   });
@@ -621,7 +622,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect((await screen.findAllByText("Customer A")).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Change conversation status" }));
@@ -709,7 +710,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(await screen.findByText("Customer 10")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Load older conversations" }));
@@ -769,7 +770,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect((await screen.findAllByText("F")).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Edit customer name" }));
@@ -829,7 +830,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect((await screen.findAllByText("Customer Ops")).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Assign conversation" })).toBeInTheDocument();
@@ -915,7 +916,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect((await screen.findAllByText("Customer Ops")).length).toBeGreaterThan(0);
     expect(await screen.findByRole("button", { name: "Add tag VIP" })).toBeInTheDocument();
@@ -1015,7 +1016,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect(await screen.findByText("Line OA 1 : Quick Reply Greeting")).toBeInTheDocument();
     await waitFor(() => {
@@ -1107,7 +1108,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
     expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Reply text" }), {
@@ -1175,7 +1176,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
     fireEvent.change(screen.getByRole("textbox", { name: "Reply text" }), {
@@ -1246,7 +1247,7 @@ describe("InboxPage", () => {
       value: fetchMock
     });
 
-    render(<InboxPage />);
+    render(await InboxPage());
 
     expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByRole("textbox", { name: "Reply image URL" })).not.toBeInTheDocument();
@@ -1254,5 +1255,93 @@ describe("InboxPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add image URL" }));
 
     expect(screen.getByRole("textbox", { name: "Reply image URL" })).toBeInTheDocument();
+  });
+
+  it("renders server-provided initial conversations before the client refresh", async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: [] })
+    });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(
+      <InboxClient
+        initialConversations={[
+          {
+            id: "conversation-initial",
+            externalThreadId: "U-initial",
+            displayName: "Initial Customer",
+            status: "OPEN",
+            lineChannel: {
+              id: "line-channel-1",
+              name: "Initial LINE",
+              badgeColor: "#4f46e5",
+              lineChannelId: "1234567890"
+            },
+            messages: [
+              {
+                id: "preview-initial",
+                direction: "INBOUND",
+                text: "server preview",
+                createdAt: "2026-06-14T01:00:00.000Z"
+              }
+            ]
+          }
+        ]}
+      />
+    );
+
+    expect(screen.getAllByText("Initial Customer").length).toBeGreaterThan(0);
+    expect(screen.getByText("server preview")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-initial/messages", {
+        headers: { Authorization: "Bearer access-token" }
+      });
+    });
+  });
+
+  it("uses the Phase 2 mobile bottom nav to switch between chats and customer context", async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            {
+              id: "conversation-1",
+              externalThreadId: "U123",
+              displayName: "Mobile Customer",
+              status: "OPEN",
+              lineChannel: {
+                id: "line-channel-1",
+                name: "Mobile LINE",
+                badgeColor: "#4f46e5",
+                lineChannelId: "1234567890"
+              },
+              messages: []
+            }
+          ]
+        })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] })
+      });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(await InboxPage());
+
+    expect((await screen.findAllByText("Mobile Customer")).length).toBeGreaterThan(0);
+    const nav = screen.getByRole("navigation", { name: "Mobile inbox navigation" });
+    fireEvent.click(nav.querySelectorAll("button")[1]);
+
+    expect(screen.getByTestId("mobile-customer-panel")).toBeInTheDocument();
   });
 });

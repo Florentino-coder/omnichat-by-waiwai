@@ -43,6 +43,7 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - [x] Checkpoint O: Thai UI foundation and Noto Sans Thai font.
 - [x] Checkpoint P: LINE OA-scoped Quick Reply in inbox with Auto Enter.
 - [x] Checkpoint Q: Settings Quick Reply CRUD per LINE OA.
+- [x] Checkpoint R: Tenant switch UI, team invitation UI, invite acceptance flow, and inbox component/RSC shell split.
 
 ## Verification - 2026-06-13
 
@@ -168,4 +169,22 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts apps/api/src/line/line-reply.service.spec.ts --runInBand`
 - Passed: `npm run api:build`
 - Passed: `npm run web:build`
+- Passed with CRLF-only warnings: `git diff --check`
+
+## Verification - 2026-06-16 Checkpoint R Tenant UI + Inbox Split
+
+- Added: `GET /api/v1/auth/memberships` returns active tenant/workspace memberships for the signed-in user.
+- Added: `POST /api/v1/auth/switch-tenant` issues new tokens scoped to the selected workspace and writes `TENANT_SWITCHED` audit logs.
+- Added migration: `20260616090000_add_tenant_switched_audit_action`.
+- Added: tenant select page, team settings page, completed invite accept flow, and cookie-backed app route middleware.
+- Added: inbox route server wrapper with Suspense skeleton and focused component structure for conversation list, chat window, customer panel, mobile bottom nav, and status config.
+- Finished: Phase 2 inbox render layer now wires the component structure to live conversations, messages, reply send, notes, assignment, tags, quick replies, status, and priority operations.
+- Added: RSC initial conversation load for sessions with an access-token cookie; client polling remains the refresh fallback.
+- Passed: `npm run prisma:validate`
+- Passed: `npm run lint`
+- Passed: `npm run api:build`
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run web:build`
+- Passed: `npm run api:test -- --runInBand`
+- Passed: `npm run api:test -- apps/api/src/auth/auth.service.spec.ts apps/api/src/invitations/invitations.service.spec.ts apps/api/src/workspaces/workspaces.service.spec.ts apps/api/src/inbox/inbox.service.spec.ts --runInBand`
 - Passed with CRLF-only warnings: `git diff --check`

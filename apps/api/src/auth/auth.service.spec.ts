@@ -32,6 +32,10 @@ type MockPrisma = {
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  workspaceMember: {
+    findMany: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+  };
   refreshToken: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
@@ -63,6 +67,10 @@ const createPrisma = (): MockPrisma => ({
   user: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  workspaceMember: {
+    findMany: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
   },
   refreshToken: {
     create: jest.fn<Promise<unknown>, [unknown]>(),
@@ -148,6 +156,120 @@ const hashToken = (refreshToken: string): string =>
   createHash("sha256").update(refreshToken).digest("hex");
 
 describe("AuthService", () => {
+  it("lists active tenant memberships with tenant and workspace labels", async () => {
+    const prisma = createPrisma();
+    prisma.workspaceMember.findMany.mockResolvedValue([
+      {
+        id: "member-1",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        role: Role.OWNER,
+        tenant: { id: "tenant-1", name: "Jinbao", slug: "jinbao", logoUrl: null },
+        workspace: { id: "workspace-1", name: "Sales", isDefault: true }
+      }
+    ]);
+
+    await expect(createService(prisma).listMemberships("user-1")).resolves.toEqual([
+      {
+        membershipId: "member-1",
+        tenantId: "tenant-1",
+        tenantName: "Jinbao",
+        tenantSlug: "jinbao",
+        tenantLogoUrl: null,
+        workspaceId: "workspace-1",
+        workspaceName: "Sales",
+        isDefaultWorkspace: true,
+        role: Role.OWNER
+      }
+    ]);
+    expect(prisma.workspaceMember.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        isActive: true,
+        tenant: { isActive: true, deletedAt: null },
+        workspace: { deletedAt: null }
+      },
+      include: {
+        tenant: { select: { id: true, name: true, slug: true, logoUrl: true } },
+        workspace: { select: { id: true, name: true, isDefault: true } }
+      },
+      orderBy: [{ tenant: { name: "asc" } }, { workspace: { name: "asc" } }]
+    });
+  });
+
+  it("switches to an owned workspace, issues scoped tokens, and audits the switch", async () => {
+    const prisma = createPrisma();
+    const refreshSessions = createRefreshSessions();
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      tenantId: "tenant-2",
+      workspaceId: "workspace-2",
+      role: Role.ADMIN,
+      isActive: true
+    });
+    prisma.refreshToken.create.mockResolvedValue({ id: "token-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    const result = await createService(prisma, refreshSessions).switchTenant(
+      {
+        sub: "user-1",
+        email: "owner@omnichat.local",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        role: Role.OWNER
+      },
+      "workspace-2"
+    );
+
+    expect(result.user).toMatchObject({
+      id: "user-1",
+      email: "owner@omnichat.local",
+      tenantId: "tenant-2",
+      workspaceId: "workspace-2",
+      role: Role.ADMIN
+    });
+    expect(refreshSessions.store).toHaveBeenCalledWith(
+      hashToken(result.tokens.refreshToken),
+      expect.objectContaining({
+        userId: "user-1",
+        tenantId: "tenant-2",
+        workspaceId: "workspace-2",
+        role: Role.ADMIN
+      })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: "tenant-2",
+        userId: "user-1",
+        action: AuditAction.TENANT_SWITCHED,
+        metadata: {
+          fromTenantId: "tenant-1",
+          fromWorkspaceId: "workspace-1",
+          toWorkspaceId: "workspace-2"
+        }
+      }
+    });
+  });
+
+  it("rejects tenant switch to a workspace the user does not belong to", async () => {
+    const prisma = createPrisma();
+    prisma.workspaceMember.findFirst.mockResolvedValue(null);
+
+    await expect(
+      createService(prisma).switchTenant(
+        {
+          sub: "user-1",
+          email: "owner@omnichat.local",
+          tenantId: "tenant-1",
+          workspaceId: "workspace-1",
+          role: Role.OWNER
+        },
+        "workspace-other"
+      )
+    ).rejects.toThrow("Workspace membership not found");
+    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
   it("logs in an active owner and stores hashed refresh sessions in DB and Redis", async () => {
     const prisma = createPrisma();
     const refreshSessions = createRefreshSessions();

@@ -27,6 +27,18 @@ export interface AuthResponse {
   user: AuthUserResponse;
 }
 
+export interface TenantMembershipResponse {
+  membershipId: string;
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  tenantLogoUrl: string | null;
+  workspaceId: string;
+  workspaceName: string;
+  isDefaultWorkspace: boolean;
+  role: Role;
+}
+
 export interface RequestWithUser {
   user?: JwtTenantPayload;
 }

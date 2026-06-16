@@ -1,0 +1,378 @@
+"use client";
+
+import { MailPlus, Shield, Trash2, UserCog } from "lucide-react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
+import { apiFetch } from "../../../lib/api-client";
+
+type Role = "OWNER" | "ADMIN" | "AGENT" | "QC" | "VIEWER";
+
+type Workspace = {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+};
+
+type WorkspaceMember = {
+  id: string;
+  userId: string;
+  role: Role;
+  isActive: boolean;
+  user?: {
+    email: string;
+    displayName: string;
+  };
+};
+
+type Invitation = {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: Role;
+  status: string;
+  token?: string;
+};
+
+type AuthUser = {
+  role?: Role;
+  workspaceId?: string;
+};
+
+const roles: Role[] = ["OWNER", "ADMIN", "AGENT", "QC", "VIEWER"];
+
+export default function TeamSettingsPage() {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [members, setMembers] = useState<WorkspaceMember[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<Role>("AGENT");
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
+
+  const currentUser = useMemo(readCurrentUser, []);
+  const canInviteOwner = currentUser.role === "OWNER";
+
+  useEffect(() => {
+    let active = true;
+    async function loadInitial(): Promise<void> {
+      setError(null);
+      try {
+        const workspaceList = await apiFetch<Workspace[]>("/api/v1/workspaces");
+        if (!active) {
+          return;
+        }
+        const safeWorkspaces = Array.isArray(workspaceList) ? workspaceList : [];
+        const preferredWorkspaceId =
+          currentUser.workspaceId && safeWorkspaces.some((item) => item.id === currentUser.workspaceId)
+            ? currentUser.workspaceId
+            : safeWorkspaces[0]?.id ?? "";
+        setWorkspaces(safeWorkspaces);
+        setSelectedWorkspaceId(preferredWorkspaceId);
+        if (preferredWorkspaceId) {
+          await loadWorkspaceData(preferredWorkspaceId, active);
+        }
+      } catch (loadError) {
+        if (active) {
+          setError(readMessage(loadError, "Could not load team settings."));
+        }
+      }
+    }
+
+    void loadInitial();
+    return () => {
+      active = false;
+    };
+    // currentUser is read once from localStorage for this client session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadWorkspaceData(workspaceId: string, active = true): Promise<void> {
+    const [membersResult, invitationsResult] = await Promise.all([
+      apiFetch<WorkspaceMember[]>(`/api/v1/workspaces/${workspaceId}/members`),
+      apiFetch<Invitation[]>("/api/v1/invitations")
+    ]);
+
+    if (!active) {
+      return;
+    }
+
+    setMembers(Array.isArray(membersResult) ? membersResult : []);
+    setInvitations(
+      Array.isArray(invitationsResult)
+        ? invitationsResult.filter((invitation) => invitation.workspaceId === workspaceId)
+        : []
+    );
+  }
+
+  async function loadInvitations(workspaceId: string): Promise<void> {
+    const invitationsResult = await apiFetch<Invitation[]>("/api/v1/invitations");
+    setInvitations(
+      Array.isArray(invitationsResult)
+        ? invitationsResult.filter((invitation) => invitation.workspaceId === workspaceId)
+        : []
+    );
+  }
+
+  async function handleWorkspaceChange(event: ChangeEvent<HTMLSelectElement>): Promise<void> {
+    const workspaceId = event.target.value;
+    setSelectedWorkspaceId(workspaceId);
+    setError(null);
+    await loadWorkspaceData(workspaceId);
+  }
+
+  async function sendInvite(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!selectedWorkspaceId || !inviteEmail.trim()) {
+      setError("Invite email is required.");
+      return;
+    }
+    if (inviteRole === "OWNER" && !canInviteOwner) {
+      setError("Only owners can invite another owner.");
+      return;
+    }
+
+    setIsSubmittingInvite(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await apiFetch<Invitation>("/api/v1/invitations", {
+        body: JSON.stringify({
+          workspaceId: selectedWorkspaceId,
+          email: inviteEmail.trim(),
+          role: inviteRole
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      setInviteEmail("");
+      setInviteRole("AGENT");
+      await loadInvitations(selectedWorkspaceId);
+      setNotice("Invitation sent.");
+    } catch (inviteError) {
+      setError(readMessage(inviteError, "Could not send invitation."));
+    } finally {
+      setIsSubmittingInvite(false);
+    }
+  }
+
+  async function updateMemberRole(member: WorkspaceMember, role: Role): Promise<void> {
+    if (!selectedWorkspaceId) {
+      return;
+    }
+    setError(null);
+    try {
+      await apiFetch<WorkspaceMember>(
+        `/api/v1/workspaces/${selectedWorkspaceId}/members/${member.userId}`,
+        {
+          body: JSON.stringify({ role }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        }
+      );
+      await loadWorkspaceData(selectedWorkspaceId);
+    } catch (updateError) {
+      setError(readMessage(updateError, "Could not update member role."));
+    }
+  }
+
+  async function removeMember(member: WorkspaceMember): Promise<void> {
+    if (!selectedWorkspaceId) {
+      return;
+    }
+    setError(null);
+    try {
+      await apiFetch<WorkspaceMember>(
+        `/api/v1/workspaces/${selectedWorkspaceId}/members/${member.userId}`,
+        { method: "DELETE" }
+      );
+      await loadWorkspaceData(selectedWorkspaceId);
+    } catch (removeError) {
+      setError(readMessage(removeError, "Could not remove member."));
+    }
+  }
+
+  async function revokeInvitation(invitation: Invitation): Promise<void> {
+    setError(null);
+    try {
+      await apiFetch<Invitation>(`/api/v1/invitations/${invitation.id}`, {
+        method: "DELETE"
+      });
+      await loadWorkspaceData(selectedWorkspaceId);
+    } catch (revokeError) {
+      setError(readMessage(revokeError, "Could not revoke invitation."));
+    }
+  }
+
+  return (
+    <div className="h-full overflow-y-auto p-6">
+      <section aria-labelledby="team-heading" className="max-w-5xl">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 id="team-heading" className="font-heading text-2xl font-medium">
+              Team
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Manage members and invitations for tenant workspaces.
+            </p>
+          </div>
+          <label className="grid min-w-56 gap-1 text-xs font-medium text-muted-foreground">
+            Workspace
+            <select
+              className="h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground"
+              onChange={(event) => void handleWorkspaceChange(event)}
+              value={selectedWorkspaceId}
+            >
+              {workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {error ? (
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {notice ? (
+          <p className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+            {notice}
+          </p>
+        ) : null}
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <Card className="p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <UserCog size={18} aria-hidden="true" />
+              <h2 className="font-heading text-base font-medium">Members</h2>
+            </div>
+            <div className="divide-y divide-border">
+              {members.length === 0 ? (
+                <p className="py-4 text-sm text-muted-foreground">No active members.</p>
+              ) : null}
+              {members.map((member) => (
+                <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{member.user?.displayName ?? member.userId}</p>
+                    <p className="truncate text-xs text-muted-foreground">{member.user?.email ?? member.userId}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      aria-label={`Role for ${member.user?.email ?? member.userId}`}
+                      className="h-8 rounded-md border border-border bg-white px-2 text-xs"
+                      onChange={(event) => void updateMemberRole(member, event.target.value as Role)}
+                      value={member.role}
+                    >
+                      {roles.map((role) => (
+                        <option key={role} disabled={role === "OWNER" && !canInviteOwner} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      aria-label={`Remove ${member.user?.email ?? member.userId}`}
+                      onClick={() => void removeMember(member)}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <MailPlus size={18} aria-hidden="true" />
+              <h2 className="font-heading text-base font-medium">Invite</h2>
+            </div>
+            <form className="grid gap-3" onSubmit={(event) => void sendInvite(event)}>
+              <div className="grid gap-2">
+                <Label htmlFor="invite-email">Invite email</Label>
+                <Input
+                  id="invite-email"
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  type="email"
+                  value={inviteEmail}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invite-role">Invite role</Label>
+                <select
+                  className="h-10 rounded-md border border-border bg-white px-3 text-sm"
+                  id="invite-role"
+                  onChange={(event) => setInviteRole(event.target.value as Role)}
+                  value={inviteRole}
+                >
+                  {roles.map((role) => (
+                    <option key={role} disabled={role === "OWNER" && !canInviteOwner} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button disabled={isSubmittingInvite || !selectedWorkspaceId} type="submit">
+                Send invite
+              </Button>
+            </form>
+
+            <div className="mt-6">
+              <div className="mb-3 flex items-center gap-2">
+                <Shield size={16} aria-hidden="true" />
+                <h3 className="text-sm font-medium">Pending invitations</h3>
+              </div>
+              <div className="grid gap-2">
+                {invitations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No pending invitations.</p>
+                ) : null}
+                {invitations.map((invitation) => (
+                  <div
+                    key={invitation.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{invitation.email}</p>
+                      <div className="mt-1 flex gap-1">
+                        <Badge variant="muted">{invitation.role}</Badge>
+                        <Badge variant="muted">{invitation.status}</Badge>
+                      </div>
+                    </div>
+                    <Button
+                      aria-label={`Revoke invite ${invitation.email}`}
+                      onClick={() => void revokeInvitation(invitation)}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function readCurrentUser(): AuthUser {
+  try {
+    const raw = window.localStorage.getItem("omnichat.user");
+    return raw ? (JSON.parse(raw) as AuthUser) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}

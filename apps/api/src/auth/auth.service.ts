@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { AuditAction, User, WorkspaceMember } from "@prisma/client";
@@ -8,7 +8,13 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "./crypto-secret.service";
 import { RefreshSessionService } from "./refresh-session.service";
 import { TotpService } from "./totp.service";
-import { AuthResponse, AuthTokens, AuthUserResponse, JwtTenantPayload } from "./types/auth.types";
+import {
+  AuthResponse,
+  AuthTokens,
+  AuthUserResponse,
+  JwtTenantPayload,
+  TenantMembershipResponse
+} from "./types/auth.types";
 
 type ActiveMembership = Pick<
   WorkspaceMember,
@@ -44,6 +50,86 @@ export class AuthService {
     private readonly cryptoSecretService: CryptoSecretService,
     private readonly totpService: TotpService
   ) {}
+
+  async listMemberships(userId: string): Promise<TenantMembershipResponse[]> {
+    const memberships = await this.prisma.workspaceMember.findMany({
+      where: {
+        userId,
+        isActive: true,
+        tenant: { isActive: true, deletedAt: null },
+        workspace: { deletedAt: null }
+      },
+      include: {
+        tenant: { select: { id: true, name: true, slug: true, logoUrl: true } },
+        workspace: { select: { id: true, name: true, isDefault: true } }
+      },
+      orderBy: [{ tenant: { name: "asc" } }, { workspace: { name: "asc" } }]
+    });
+
+    return memberships.map((membership) => ({
+      membershipId: membership.id,
+      tenantId: membership.tenant.id,
+      tenantName: membership.tenant.name,
+      tenantSlug: membership.tenant.slug,
+      tenantLogoUrl: membership.tenant.logoUrl,
+      workspaceId: membership.workspace.id,
+      workspaceName: membership.workspace.name,
+      isDefaultWorkspace: membership.workspace.isDefault,
+      role: membership.role
+    }));
+  }
+
+  async switchTenant(ctx: JwtTenantPayload, workspaceId: string): Promise<AuthResponse> {
+    const membership = await this.prisma.workspaceMember.findFirst({
+      where: {
+        userId: ctx.sub,
+        workspaceId,
+        isActive: true,
+        tenant: { isActive: true, deletedAt: null },
+        workspace: { deletedAt: null }
+      },
+      select: {
+        tenantId: true,
+        workspaceId: true,
+        role: true,
+        isActive: true
+      }
+    });
+
+    if (!membership) {
+      throw new ForbiddenException("Workspace membership not found");
+    }
+
+    const tokens = await this.issueTokens(
+      { id: ctx.sub, email: ctx.email },
+      membership
+    );
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId: membership.tenantId,
+        userId: ctx.sub,
+        action: AuditAction.TENANT_SWITCHED,
+        metadata: {
+          fromTenantId: ctx.tenantId,
+          fromWorkspaceId: ctx.workspaceId,
+          toWorkspaceId: membership.workspaceId
+        }
+      }
+    });
+
+    return {
+      tokens,
+      user: {
+        id: ctx.sub,
+        email: ctx.email,
+        displayName: ctx.email,
+        tenantId: membership.tenantId,
+        workspaceId: membership.workspaceId,
+        role: membership.role
+      }
+    };
+  }
 
   async login(email: string, password: string, totpCode?: string): Promise<AuthResponse> {
     const user = await this.findLoginUser(email);
