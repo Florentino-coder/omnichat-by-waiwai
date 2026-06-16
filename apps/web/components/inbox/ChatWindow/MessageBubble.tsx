@@ -12,8 +12,8 @@ interface MessageBubbleProps {
 export function MessageBubble({ variant, body, time, authorInitial }: MessageBubbleProps) {
   if (variant === "system") {
     return (
-      <div className="flex justify-center">
-        <div className="rounded-full border border-border bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
+      <div className="flex justify-center py-1">
+        <div className="rounded-full border border-[#D8D6CC] bg-[#F5F4EF] px-4 py-1.5 text-sm font-medium text-muted-foreground">
           {body}
         </div>
       </div>
@@ -23,37 +23,39 @@ export function MessageBubble({ variant, body, time, authorInitial }: MessageBub
   const isOutbound = variant === "outbound";
   const isNote = variant === "note";
   return (
-    <div className={["flex gap-2", isOutbound ? "justify-end" : "justify-start"].join(" ")}>
+    <div className={["flex items-end gap-2", isOutbound ? "justify-end" : "justify-start"].join(" ")}>
       {!isOutbound ? (
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#C7D2FE] bg-[#EEF2FF] text-[10px] font-medium text-primary">
-          {authorInitial ?? "C"}
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#C9D1FF] bg-[#EEF1FF] text-sm font-medium text-primary">
+          {authorInitial ?? "F"}
         </div>
       ) : null}
-      <div
-        className={[
-          "max-w-[70%] whitespace-pre-wrap px-[13px] py-[9px] text-xs",
-          isOutbound
-            ? "rounded-[14px_14px_3px_14px] bg-primary text-white"
-            : isNote
-              ? "rounded-[3px_14px_14px_14px] border border-[#FCD34D] bg-[#FFFBEB] text-[#78350F]"
-              : "rounded-[3px_14px_14px_14px] border border-border bg-white text-foreground"
-        ].join(" ")}
-      >
-        {isNote ? (
-          <span className="mb-1 flex items-center gap-1 text-[10px] font-medium">
-            <LockKeyhole size={11} aria-hidden="true" />
-            โน้ตทีม
-          </span>
-        ) : null}
-        <p>
-          {body.split("\n").map((line) => (
-            <span key={line} className="block">
-              {line}
+      <div className={["max-w-[76%]", isOutbound ? "text-right" : "text-left"].join(" ")}>
+        <div
+          className={[
+            "inline-block whitespace-pre-wrap px-6 py-4 text-base leading-7 shadow-sm",
+            isOutbound
+              ? "rounded-[18px_18px_4px_18px] bg-primary text-white"
+              : isNote
+                ? "rounded-[14px] border-2 border-[#F2C94C] bg-[#FFF9E8] text-[#8B4C11]"
+                : "rounded-[18px_18px_18px_4px] border border-[#DCD9E3] bg-white text-foreground"
+          ].join(" ")}
+        >
+          {isNote ? (
+            <span className="mb-1 flex items-center gap-2 text-sm font-semibold">
+              <LockKeyhole size={14} aria-hidden="true" />
+              โน้ตทีม
             </span>
-          ))}
-        </p>
+          ) : null}
+          <p>
+            {body.split("\n").map((line) => (
+              <span key={line} className="block">
+                {line}
+              </span>
+            ))}
+          </p>
+        </div>
         {time ? (
-          <p className={["mt-1 text-[10px]", isOutbound ? "text-white/70" : "text-muted-foreground"].join(" ")}>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">
             {time}
           </p>
         ) : null}

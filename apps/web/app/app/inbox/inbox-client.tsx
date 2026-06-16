@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
-import { Badge } from "@omnichat/ui";
 import { ChatWindow, type ChatMessageItem } from "../../../components/inbox/ChatWindow";
 import {
   ConversationList,
@@ -698,8 +697,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
   const filters: FilterPill[] = [
     { id: "all", label: "ทั้งหมด", count: conversations.length },
-    { id: "unread", label: "ยังไม่อ่าน", count: unreadCount },
-    { id: "pending", label: "รอตอบ", count: readNotRepliedCount },
+    { id: "unread", label: "เปิด", count: unreadCount },
+    { id: "pending", label: "รอ", count: readNotRepliedCount },
     {
       id: "resolved",
       label: "ปิดแล้ว",
@@ -728,6 +727,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     id: message.id,
     variant: message.direction === "OUTBOUND" ? "outbound" : "inbound",
     body: messageSummary(message),
+    authorInitial: message.direction === "INBOUND" ? customerInitial(selectedCustomerName) : undefined,
     time: `${message.direction === "OUTBOUND" ? "Outbound" : "Inbound"} · ${formatDateTime(message.createdAt)}`
   }));
   const selectedTags = (selectedConversation?.tagLinks ?? [])
@@ -742,6 +742,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       customerName={selectedConversation ? selectedCustomerName : "-"}
       customerInitial={customerInitial(selectedCustomerName)}
       lineLabel={selectedConversation?.lineChannel.name ?? "-"}
+      status={conversationStatus(selectedConversation)}
       lineProfile={lineProfile}
       sourceId={
         lineSource?.userId ??
@@ -797,22 +798,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   );
 
   return (
-    <section aria-labelledby="inbox-heading" className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-background px-6 py-4">
-        <div>
-          <h1 id="inbox-heading" className="font-heading text-2xl font-medium">
-            {t.inboxTitle}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{t.inboxSubtitle}</p>
-        </div>
-        <Badge variant="primary">Stage 3</Badge>
-      </div>
-
+    <section aria-labelledby="inbox-heading" className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-white">
+      <h1 id="inbox-heading" className="sr-only">Unified Inbox</h1>
       {error ? <p className="shrink-0 px-6 py-2 text-sm text-danger">{error}</p> : null}
 
       <div
         data-testid="inbox-layout"
-        className="grid h-[calc(100dvh-8.5rem)] min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(17rem,21rem)_minmax(0,1fr)] lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]"
+        className="grid h-[calc(100dvh-8.5rem)] min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(21rem,22.5rem)_minmax(0,1fr)] lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)] lg:grid-cols-[minmax(21.5rem,22.75rem)_minmax(0,1fr)_minmax(19.5rem,20.75rem)]"
       >
         <div
           data-testid="conversation-list-panel"
@@ -917,7 +909,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
         <div
           data-testid="customer-context-panel"
-          className={[mobileTab === "customers" ? "flex" : "hidden", "min-h-0 xl:flex"].join(" ")}
+          className={[mobileTab === "customers" ? "flex" : "hidden", "min-h-0 lg:flex xl:flex"].join(" ")}
         >
           <div data-testid="mobile-customer-panel" className="h-full">
             {customerPanel}
@@ -1084,11 +1076,18 @@ function isStickerMessage(message: {
 }
 
 function lineChannelBadgeStyle(lineChannel: InboxConversation["lineChannel"]) {
-  const color = lineChannel.badgeColor ?? "#4f46e5";
+  if (lineChannel.badgeColor) {
+    return {
+      backgroundColor: lineChannel.badgeColor,
+      borderColor: lineChannel.badgeColor,
+      color: "#fff"
+    };
+  }
+
   return {
-    backgroundColor: color,
-    borderColor: color,
-    color: "#fff"
+    backgroundColor: "#E8EBFF",
+    borderColor: "#DDE1FF",
+    color: "#4E47C8"
   };
 }
 

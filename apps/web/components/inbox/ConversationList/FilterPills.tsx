@@ -12,15 +12,17 @@ interface FilterPillsProps {
 
 export function FilterPills({ filters, activeFilter, onChange }: FilterPillsProps) {
   return (
-    <div className="flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none]">
+    <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
       {filters.map((filter) => {
         const isActive = filter.id === activeFilter;
         return (
           <button
             key={filter.id}
             className={[
-              "h-7 shrink-0 rounded-full px-2.5 text-[11px] font-medium",
-              isActive ? "bg-primary text-white" : "bg-secondary text-muted-foreground hover:text-foreground"
+              "h-8 shrink-0 rounded-full px-3 text-sm font-semibold transition-colors",
+              isActive
+                ? "bg-primary text-white shadow-[0_6px_14px_rgba(70,54,215,0.18)]"
+                : "bg-white text-[#595B66] hover:bg-primary-soft hover:text-primary"
             ].join(" ")}
             onClick={() => onChange(filter.id)}
             type="button"

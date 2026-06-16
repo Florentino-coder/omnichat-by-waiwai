@@ -5,14 +5,14 @@ interface TagListProps {
 
 export function TagList({ tags, onAdd }: TagListProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-2">
       {tags.map((tag) => (
-        <span key={tag} className="rounded-full bg-[#E0E7FF] px-2.5 py-1 text-[11px] text-[#3730A3]">
+        <span key={tag} className="rounded-full bg-[#E8EBFF] px-3 py-1.5 text-sm font-semibold text-[#4E47C8]">
           {tag}
         </span>
       ))}
       <button
-        className="rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] text-muted-foreground"
+        className="rounded-full border-2 border-dashed border-[#C9C7D1] px-4 py-1.5 text-sm font-semibold text-muted-foreground"
         onClick={onAdd}
         type="button"
       >

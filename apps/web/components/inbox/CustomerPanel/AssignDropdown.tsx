@@ -7,15 +7,15 @@ interface AssignDropdownProps {
 
 export function AssignDropdown({ value, options, disabled = false, onChange }: AssignDropdownProps) {
   return (
-    <label className="grid gap-2 text-xs font-medium text-muted-foreground">
+    <label className="grid gap-2 text-sm font-semibold text-muted-foreground">
       มอบหมาย
       <select
-        className="h-9 rounded-md border border-border bg-secondary px-2 text-sm text-foreground"
+        className="h-12 rounded-xl border border-border bg-[#F7F6FB] px-3 text-base text-foreground outline-none focus:border-primary"
         disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
         value={value}
       >
-        <option value="">Unassigned</option>
+        <option value="">เลือกพนักงาน</option>
         {options.map((option) => (
           <option key={option.id} value={option.id}>
             {option.label}

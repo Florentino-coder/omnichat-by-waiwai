@@ -108,13 +108,13 @@ export function ReplyComposer({
       className="shrink-0 border-t border-border bg-white"
       onSubmit={handleSubmit}
     >
-      <div className="flex min-h-10 items-center justify-between gap-3 border-b border-border px-3 py-2 text-xs text-muted-foreground lg:px-4">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-h-16 items-center justify-between gap-3 border-b border-border px-6 py-3 text-sm font-medium text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-4">
           <button
             type="button"
             aria-label="Add image URL"
             className={[
-              "inline-flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-60",
+              "inline-flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-60",
               imageUrl ? "border-primary bg-primary-soft text-primary" : "border-border bg-white"
             ].join(" ")}
             disabled={!conversationId || isSending}
@@ -129,7 +129,7 @@ export function ReplyComposer({
         </div>
         <span className="hidden shrink-0 sm:inline">Enter sends</span>
       </div>
-      <div className="flex flex-col gap-3 p-3 lg:p-4">
+      <div className="flex flex-col gap-3 p-5">
         <label className="sr-only" htmlFor="reply-text">
           Reply text
         </label>
@@ -137,28 +137,29 @@ export function ReplyComposer({
           <textarea
             id="reply-text"
             aria-label="Reply text"
-            className="min-h-16 flex-1 resize-none rounded-md border border-border bg-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground sm:min-h-20"
+            className="min-h-14 flex-1 resize-none rounded-[14px] border-2 border-[#C9C7D1] bg-[#F7F6FB] px-5 py-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary sm:min-h-16"
             disabled={!conversationId || isSending}
             maxLength={5000}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder="Type LINE reply"
+            placeholder="พิมพ์ข้อความตอบกลับ..."
             value={text}
           />
           <div className="flex items-end gap-2">
             <Button
-              className="gap-2 self-stretch sm:self-end"
+              aria-label="Send reply"
+              className="min-h-14 gap-2 self-stretch rounded-[14px] px-6 text-base font-bold sm:self-end"
               disabled={!canSend}
               type="submit"
             >
               <SendHorizontal aria-hidden="true" size={16} />
-              {isSending ? "Sending" : "Send reply"}
+              {isSending ? "กำลังส่ง" : "ส่ง"}
             </Button>
           </div>
         </div>
         {isImagePanelOpen ? (
-          <div className="grid gap-2 rounded-md border border-border bg-white p-2">
+          <div className="grid gap-2 rounded-xl border border-border bg-white p-3">
             <div className="flex items-center gap-2">
               <ImagePlus aria-hidden="true" size={16} className="text-muted-foreground" />
               <label className="sr-only" htmlFor="reply-image-url">
@@ -170,7 +171,7 @@ export function ReplyComposer({
                 className="h-10 min-w-0 flex-1 text-sm outline-none placeholder:text-muted-foreground"
                 disabled={!conversationId || isSending}
                 onChange={(event) => setImageUrl(event.target.value)}
-                placeholder="Paste https image URL"
+                placeholder="วาง https image URL"
                 type="url"
                 value={imageUrl}
               />

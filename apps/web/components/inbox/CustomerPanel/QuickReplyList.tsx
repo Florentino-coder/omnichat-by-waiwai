@@ -23,12 +23,12 @@ export function QuickReplyList({
 }: QuickReplyListProps) {
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-medium text-muted-foreground">⚡ Quick Reply</p>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-base font-semibold text-[#6B6D7A]">Quick Reply</p>
         <button
           className={[
-            "flex h-5 w-9 items-center rounded-full px-0.5 transition-colors",
-            autoEnabled ? "justify-end bg-primary" : "justify-start bg-secondary"
+            "flex h-7 w-16 items-center rounded-full px-1 transition-colors",
+            autoEnabled ? "justify-end bg-primary" : "justify-start bg-[#E6E5ED]"
           ].join(" ")}
           disabled={disabled}
           onClick={onToggleAuto}
@@ -37,21 +37,22 @@ export function QuickReplyList({
           aria-checked={autoEnabled}
           aria-label="Quick Reply Auto Enter"
         >
-          <span className="h-4 w-4 rounded-full bg-white shadow-sm" />
+          <span className="h-5 w-5 rounded-full bg-white shadow-sm" />
         </button>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-3">
         {replies.map((reply) => (
           <button
             key={reply.id}
             aria-label={`Add ${reply.title.replace(" : Quick Reply ", " Quick Reply ")}`}
-            className="rounded-md border border-border bg-secondary px-2.5 py-2 text-left"
+            className="rounded-xl border border-[#DAD8E1] bg-[#F7F6FB] px-4 py-3 text-left transition hover:border-primary disabled:opacity-60"
             disabled={disabled}
             onClick={() => onSelect(reply.id)}
             type="button"
           >
-            <span className="block text-[11px] font-medium">{reply.title}</span>
-            <span className="mt-0.5 block text-[10px] text-muted-foreground">{reply.subtitle}</span>
+            <span className="sr-only">{reply.title}</span>
+            <span className="block truncate text-base font-semibold">{reply.rawTitle ?? reply.title}</span>
+            <span className="mt-1 block truncate text-sm font-medium text-muted-foreground">{reply.subtitle}</span>
           </button>
         ))}
       </div>

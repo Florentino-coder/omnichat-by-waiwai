@@ -8,13 +8,13 @@
   --background: #FFFFFF;
   --foreground: #16182B;
   --card: #FFFFFF;
-  --card-border: #E8E9F0;
-  --secondary: #F7F7FB;
+  --card-border: #DEDDE6;
+  --secondary: #F6F5FA;
   --muted-foreground: #767A8C;
   --muted-foreground-light: #9A9DB0;
-  --primary: #4338CA;
-  --primary-hover: #372FA3;
-  --primary-soft: #EEF0FF;
+  --primary: #4636D7;
+  --primary-hover: #382BB5;
+  --primary-soft: #ECEBFF;
   --success: #1F9D72;
   --success-soft: #E8F6EF;
   --warning: #D97706;
@@ -32,8 +32,10 @@ body {
 
 body {
   margin: 0;
-  background: var(--background);
+  background: #F7F7FA;
   color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
 }
 
 a {

@@ -50,7 +50,7 @@ export function ChatWindow({
   disableStatus = false,
   emptyText,
   isLoading = false,
-  loadingText = "Loading messages...",
+  loadingText = "กำลังโหลดข้อความ...",
   messagesEndRef,
   statusElapsed,
   statusMenuOpen = false,
@@ -61,7 +61,7 @@ export function ChatWindow({
   toggleStatusMenu
 }: ChatWindowProps) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-secondary/50" aria-labelledby="thread-heading">
+    <section className="flex min-h-0 flex-1 flex-col bg-[#F7F6FB]" aria-labelledby="thread-heading">
       <ChatHeader
         channelLabel={channelLabel}
         customerInitial={customerInitial}
@@ -80,7 +80,7 @@ export function ChatWindow({
         statusMenuOpen={statusMenuOpen}
         toggleStatusMenu={toggleStatusMenu}
       />
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <DateSeparator label="15 มิ.ย. · เริ่มแชท" />
         {isLoading ? <ChatWindowSkeleton label={loadingText} /> : null}
         {!isLoading && emptyText ? <p className="text-sm text-muted-foreground">{emptyText}</p> : null}
@@ -103,10 +103,10 @@ export function ChatWindow({
 
 function ChatWindowSkeleton({ label }: { label: string }) {
   return (
-    <div className="space-y-3" aria-label={label}>
-      <div className="h-16 w-2/3 rounded-md bg-white" />
-      <div className="ml-auto h-16 w-2/3 rounded-md bg-primary/20" />
-      <div className="h-12 w-1/2 rounded-md bg-white" />
+    <div className="space-y-4" aria-label={label}>
+      <div className="ml-auto h-16 w-2/5 rounded-2xl bg-primary/30" />
+      <div className="h-16 w-1/2 rounded-2xl bg-white" />
+      <div className="ml-auto h-16 w-3/5 rounded-2xl bg-primary/30" />
     </div>
   );
 }
