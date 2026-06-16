@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Check, Pencil, StickyNote, Tags, UserPlus, X } from "lucide-react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { AssignDropdown } from "./AssignDropdown";
@@ -41,6 +42,7 @@ interface CustomerPanelProps {
   onAssigneeChange?: (value: string) => void;
   onSaveAssignment?: () => void;
   onToggleTag?: (tag: { id: string; name: string; color?: string | null; isAttached: boolean }) => void;
+  onCreateTag?: (name: string) => void;
   onToggleAutoQuickReply?: () => void;
   onSelectQuickReply?: (id: string) => void;
   onNoteDraftChange?: (value: string) => void;
@@ -79,11 +81,13 @@ export function CustomerPanel({
   onAssigneeChange,
   onSaveAssignment,
   onToggleTag,
+  onCreateTag,
   onToggleAutoQuickReply,
   onSelectQuickReply,
   onNoteDraftChange,
   onCreateNote
 }: CustomerPanelProps) {
+  const [newTagName, setNewTagName] = useState("");
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-l border-border bg-white" aria-labelledby="context-heading">
       <div className="shrink-0 border-b border-border px-6 py-5">
@@ -195,6 +199,28 @@ export function CustomerPanel({
               </button>
             ))}
           </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (newTagName.trim() && onCreateTag) {
+                onCreateTag(newTagName.trim());
+                setNewTagName("");
+              }
+            }}
+            className="mt-4 flex items-center gap-2"
+          >
+            <Input
+              type="text"
+              placeholder="เพิ่มแท็กใหม่ เช่น สนใจ, VIP"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              className="h-9 text-xs"
+              disabled={disabled}
+            />
+            <Button type="submit" size="sm" className="h-9 px-3 shrink-0" disabled={disabled || !newTagName.trim()}>
+              สร้าง
+            </Button>
+          </form>
         </section>
 
         <section id="quick-reply-section" className="border-b border-border px-6 py-5">

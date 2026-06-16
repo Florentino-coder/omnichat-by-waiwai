@@ -30,6 +30,7 @@ import { TotpService } from "./totp.service";
 type MockPrisma = {
   user: {
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
   };
   workspaceMember: {
@@ -66,6 +67,7 @@ type MockTotpService = {
 const createPrisma = (): MockPrisma => ({
   user: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
   },
   workspaceMember: {
@@ -273,7 +275,7 @@ describe("AuthService", () => {
   it("logs in an active owner and stores hashed refresh sessions in DB and Redis", async () => {
     const prisma = createPrisma();
     const refreshSessions = createRefreshSessions();
-    prisma.user.findUnique.mockResolvedValue(await createLoginUser());
+    prisma.user.findFirst.mockResolvedValue(await createLoginUser());
     prisma.refreshToken.create.mockResolvedValue({ id: "token-1" });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
@@ -318,7 +320,7 @@ describe("AuthService", () => {
 
   it("rejects invalid passwords", async () => {
     const prisma = createPrisma();
-    prisma.user.findUnique.mockResolvedValue(await createLoginUser());
+    prisma.user.findFirst.mockResolvedValue(await createLoginUser());
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
     await expect(
@@ -338,7 +340,7 @@ describe("AuthService", () => {
 
   it("does not audit unknown email login failures without safe tenant context", async () => {
     const prisma = createPrisma();
-    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue(null);
 
     await expect(
       createService(prisma).login("unknown@omnichat.local", "wrong-password")
@@ -576,7 +578,7 @@ describe("AuthService", () => {
     const prisma = createPrisma();
     const crypto = createCrypto();
     const totp = createTotp();
-    prisma.user.findUnique.mockResolvedValue(
+    prisma.user.findFirst.mockResolvedValue(
       await createLoginUser({
         twoFaEnabled: true,
         twoFaSecret: "encrypted:totp-secret"

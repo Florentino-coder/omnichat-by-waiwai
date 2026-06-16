@@ -278,9 +278,16 @@ export class AuthService {
     });
   }
 
-  private async findLoginUser(email: string): Promise<LoginUser | null> {
-    return this.prisma.user.findUnique({
-      where: { email },
+  private async findLoginUser(identifier: string): Promise<LoginUser | null> {
+    const normalized = identifier.trim().toLowerCase();
+    return this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: normalized },
+          { username: normalized }
+        ],
+        deletedAt: null
+      },
       include: {
         memberships: {
           where: { isActive: true },

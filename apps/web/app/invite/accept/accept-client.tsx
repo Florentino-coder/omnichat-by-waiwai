@@ -24,6 +24,7 @@ export function AcceptInviteClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
+  const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [invitation, setInvitation] = useState<InvitationContext | null>(null);
@@ -61,9 +62,11 @@ export function AcceptInviteClient() {
 
   async function submitInvite(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    const parsed = invitationAcceptSchema.safeParse({ token, displayName, password });
+    const parsed = invitationAcceptSchema.safeParse({ token, username, displayName, password });
     if (!parsed.success) {
-      setError("Enter your name and a password with at least 8 characters.");
+      const issues = parsed.error.format();
+      const userError = issues.username?._errors[0] || issues.displayName?._errors[0] || issues.password?._errors[0] || "Please enter all details correctly.";
+      setError(userError);
       return;
     }
 
@@ -72,6 +75,7 @@ export function AcceptInviteClient() {
     try {
       const response = await fetch(`/api/v1/invitations/accept/${encodeURIComponent(token)}`, {
         body: JSON.stringify({
+          username: parsed.data.username,
           displayName: parsed.data.displayName,
           password: parsed.data.password
         }),
@@ -114,10 +118,21 @@ export function AcceptInviteClient() {
         ) : null}
         <form className="space-y-4" onSubmit={(event) => void submitInvite(event)}>
           <div className="space-y-2">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
+              autoComplete="username"
+              placeholder="e.g. johndoe"
+              onChange={(event) => setUsername(event.target.value.toLowerCase())}
+              value={username}
+            />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="displayName">Display name</Label>
             <Input
               id="displayName"
               autoComplete="name"
+              placeholder="e.g. John Doe"
               onChange={(event) => setDisplayName(event.target.value)}
               value={displayName}
             />
@@ -128,6 +143,7 @@ export function AcceptInviteClient() {
               id="password"
               type="password"
               autoComplete="new-password"
+              placeholder="At least 8 characters"
               onChange={(event) => setPassword(event.target.value)}
               value={password}
             />

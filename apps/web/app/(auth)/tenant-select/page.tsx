@@ -132,8 +132,10 @@ export default function TenantSelectPage() {
     }
   }
 
+  const isAgentOnly = memberships.length > 0 && !memberships.some((m) => m.role === "OWNER");
+
   return (
-    <section className="w-[520px] max-w-[calc(100vw-32px)] space-y-5">
+    <section className="w-full space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl font-medium">Select workspace</h1>
@@ -141,14 +143,16 @@ export default function TenantSelectPage() {
             Choose active tenant workspace for this session.
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          variant="secondary"
-          size="sm"
-          type="button"
-        >
-          {showCreateForm ? "Cancel" : "Create New Tenant"}
-        </Button>
+        {!isAgentOnly ? (
+          <Button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            variant="secondary"
+            size="sm"
+            type="button"
+          >
+            {showCreateForm ? "Cancel" : "Create New Tenant"}
+          </Button>
+        ) : null}
       </div>
 
       {error ? (

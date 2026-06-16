@@ -524,7 +524,7 @@ describe("InboxPage", () => {
     const layout = await screen.findByTestId("inbox-layout");
     expect(layout).toHaveClass("h-[calc(100dvh-8.5rem)]");
     expect(layout).toHaveClass("lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]");
-    expect(screen.getByTestId("conversation-list-panel")).toHaveClass("hidden");
+    expect(screen.getByTestId("conversation-list-panel")).not.toHaveClass("hidden");
     expect(screen.getByTestId("conversation-list-panel")).toHaveClass("md:flex");
     expect(screen.getByTestId("customer-context-panel")).toHaveClass("hidden");
     expect(screen.getByTestId("customer-context-panel")).toHaveClass("xl:flex");
@@ -1296,6 +1296,9 @@ describe("InboxPage", () => {
 
     expect(screen.getAllByText("Initial Customer").length).toBeGreaterThan(0);
     expect(screen.getByText("server preview")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Initial Customer"));
+
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-initial/messages", {
         headers: { Authorization: "Bearer access-token" }

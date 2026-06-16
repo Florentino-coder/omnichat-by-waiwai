@@ -265,6 +265,7 @@ describe("InvitationsService", () => {
     });
 
     await createService(prisma).accept("token-1", {
+      username: "agentuser",
       displayName: "Agent User",
       password: "ChangeMe123!"
     });
@@ -273,6 +274,7 @@ describe("InvitationsService", () => {
     expect(tx.user.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         email: "agent@example.com",
+        username: "agentuser",
         displayName: "Agent User",
         passwordHash: expect.any(String),
         emailVerified: true,
@@ -303,6 +305,23 @@ describe("InvitationsService", () => {
 
     await expect(
       createService(prisma).accept("token-1", {
+        username: "agentuser",
+        displayName: "Agent User",
+        password: "ChangeMe123!"
+      })
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects accept when the username is already taken", async () => {
+    const prisma = createPrisma();
+    prisma.invitation.findUnique.mockResolvedValue(pendingInvitation);
+    prisma.user.findUnique
+      .mockResolvedValueOnce(null) // email check
+      .mockResolvedValueOnce({ id: "user-2" }); // username check
+
+    await expect(
+      createService(prisma).accept("token-1", {
+        username: "takenusername",
         displayName: "Agent User",
         password: "ChangeMe123!"
       })
@@ -320,6 +339,7 @@ describe("InvitationsService", () => {
 
     await expect(
       createService(prisma).accept("token-1", {
+        username: "agentuser",
         displayName: "Agent User",
         password: "ChangeMe123!"
       })

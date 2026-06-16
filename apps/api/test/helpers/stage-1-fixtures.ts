@@ -196,6 +196,7 @@ async function createUsersForRoles(
     const user = await prisma.user.create({
       data: {
         email,
+        username: `${options.emailPrefix}-${role.toLowerCase()}`,
         passwordHash,
         displayName: `${options.emailPrefix} ${role}`,
         emailVerified: true,

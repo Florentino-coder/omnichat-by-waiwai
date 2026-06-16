@@ -47,6 +47,9 @@ describe("AcceptInvitePage", () => {
 
     expect(await screen.findByText("Jinbao")).toBeInTheDocument();
     expect(screen.getByText("Sales")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Username"), {
+      target: { value: "agentone" }
+    });
     fireEvent.change(screen.getByLabelText("Display name"), {
       target: { value: "Agent One" }
     });
@@ -58,6 +61,7 @@ describe("AcceptInvitePage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/invitations/accept/invite-token", {
         body: JSON.stringify({
+          username: "agentone",
           displayName: "Agent One",
           password: "ChangeMe123!"
         }),

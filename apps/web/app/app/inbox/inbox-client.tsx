@@ -118,7 +118,7 @@ type ConvReadState = "unread" | "read-not-replied" | "normal";
 export default function InboxClient({ initialConversations = [] }: InboxClientProps) {
   const t = getMessages("th");
   const [conversations, setConversations] = useState<InboxConversation[]>(initialConversations);
-  const [selectedId, setSelectedId] = useState<string | null>(initialConversations[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(initialConversations.length === 0);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -152,12 +152,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [tags, setTags] = useState<ConversationTag[]>([]);
   const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
   const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
-  const [mobileTab, setMobileTab] = useState<MobileInboxTab>("thread");
+  const [mobileTab, setMobileTab] = useState<MobileInboxTab>("chats");
   const [now, setNow] = useState(() => Date.now());
   const isMountedRef = useRef(false);
   const hasInitialConversationsRef = useRef(initialConversations.length > 0);
   const conversationsRef = useRef<InboxConversation[]>(initialConversations);
-  const selectedIdRef = useRef<string | null>(initialConversations[0]?.id ?? null);
+  const selectedIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
   const isLoadingOperations = false;
@@ -339,7 +339,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
-      messagesEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
+      messagesEndRef.current?.scrollIntoView?.({ behavior: "auto" });
     }
     prevMessageCountRef.current = messages.length;
   }, [messages]);
@@ -643,6 +643,22 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
   }
 
+  async function handleCreateTag(name: string): Promise<void> {
+    if (!name.trim()) return;
+    setError(null);
+    try {
+      const newTag = await apiFetch<ConversationTag>("/api/v1/inbox/tags", {
+        body: JSON.stringify({ name: name.trim(), color: "#4f46e5" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      setTags((current) => [...current, newTag]);
+      await addTagToConversation(newTag);
+    } catch (tagError) {
+      setError(readMessage(tagError, "Could not create tag."));
+    }
+  }
+
   function insertComposerText(body: string): void {
     setComposerInsertText(body);
     setComposerInsertNonce((current) => current + 1);
@@ -772,6 +788,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       tags={selectedTags}
       availableTags={availableTags}
       onToggleTag={(tag) => void (tag.isAttached ? removeTagFromConversation(tag) : addTagToConversation(tag))}
+      onCreateTag={handleCreateTag}
       savedReplies={activeSavedReplies.map((reply) => ({
         id: reply.id,
         title: `${selectedConversation?.lineChannel.name ?? "LINE OA"} : Quick Reply ${reply.title}`,
@@ -795,6 +812,20 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       isLoadingOperations={isLoadingOperations}
       disabled={!selectedConversation}
     />
+  );
+
+  const emptyState = (
+    <div className="flex h-full w-full flex-col items-center justify-center bg-slate-50 dark:bg-zinc-950 p-8 text-center select-none">
+      <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-500 text-white shadow-xl shadow-emerald-500/20 mb-5">
+        <svg viewBox="0 0 24 24" className="h-11 w-11 fill-current" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 10.3c0-5.7-5.4-10.3-12-10.3S0 4.6 0 10.3c0 5.1 4.3 9.3 10.1 10.1.4.1.9.3 1 .7.1.3.1.8 0 1.2l-.2 1.3c-.1.5-.4 1.8 1.6 1 2-1 10.6-6.2 11.2-10.7.2-.9.3-1.9.3-2.9z"/>
+        </svg>
+      </div>
+      <h2 className="font-heading text-lg font-semibold text-slate-800 dark:text-zinc-200">ลองแชทได้เลย!</h2>
+      <p className="mt-1.5 text-sm text-slate-400 dark:text-zinc-500 max-w-xs leading-relaxed">
+        เลือกห้องสนทนาจากรายการด้านซ้ายเพื่อเปิดกล่องข้อความและดูแลลูกค้าของคุณ
+      </p>
+    </div>
   );
 
   return (
@@ -853,59 +884,67 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           />
         </div>
 
-        <div className={[mobileTab === "thread" ? "flex" : "hidden", "min-h-0 md:flex"].join(" ")}>
-          <ChatWindow
-            channelLabel={selectedConversation?.lineChannel.name ?? "-"}
-            composer={
-              <ReplyComposer
-                conversationId={selectedConversation?.id ?? null}
-                insertNonce={composerInsertNonce}
-                insertText={composerInsertText}
-                lineChannelName={selectedConversation?.lineChannel.name ?? null}
-                onSent={async () => {
-                  if (selectedConversation) {
-                    await loadMessages(selectedConversation.id);
-                  }
+        {selectedConversation ? (
+          <>
+            <div className={[mobileTab === "thread" ? "flex" : "hidden", "min-h-0 md:flex"].join(" ")}>
+              <ChatWindow
+                channelLabel={selectedConversation?.lineChannel.name ?? "-"}
+                composer={
+                  <ReplyComposer
+                    conversationId={selectedConversation?.id ?? null}
+                    insertNonce={composerInsertNonce}
+                    insertText={composerInsertText}
+                    lineChannelName={selectedConversation?.lineChannel.name ?? null}
+                    onSent={async () => {
+                      if (selectedConversation) {
+                        await loadMessages(selectedConversation.id);
+                      }
+                    }}
+                  />
+                }
+                customerInitial={customerInitial(selectedCustomerName)}
+                customerName={selectedConversation ? selectedCustomerName : t.messageThread}
+                emptyText={
+                  !selectedConversation && !isLoadingConversations
+                    ? t.connectLine
+                    : selectedConversation && messages.length === 0
+                      ? t.noThreadMessages
+                      : undefined
+                }
+                isLoading={isLoadingMessages}
+                loadingText={t.loadingMessages}
+                messages={chatMessages}
+                messagesEndRef={messagesEndRef}
+                onOpenCustomer={() => setMobileTab("customers")}
+                onQuickReply={() => {
+                  setMobileTab("customers");
+                  setTimeout(() => {
+                    document.getElementById("quick-reply-section")?.scrollIntoView({ behavior: "smooth" });
+                  }, 100);
                 }}
+                onUpdatePriority={updatePriority}
+                onUpdateStatus={(status) => void updateConversationStatus(status)}
+                priority={conversationPriority(selectedConversation)}
+                status={conversationHeaderStatus(selectedConversation)}
+                statusElapsed={
+                  conversationStatus(selectedConversation) === "IN_PROGRESS" && selectedConversation?.inProgressStartedAt
+                    ? formatElapsed(selectedConversation.inProgressStartedAt, now)
+                    : null
+                }
+                statusMenuOpen={isStatusMenuOpen}
+                toggleStatusMenu={() => setIsStatusMenuOpen((current) => !current)}
+                disableActions={!selectedConversation}
+                disableQuickReply={!selectedConversation || activeSavedReplies.length === 0}
+                disablePriority={!selectedConversation || isSavingPriority}
+                disableStatus={!selectedConversation || isSavingStatus}
               />
-            }
-            customerInitial={customerInitial(selectedCustomerName)}
-            customerName={selectedConversation ? selectedCustomerName : t.messageThread}
-            emptyText={
-              !selectedConversation && !isLoadingConversations
-                ? t.connectLine
-                : selectedConversation && messages.length === 0
-                  ? t.noThreadMessages
-                  : undefined
-            }
-            isLoading={isLoadingMessages}
-            loadingText={t.loadingMessages}
-            messages={chatMessages}
-            messagesEndRef={messagesEndRef}
-            onOpenCustomer={() => setMobileTab("customers")}
-            onQuickReply={() => {
-              setMobileTab("customers");
-              setTimeout(() => {
-                document.getElementById("quick-reply-section")?.scrollIntoView({ behavior: "smooth" });
-              }, 100);
-            }}
-            onUpdatePriority={updatePriority}
-            onUpdateStatus={(status) => void updateConversationStatus(status)}
-            priority={conversationPriority(selectedConversation)}
-            status={conversationHeaderStatus(selectedConversation)}
-            statusElapsed={
-              conversationStatus(selectedConversation) === "IN_PROGRESS" && selectedConversation?.inProgressStartedAt
-                ? formatElapsed(selectedConversation.inProgressStartedAt, now)
-                : null
-            }
-            statusMenuOpen={isStatusMenuOpen}
-            toggleStatusMenu={() => setIsStatusMenuOpen((current) => !current)}
-            disableActions={!selectedConversation}
-            disableQuickReply={!selectedConversation || activeSavedReplies.length === 0}
-            disablePriority={!selectedConversation || isSavingPriority}
-            disableStatus={!selectedConversation || isSavingStatus}
-          />
-        </div>
+            </div>
+          </>
+        ) : (
+          <div className="hidden md:flex min-h-0 flex-1">
+            {emptyState}
+          </div>
+        )}
 
         <div
           data-testid="customer-context-panel"

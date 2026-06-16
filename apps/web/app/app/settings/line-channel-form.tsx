@@ -91,7 +91,7 @@ export function LineChannelForm() {
         setChannels(channelData);
         setForm((current) => ({
           ...current,
-          name: current.name || nextLineChannelName(channelData),
+          name: current.name || "",
           workspaceId: current.workspaceId || defaultWorkspace?.id || ""
         }));
       } catch (loadError) {
@@ -149,7 +149,7 @@ export function LineChannelForm() {
       setMessage("LINE channel saved. Webhook ready for production test.");
       setForm((current) => ({
         ...initialForm,
-        name: nextLineChannelName(channelData),
+        name: "",
         workspaceId: current.workspaceId
       }));
     } catch {
@@ -426,7 +426,7 @@ export function LineChannelForm() {
             name="name"
             value={form.name}
             onChange={updateField("name")}
-            placeholder={nextLineChannelName(channels)}
+            placeholder="เช่น Official Account ของบริษัท"
             autoComplete="off"
           />
         </div>
@@ -448,7 +448,7 @@ export function LineChannelForm() {
                 borderColor: form.badgeColor
               }}
             >
-              {form.name || nextLineChannelName(channels)}
+              {form.name || "LINE OA"}
             </span>
           </div>
         </div>
@@ -506,6 +506,4 @@ function getWebhookUrl(lineChannelId: string): string {
   return `${baseUrl}/api/v1/line/webhook/${lineChannelId}`;
 }
 
-function nextLineChannelName(channels: LineChannel[]): string {
-  return `Line OA ${channels.length + 1}`;
-}
+

@@ -234,7 +234,11 @@ describe("App shell", () => {
 
     render(<SettingsPage />);
 
-    expect(await screen.findByDisplayValue("Line OA 2")).toBeInTheDocument();
+    const nameInput = await screen.findByLabelText("Channel name");
+    expect(nameInput).toHaveValue("");
+    fireEvent.change(nameInput, {
+      target: { value: "Line OA 2" }
+    });
     fireEvent.change(screen.getByLabelText("LINE channel ID"), {
       target: { value: "2222222222" }
     });
@@ -265,7 +269,7 @@ describe("App shell", () => {
       });
     });
     expect(await screen.findByText("2 connected")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("Line OA 3")).toBeInTheDocument();
+    expect(screen.getByLabelText("Channel name")).toHaveValue("");
   });
 
   it("manages quick replies per LINE OA from settings", async () => {

@@ -119,6 +119,7 @@ async function main(): Promise<void> {
     where: { email: seedOwner.email },
     update: {
       displayName: seedOwner.displayName,
+      username: "owner",
       passwordHash,
       emailVerified: true,
       emailVerifiedAt: new Date(),
@@ -127,6 +128,7 @@ async function main(): Promise<void> {
     },
     create: {
       email: seedOwner.email,
+      username: "owner",
       passwordHash,
       displayName: seedOwner.displayName,
       emailVerified: true,

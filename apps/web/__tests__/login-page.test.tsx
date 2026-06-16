@@ -47,7 +47,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.change(screen.getByLabelText("Email or Username"), {
       target: { value: "owner@omnichat.local" }
     });
     fireEvent.change(screen.getByLabelText("Password"), {
@@ -89,7 +89,7 @@ describe("LoginPage", () => {
 
     render(<LoginPage />);
 
-    fireEvent.change(screen.getByLabelText("Email"), {
+    fireEvent.change(screen.getByLabelText("Email or Username"), {
       target: { value: "owner@omnichat.local" }
     });
     fireEvent.change(screen.getByLabelText("Password"), {

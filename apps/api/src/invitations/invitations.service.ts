@@ -144,12 +144,22 @@ export class InvitationsService {
       throw new ConflictException("User already exists");
     }
 
+    const normalizedUsername = dto.username.toLowerCase();
+    const existingUsername = await this.prisma.user.findUnique({
+      where: { username: normalizedUsername }
+    });
+
+    if (existingUsername) {
+      throw new ConflictException("Username is already taken");
+    }
+
     await this.assertAgentLimit(invitation.tenantId);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: invitation.email,
+          username: normalizedUsername,
           displayName: dto.displayName,
           passwordHash: await bcrypt.hash(dto.password, 12),
           emailVerified: true,

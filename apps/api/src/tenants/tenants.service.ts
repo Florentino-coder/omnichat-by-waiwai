@@ -19,6 +19,17 @@ export interface TenantPlanSnapshot {
 export class TenantsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async hasOwnerMembership(userId: string): Promise<boolean> {
+    const count = await this.prisma.workspaceMember.count({
+      where: {
+        userId,
+        role: Role.OWNER,
+        isActive: true
+      }
+    });
+    return count > 0;
+  }
+
   async getTenant(tenantId: string): Promise<Tenant> {
     const tenant = await this.prisma.tenant.findFirst({
       where: {

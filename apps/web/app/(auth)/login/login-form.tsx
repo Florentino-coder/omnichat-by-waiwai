@@ -49,7 +49,7 @@ export function LoginForm() {
 
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setError("Enter a valid email and password.");
+      setError("Enter a valid email/username and a password with at least 8 characters.");
       return;
     }
 
@@ -81,13 +81,14 @@ export function LoginForm() {
   }
 
   return (
-    <form className="space-y-4" onSubmit={handleSubmit}>
+    <form className="space-y-5" onSubmit={handleSubmit}>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">Email or Username</Label>
         <Input
           id="email"
-          type="email"
-          autoComplete="email"
+          type="text"
+          placeholder="e.g. owner or owner@omnichat.local"
+          autoComplete="username"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
@@ -97,17 +98,18 @@ export function LoginForm() {
         <Input
           id="password"
           type="password"
+          placeholder="••••••••"
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
       </div>
       {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        <p className="rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-sm text-red-700" role="alert">
           {error}
         </p>
       ) : null}
-      <Button className="w-full" type="submit" disabled={isSubmitting}>
+      <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium" type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Signing in..." : "Sign in"}
       </Button>
     </form>
