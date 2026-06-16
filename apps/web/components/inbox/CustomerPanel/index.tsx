@@ -88,6 +88,18 @@ export function CustomerPanel({
   onCreateNote
 }: CustomerPanelProps) {
   const [newTagName, setNewTagName] = useState("");
+  if (disabled) {
+    return (
+      <aside className="flex h-full min-h-0 w-full flex-col items-center justify-center border-l border-border bg-white p-6 text-center select-none" aria-labelledby="context-heading-empty">
+        <Tags size={40} className="text-slate-300 dark:text-zinc-700 mb-3" />
+        <h2 id="context-heading-empty" className="sr-only">Customer info empty</h2>
+        <p className="text-sm font-medium text-slate-400 dark:text-zinc-500">
+          เลือกห้องสนทนาเพื่อดูข้อมูลลูกค้า
+        </p>
+      </aside>
+    );
+  }
+
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-l border-border bg-white" aria-labelledby="context-heading">
       <div className="shrink-0 border-b border-border px-6 py-5">
@@ -171,7 +183,7 @@ export function CustomerPanel({
             <Tags size={17} aria-hidden="true" />
             แท็ก
           </p>
-          <TagList tags={tags.map((tag) => tag.name)} />
+          <TagList tags={tags.map((tag) => tag.name)} onAdd={() => document.getElementById("new-tag-input")?.focus()} />
           <div className="mt-3 flex flex-wrap gap-2">
             {availableTags.length === 0 && !isLoadingOperations ? (
               <span className="rounded-full border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground">
@@ -210,6 +222,7 @@ export function CustomerPanel({
             className="mt-4 flex items-center gap-2"
           >
             <Input
+              id="new-tag-input"
               type="text"
               placeholder="เพิ่มแท็กใหม่ เช่น สนใจ, VIP"
               value={newTagName}

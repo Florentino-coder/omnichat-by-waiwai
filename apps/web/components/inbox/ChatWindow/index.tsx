@@ -34,6 +34,7 @@ interface ChatWindowProps {
   onUpdatePriority: () => void;
   onUpdateStatus: (status: "OPEN" | "IN_PROGRESS" | "RESOLVED") => void;
   toggleStatusMenu: () => void;
+  onClose?: () => void;
 }
 
 export function ChatWindow({
@@ -58,7 +59,8 @@ export function ChatWindow({
   onQuickReply,
   onUpdatePriority,
   onUpdateStatus,
-  toggleStatusMenu
+  toggleStatusMenu,
+  onClose
 }: ChatWindowProps) {
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-[#F7F6FB]" aria-labelledby="thread-heading">
@@ -79,6 +81,7 @@ export function ChatWindow({
         statusElapsed={statusElapsed}
         statusMenuOpen={statusMenuOpen}
         toggleStatusMenu={toggleStatusMenu}
+        onClose={onClose}
       />
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <DateSeparator label="15 มิ.ย. · เริ่มแชท" />

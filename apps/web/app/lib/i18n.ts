@@ -37,7 +37,19 @@ export const messages = {
     open: "เปิด",
     inProgress: "ดำเนินการ",
     resolved: "ปิดแล้ว",
-    noConversation: "ยังไม่ได้เลือกแชท"
+    noConversation: "ยังไม่ได้เลือกแชท",
+    teamTitle: "จัดการทีม",
+    teamSubtitle: "จัดการสมาชิกและคำเชิญร่วมทีมใน Workspace ของคุณ",
+    members: "สมาชิก",
+    noActiveMembers: "ยังไม่มีสมาชิกที่เปิดใช้งาน",
+    invite: "เชิญทีมงาน",
+    inviteEmail: "อีเมลที่ต้องการเชิญ",
+    inviteRole: "บทบาทหน้าที่",
+    sendInvite: "ส่งคำเชิญ",
+    pendingInvitations: "คำเชิญที่รอดำเนินการ",
+    noPendingInvitations: "ไม่มีคำเชิญที่รอดำเนินการ",
+    workspaceLabel: "เลือก Workspace",
+    copiedLink: "คัดลอกลิงก์คำเชิญแล้ว"
   },
   en: {
     inboxTitle: "Inbox",
@@ -73,7 +85,19 @@ export const messages = {
     open: "Open",
     inProgress: "In progress",
     resolved: "Resolved",
-    noConversation: "No conversation"
+    noConversation: "No conversation",
+    teamTitle: "Team Management",
+    teamSubtitle: "Manage members and invitations for tenant workspaces.",
+    members: "Members",
+    noActiveMembers: "No active members.",
+    invite: "Invite Member",
+    inviteEmail: "Invite email",
+    inviteRole: "Invite role",
+    sendInvite: "Send invite",
+    pendingInvitations: "Pending invitations",
+    noPendingInvitations: "No pending invitations.",
+    workspaceLabel: "Workspace",
+    copiedLink: "Copied invitation link"
   }
 } as const;
 

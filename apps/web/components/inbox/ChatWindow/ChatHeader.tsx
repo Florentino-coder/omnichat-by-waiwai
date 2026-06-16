@@ -1,4 +1,4 @@
-import { Check, Flag, MessageSquareQuote, UserCircle } from "lucide-react";
+import { Check, Flag, MessageSquareQuote, UserCircle, X } from "lucide-react";
 import { STATUS_CONFIG, type ConvStatus } from "../status-config";
 
 type StatusAction = "OPEN" | "IN_PROGRESS" | "RESOLVED";
@@ -21,6 +21,7 @@ interface ChatHeaderProps {
   onUpdatePriority: () => void;
   onUpdateStatus: (status: StatusAction) => void;
   toggleStatusMenu: () => void;
+  onClose?: () => void;
 }
 
 export function ChatHeader({
@@ -39,7 +40,8 @@ export function ChatHeader({
   onQuickReply,
   onUpdatePriority,
   onUpdateStatus,
-  toggleStatusMenu
+  toggleStatusMenu,
+  onClose
 }: ChatHeaderProps) {
   const config = STATUS_CONFIG[status];
   return (
@@ -125,6 +127,14 @@ export function ChatHeader({
           type="button"
         >
           <UserCircle size={22} aria-hidden="true" />
+        </button>
+        <button
+          aria-label="Close conversation"
+          className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#D6D4DD] bg-white text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          onClick={onClose}
+          type="button"
+        >
+          <X size={20} aria-hidden="true" />
         </button>
       </div>
     </header>

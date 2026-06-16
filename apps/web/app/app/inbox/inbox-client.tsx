@@ -11,6 +11,7 @@ import {
 import { CustomerPanel } from "../../../components/inbox/CustomerPanel";
 import { BottomNav, type MobileInboxTab } from "../../../components/inbox/mobile/BottomNav";
 import { apiFetch } from "../../lib/api-client";
+import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 import { ReplyComposer } from "./reply-composer";
 
@@ -116,7 +117,8 @@ const CONVERSATION_PAGE_SIZE = 10;
 type ConvReadState = "unread" | "read-not-replied" | "normal";
 
 export default function InboxClient({ initialConversations = [] }: InboxClientProps) {
-  const t = getMessages("th");
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
   const [conversations, setConversations] = useState<InboxConversation[]>(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
@@ -265,9 +267,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             selectedIdRef.current = current;
             return current;
           }
-          const nextSelectedId = nextConversations[0]?.id ?? null;
-          selectedIdRef.current = nextSelectedId;
-          return nextSelectedId;
+          selectedIdRef.current = null;
+          return null;
         });
       } catch (loadError) {
         if (isMountedRef.current) {
@@ -307,10 +308,26 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       setNow(Date.now());
     }, 1000);
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        const active = document.activeElement;
+        const isInput =
+          active &&
+          (active.tagName === "INPUT" ||
+            active.tagName === "TEXTAREA" ||
+            active.getAttribute("contenteditable") === "true");
+        if (!isInput) {
+          setSelectedId(null);
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
     return () => {
       isMountedRef.current = false;
       window.clearInterval(refreshTimer);
       window.clearInterval(clockTimer);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [initialConversations.length, loadConversations]);
 
@@ -835,11 +852,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
       <div
         data-testid="inbox-layout"
-        className="grid h-[calc(100dvh-8.5rem)] min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(21rem,22.5rem)_minmax(0,1fr)] lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)] lg:grid-cols-[minmax(21.5rem,22.75rem)_minmax(0,1fr)_minmax(19.5rem,20.75rem)]"
+        className="grid h-full min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(21rem,22.5rem)_minmax(0,1fr)] lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)] lg:grid-cols-[minmax(21.5rem,22.75rem)_minmax(0,1fr)_minmax(19.5rem,20.75rem)]"
       >
         <div
           data-testid="conversation-list-panel"
-          className={[mobileTab === "chats" ? "flex" : "hidden", "min-h-0 md:flex"].join(" ")}
+          className={[mobileTab === "chats" ? "flex" : "hidden", "h-full flex flex-col min-h-0 md:flex"].join(" ")}
         >
           <ConversationList
             activeFilter={activeFilter}
@@ -886,8 +903,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
         {selectedConversation ? (
           <>
-            <div className={[mobileTab === "thread" ? "flex" : "hidden", "min-h-0 md:flex"].join(" ")}>
+            <div className={[mobileTab === "thread" ? "flex" : "hidden", "h-full flex flex-col min-h-0 md:flex"].join(" ")}>
               <ChatWindow
+                onClose={() => setSelectedId(null)}
                 channelLabel={selectedConversation?.lineChannel.name ?? "-"}
                 composer={
                   <ReplyComposer
@@ -897,7 +915,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                     lineChannelName={selectedConversation?.lineChannel.name ?? null}
                     onSent={async () => {
                       if (selectedConversation) {
-                        await loadMessages(selectedConversation.id);
+                        await loadMessages(selectedConversation.id, { quiet: true });
                       }
                     }}
                   />
@@ -948,7 +966,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
         <div
           data-testid="customer-context-panel"
-          className={[mobileTab === "customers" ? "flex" : "hidden", "min-h-0 lg:flex xl:flex"].join(" ")}
+          className={[mobileTab === "customers" ? "flex" : "hidden", "h-full flex flex-col min-h-0 lg:flex xl:flex"].join(" ")}
         >
           <div data-testid="mobile-customer-panel" className="h-full">
             {customerPanel}
@@ -984,7 +1002,8 @@ function OperationsSummary({
   onSaveAlertMinutes: () => void;
   onSelectConversation: (id: string) => void;
 }) {
-  const t = getMessages("th");
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
   return (
     <div className="border-b border-border px-3 py-2">
       <div className="mb-2 flex flex-wrap items-center gap-1.5">

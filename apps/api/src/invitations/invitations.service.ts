@@ -244,14 +244,20 @@ export class InvitationsService {
       throw new NotFoundException("Plan limit not found");
     }
 
-    const activeMembers = await this.prisma.workspaceMember.count({
+    const activeMembers = await this.prisma.workspaceMember.findMany({
       where: {
         tenantId,
         isActive: true
+      },
+      select: {
+        userId: true
       }
     });
 
-    if (activeMembers >= limits.maxAgents) {
+    const uniqueUserIds = new Set(activeMembers.map((m) => m.userId));
+    const activeCount = uniqueUserIds.size;
+
+    if (activeCount >= limits.maxAgents) {
       await this.prisma.auditLog.create({
         data: {
           tenantId,
@@ -260,14 +266,14 @@ export class InvitationsService {
           metadata: {
             planId: tenant.planId,
             limit: limits.maxAgents,
-            current: activeMembers
+            current: activeCount
           }
         }
       });
       throw new PlanLimitExceededException("Agent limit exceeded", {
         planId: tenant.planId,
         limit: limits.maxAgents,
-        current: activeMembers
+        current: activeCount
       });
     }
   }

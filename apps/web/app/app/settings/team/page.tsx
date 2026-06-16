@@ -4,6 +4,8 @@ import { MailPlus, Shield, Trash2, UserCog, Copy } from "lucide-react";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../../lib/api-client";
+import { useLanguage } from "../../../lib/language-context";
+import { getMessages } from "../../../lib/i18n";
 
 type Role = "OWNER" | "ADMIN" | "AGENT" | "QC" | "VIEWER";
 
@@ -41,6 +43,8 @@ type AuthUser = {
 const roles: Role[] = ["OWNER", "ADMIN", "AGENT", "QC", "VIEWER"];
 
 export default function TeamSettingsPage() {
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -210,15 +214,15 @@ export default function TeamSettingsPage() {
       <section aria-labelledby="team-heading" className="max-w-5xl">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 id="team-heading" className="font-heading text-2xl font-medium">
-              Team
+            <h1 id="team-heading" className="font-heading text-2xl font-medium text-foreground">
+              {t.teamTitle}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Manage members and invitations for tenant workspaces.
+              {t.teamSubtitle}
             </p>
           </div>
           <label className="grid min-w-56 gap-1 text-xs font-medium text-muted-foreground">
-            Workspace
+            {t.workspaceLabel}
             <select
               className="h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground"
               onChange={(event) => void handleWorkspaceChange(event)}
@@ -247,12 +251,12 @@ export default function TeamSettingsPage() {
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <Card className="p-5">
             <div className="mb-4 flex items-center gap-2">
-              <UserCog size={18} aria-hidden="true" />
-              <h2 className="font-heading text-base font-medium">Members</h2>
+              <UserCog size={18} aria-hidden="true" className="text-indigo-600" />
+              <h2 className="font-heading text-base font-medium text-foreground">{t.members}</h2>
             </div>
             <div className="divide-y divide-border">
               {members.length === 0 ? (
-                <p className="py-4 text-sm text-muted-foreground">No active members.</p>
+                <p className="py-4 text-sm text-muted-foreground">{t.noActiveMembers}</p>
               ) : null}
               {members.map((member) => (
                 <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -288,14 +292,14 @@ export default function TeamSettingsPage() {
             </div>
           </Card>
 
-          <Card className="p-5">
+          <Card className="p-5 border border-indigo-500/10 shadow-sm bg-white">
             <div className="mb-4 flex items-center gap-2">
-              <MailPlus size={18} aria-hidden="true" />
-              <h2 className="font-heading text-base font-medium">Invite</h2>
+              <MailPlus size={18} aria-hidden="true" className="text-indigo-600" />
+              <h2 className="font-heading text-base font-medium text-foreground">{t.invite}</h2>
             </div>
             <form className="grid gap-3" onSubmit={(event) => void sendInvite(event)}>
               <div className="grid gap-2">
-                <Label htmlFor="invite-email">Invite email</Label>
+                <Label htmlFor="invite-email">{t.inviteEmail}</Label>
                 <Input
                   id="invite-email"
                   onChange={(event) => setInviteEmail(event.target.value)}
@@ -304,9 +308,9 @@ export default function TeamSettingsPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="invite-role">Invite role</Label>
+                <Label htmlFor="invite-role">{t.inviteRole}</Label>
                 <select
-                  className="h-10 rounded-md border border-border bg-white px-3 text-sm"
+                  className="h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground"
                   id="invite-role"
                   onChange={(event) => setInviteRole(event.target.value as Role)}
                   value={inviteRole}
@@ -318,19 +322,19 @@ export default function TeamSettingsPage() {
                   ))}
                 </select>
               </div>
-              <Button disabled={isSubmittingInvite || !selectedWorkspaceId} type="submit">
-                Send invite
+              <Button disabled={isSubmittingInvite || !selectedWorkspaceId} type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/20">
+                {t.sendInvite}
               </Button>
             </form>
 
             <div className="mt-6">
               <div className="mb-3 flex items-center gap-2">
-                <Shield size={16} aria-hidden="true" />
-                <h3 className="text-sm font-medium">Pending invitations</h3>
+                <Shield size={16} aria-hidden="true" className="text-indigo-600" />
+                <h3 className="text-sm font-medium text-foreground">{t.pendingInvitations}</h3>
               </div>
               <div className="grid gap-2">
                 {invitations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No pending invitations.</p>
+                  <p className="text-sm text-muted-foreground">{t.noPendingInvitations}</p>
                 ) : null}
                 {invitations.map((invitation) => (
                   <div
@@ -339,9 +343,9 @@ export default function TeamSettingsPage() {
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{invitation.email}</p>
-                      <div className="mt-1 flex gap-1">
+                      <div className="mt-1 flex gap-1.5 flex-wrap">
                         <Badge variant="muted">{invitation.role}</Badge>
-                        <Badge variant="muted">{invitation.status}</Badge>
+                        <Badge variant={getStatusBadgeVariant(invitation.status)}>{invitation.status}</Badge>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -388,6 +392,20 @@ function readCurrentUser(): AuthUser {
     return raw ? (JSON.parse(raw) as AuthUser) : {};
   } catch {
     return {};
+  }
+}
+
+function getStatusBadgeVariant(status: string): "success" | "warning" | "danger" | "muted" {
+  switch (status.toUpperCase()) {
+    case "ACCEPTED":
+      return "success";
+    case "PENDING":
+      return "warning";
+    case "REVOKED":
+    case "EXPIRED":
+      return "danger";
+    default:
+      return "muted";
   }
 }
 

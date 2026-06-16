@@ -109,7 +109,7 @@ export function LoginForm() {
           {error}
         </p>
       ) : null}
-      <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium" type="submit" disabled={isSubmitting}>
+      <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/30 transition-all" type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Signing in..." : "Sign in"}
       </Button>
     </form>

@@ -23,13 +23,13 @@ const planLimits = [
   {
     planId: "free",
     maxWorkspaces: 1,
-    maxAgents: 2,
+    maxAgents: 20,
     maxAiCreditsPerMonth: 0,
   },
   {
     planId: "starter",
     maxWorkspaces: 1,
-    maxAgents: 5,
+    maxAgents: 50,
     maxAiCreditsPerMonth: 0,
   },
   {

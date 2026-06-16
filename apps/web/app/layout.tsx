@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Noto_Sans_Thai } from "next/font/google";
+import { Kanit, JetBrains_Mono, Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 
 const heading = Noto_Sans_Thai({
@@ -8,9 +8,9 @@ const heading = Noto_Sans_Thai({
   variable: "--font-heading"
 });
 
-const sans = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500"],
+const sans = Kanit({
+  subsets: ["thai", "latin"],
+  weight: ["300", "400", "500", "600"],
   variable: "--font-sans"
 });
 
@@ -21,8 +21,8 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OmniChat",
-  description: "OmniChat SaaS foundation"
+  title: "Chat-Wai",
+  description: "Chat-Wai Customer Support System"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

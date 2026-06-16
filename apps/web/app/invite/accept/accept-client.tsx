@@ -95,18 +95,18 @@ export function AcceptInviteClient() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-      <section aria-labelledby="invite-heading" className="w-[380px] max-w-[calc(100vw-32px)] space-y-5 rounded-lg border border-border bg-card p-6">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 px-4 py-8">
+      <section aria-labelledby="invite-heading" className="w-[380px] max-w-[calc(100vw-32px)] space-y-5 rounded-lg border border-indigo-500/20 bg-slate-950/40 backdrop-blur-md p-6 shadow-2xl shadow-indigo-950/40 text-slate-100">
         <div>
-          <h1 id="invite-heading" className="font-heading text-xl font-medium">
+          <h1 id="invite-heading" className="font-heading text-xl font-medium text-white">
             Accept invite
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Create your OmniChat account.</p>
+          <p className="mt-1 text-sm text-indigo-300/70">Create your Chat-Wai account.</p>
         </div>
         {invitation ? (
-          <div className="rounded-md border border-border bg-secondary px-3 py-2 text-sm">
-            <p className="font-medium">{invitation.tenant?.name ?? "OmniChat"}</p>
-            <p className="text-muted-foreground">
+          <div className="rounded-md border border-indigo-500/10 bg-indigo-950/30 px-3 py-2 text-sm">
+            <p className="font-medium text-white">{invitation.tenant?.name ?? "Chat-Wai"}</p>
+            <p className="text-indigo-300/70">
               <span>{invitation.workspace?.name ?? "Workspace"}</span> · {invitation.role} · {invitation.email}
             </p>
           </div>
@@ -118,7 +118,7 @@ export function AcceptInviteClient() {
         ) : null}
         <form className="space-y-4" onSubmit={(event) => void submitInvite(event)}>
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username" className="text-slate-200">Username</Label>
             <Input
               id="username"
               autoComplete="username"
@@ -128,7 +128,7 @@ export function AcceptInviteClient() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="displayName">Display name</Label>
+            <Label htmlFor="displayName" className="text-slate-200">Display name</Label>
             <Input
               id="displayName"
               autoComplete="name"
@@ -138,7 +138,7 @@ export function AcceptInviteClient() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-slate-200">Password</Label>
             <Input
               id="password"
               type="password"
@@ -148,7 +148,7 @@ export function AcceptInviteClient() {
               value={password}
             />
           </div>
-          <Button className="w-full" disabled={isSubmitting || !token} type="submit">
+          <Button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/30 transition-all" disabled={isSubmitting || !token} type="submit">
             {isSubmitting ? "Joining..." : "Join workspace"}
           </Button>
         </form>
