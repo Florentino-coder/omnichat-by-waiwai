@@ -83,7 +83,7 @@ export function LoginForm() {
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
       <div className="space-y-2">
-        <Label htmlFor="email">Email or Username</Label>
+        <Label htmlFor="email" className="text-white font-medium">Email or Username</Label>
         <Input
           id="email"
           type="text"
@@ -94,7 +94,7 @@ export function LoginForm() {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password" className="text-white font-medium">Password</Label>
         <Input
           id="password"
           type="password"
