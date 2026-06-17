@@ -2,6 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import InboxPage from "../app/app/inbox/page";
 import InboxClient from "../app/app/inbox/inbox-client";
 
+jest.mock("../app/lib/language-context", () => ({
+  useLanguage: () => ({ locale: "th", setLocale: () => {} }),
+  LanguageProvider: ({ children }: any) => <>{children}</>
+}));
+
 describe("InboxPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -78,6 +83,11 @@ describe("InboxPage", () => {
     render(await InboxPage());
 
     expect(screen.getByRole("heading", { name: "กล่องข้อความ" })).toBeInTheDocument();
+    
+    // Select the conversation
+    const openBtn = await screen.findByRole("button", { name: "Open conversation Somchai LINE" });
+    fireEvent.click(openBtn);
+
     expect((await screen.findAllByText("Somchai LINE")).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("สวัสดีครับ")).toBeInTheDocument();
     expect(screen.queryByText("Messages from LINE will render here after API binding.")).not.toBeInTheDocument();
@@ -164,6 +174,9 @@ describe("InboxPage", () => {
       jest.advanceTimersByTime(5000);
     });
 
+    const openBtn = await screen.findByRole("button", { name: "Open conversation U456" });
+    fireEvent.click(openBtn);
+
     expect((await screen.findAllByText("U456")).length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("new LINE message")).toHaveLength(2);
   });
@@ -234,6 +247,9 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+
+    const openBtn = await screen.findByRole("button", { name: "Open conversation Somchai LINE" });
+    fireEvent.click(openBtn);
 
     expect(await screen.findByText("first message")).toBeInTheDocument();
 
@@ -309,6 +325,9 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+
+    const customerA = await screen.findByText("Customer A");
+    fireEvent.click(customerA.closest("button") as HTMLButtonElement);
 
     const customerB = await screen.findByText("Customer B");
     fireEvent.click(customerB.closest("button") as HTMLButtonElement);
@@ -405,6 +424,9 @@ describe("InboxPage", () => {
 
     render(await InboxPage());
 
+    const openBtn = await screen.findByRole("button", { name: "Open conversation Customer Two" });
+    fireEvent.click(openBtn);
+
     expect(await screen.findByText("Sticker 51626494")).toBeInTheDocument();
     expect(await screen.findByText("Package 11538")).toBeInTheDocument();
     expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({
@@ -494,6 +516,9 @@ describe("InboxPage", () => {
 
     render(await InboxPage());
 
+    const openBtn = await screen.findByRole("button", { name: "Open conversation F" });
+    fireEvent.click(openBtn);
+
     expect(await screen.findByText("ดีๆ")).toBeInTheDocument();
     expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({ backgroundColor: "#16a34a" });
     expect(screen.getAllByText("Line OA 1")[0]).toHaveStyle({ backgroundColor: "#4f46e5" });
@@ -522,7 +547,7 @@ describe("InboxPage", () => {
     render(await InboxPage());
 
     const layout = await screen.findByTestId("inbox-layout");
-    expect(layout).toHaveClass("h-[calc(100dvh-8.5rem)]");
+    expect(layout).toHaveClass("h-full");
     expect(layout).toHaveClass("lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]");
     expect(screen.getByTestId("conversation-list-panel")).not.toHaveClass("hidden");
     expect(screen.getByTestId("conversation-list-panel")).toHaveClass("md:flex");
@@ -565,6 +590,9 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+
+    const openBtn = await screen.findByRole("button", { name: "Open conversation Customer LINE" });
+    fireEvent.click(openBtn);
 
     expect(await screen.findByText("LINE OA: Main LINE")).toBeInTheDocument();
   });
@@ -625,6 +653,10 @@ describe("InboxPage", () => {
     render(await InboxPage());
 
     expect((await screen.findAllByText("Customer A")).length).toBeGreaterThan(0);
+    
+    const openBtn = await screen.findByRole("button", { name: "Open conversation Customer A" });
+    fireEvent.click(openBtn);
+
     fireEvent.click(screen.getByRole("button", { name: "Change conversation status" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "กำลังดำเนินการ" }));
 
@@ -679,10 +711,6 @@ describe("InboxPage", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: firstPage })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -771,6 +799,9 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+
+    const openBtn = await screen.findByRole("button", { name: "Open conversation F" });
+    fireEvent.click(openBtn);
 
     expect((await screen.findAllByText("F")).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Edit customer name" }));
@@ -917,6 +948,7 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation Customer Ops" }));
 
     expect((await screen.findAllByText("Customer Ops")).length).toBeGreaterThan(0);
     expect(await screen.findByRole("button", { name: "Add tag VIP" })).toBeInTheDocument();
@@ -942,81 +974,76 @@ describe("InboxPage", () => {
   });
 
   it("loads LINE OA quick replies, inserts with plus, and auto-enters when enabled", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-1",
-              externalThreadId: "U123",
-              displayName: "Customer QR",
-              status: "OPEN",
-              tagLinks: [],
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Line OA 1",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
-              },
-              messages: []
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "reply-1",
-              lineChannelId: "line-channel-1",
-              title: "Greeting",
-              body: "Hello from Line OA 1",
-              isActive: true
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: null })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-2",
-              direction: "OUTBOUND",
-              text: "Hello from Line OA 1",
-              createdAt: "2026-06-14T01:01:00.000Z"
-            }
-          ]
-        })
-      });
+    let messagesCallCount = 0;
+    const fetchMock = jest.fn((url) => {
+      if (url.includes("/api/v1/inbox/conversations?")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-1",
+                externalThreadId: "U123",
+                displayName: "Customer QR",
+                status: "OPEN",
+                tagLinks: [],
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Line OA 1",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/messages")) {
+        messagesCallCount++;
+        const messageData = messagesCallCount > 1 ? [
+          {
+            id: "message-2",
+            direction: "OUTBOUND",
+            text: "Hello from Line OA 1",
+            createdAt: "2026-06-14T01:01:00.000Z"
+          }
+        ] : [];
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: messageData }) });
+      }
+      if (url.includes("/tags")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      if (url.includes("/saved-replies")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "reply-1",
+                lineChannelId: "line-channel-1",
+                title: "Greeting",
+                body: "Hello from Line OA 1",
+                isActive: true
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/notes")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: null }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
     });
 
     render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation Customer QR" }));
 
     expect(await screen.findByText("Line OA 1 : Quick Reply Greeting")).toBeInTheDocument();
     await waitFor(() => {
@@ -1109,6 +1136,7 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation U123" }));
     expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
 
     fireEvent.change(screen.getByRole("textbox", { name: "Reply text" }), {
@@ -1129,54 +1157,53 @@ describe("InboxPage", () => {
   });
 
   it("sends a reply with Enter and sends HTTPS image URLs as LINE image replies", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-1",
-              externalThreadId: "U123",
-              status: "OPEN",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Main LINE",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
-              },
-              messages: []
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: null })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: null })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      });
+    const fetchMock = jest.fn((url) => {
+      if (url.includes("/api/v1/inbox/conversations?")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-1",
+                externalThreadId: "U123",
+                status: "OPEN",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/messages")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      if (url.includes("/reply")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: null }) });
+      }
+      if (url.includes("/tags")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      if (url.includes("/saved-replies")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      if (url.includes("/notes")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: null }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
     });
 
     render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation U123" }));
 
     expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
     fireEvent.change(screen.getByRole("textbox", { name: "Reply text" }), {
@@ -1198,7 +1225,7 @@ describe("InboxPage", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Add image URL" }));
-    fireEvent.change(screen.getByRole("textbox", { name: "Reply image URL" }), {
+    fireEvent.change(screen.getByPlaceholderText("Paste https image URL"), {
       target: { value: "https://cdn.example.com/image.png" }
     });
     fireEvent.click(screen.getByRole("button", { name: "Send reply" }));
@@ -1248,13 +1275,14 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation U123" }));
 
     expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByRole("textbox", { name: "Reply image URL" })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Paste https image URL")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Add image URL" }));
 
-    expect(screen.getByRole("textbox", { name: "Reply image URL" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Paste https image URL")).toBeInTheDocument();
   });
 
   it("renders server-provided initial conversations before the client refresh", async () => {
@@ -1297,7 +1325,7 @@ describe("InboxPage", () => {
     expect(screen.getAllByText("Initial Customer").length).toBeGreaterThan(0);
     expect(screen.getByText("server preview")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Initial Customer"));
+    fireEvent.click(screen.getByRole("button", { name: "Open conversation Initial Customer" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-initial/messages", {

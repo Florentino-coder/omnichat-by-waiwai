@@ -24,11 +24,12 @@ describe("HealthService", () => {
       $queryRaw: jest.fn<Promise<unknown>, [TemplateStringsArray]>().mockResolvedValue(1)
     };
 
-    await expect(createService(prisma).check()).resolves.toEqual({
+    await expect(createService(prisma).check()).resolves.toMatchObject({
       status: "degraded",
       services: {
         database: "up",
-        redis: "not_configured"
+        redis: "not_configured",
+        r2: "not_configured"
       }
     });
   });
@@ -40,11 +41,12 @@ describe("HealthService", () => {
         .mockRejectedValue(new Error("DB down"))
     };
 
-    await expect(createService(prisma).check()).resolves.toEqual({
+    await expect(createService(prisma).check()).resolves.toMatchObject({
       status: "degraded",
       services: {
         database: "down",
-        redis: "not_configured"
+        redis: "not_configured",
+        r2: "not_configured"
       }
     });
   });

@@ -9,6 +9,12 @@ export interface ChatMessageItem {
   body: string;
   time?: string;
   authorInitial?: string;
+  type?: string | null;
+  mediaUrl?: string | null;
+  mediaMimeType?: string | null;
+  mediaSize?: number | null;
+  mediaR2Key?: string | null;
+  mediaFileName?: string | null;
 }
 
 interface ChatWindowProps {
@@ -95,6 +101,12 @@ export function ChatWindow({
               body={message.body}
               time={message.time}
               variant={message.variant}
+              type={message.type}
+              mediaUrl={message.mediaUrl}
+              mediaMimeType={message.mediaMimeType}
+              mediaSize={message.mediaSize}
+              mediaR2Key={message.mediaR2Key}
+              mediaFileName={message.mediaFileName}
             />
           ))}
         <div ref={messagesEndRef} />

@@ -5,5 +5,6 @@ export interface RefreshSessionMetadata {
   tenantId: string;
   workspaceId: string;
   role: Role;
+  isSuperOwner?: boolean;
   expiresAt: string;
 }

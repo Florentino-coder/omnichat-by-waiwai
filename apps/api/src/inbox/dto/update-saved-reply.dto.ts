@@ -20,4 +20,19 @@ export class UpdateSavedReplyDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  shortcutKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  hotkeyBinding?: string;
 }

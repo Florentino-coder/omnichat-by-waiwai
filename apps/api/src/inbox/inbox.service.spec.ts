@@ -716,7 +716,11 @@ describe("InboxService", () => {
         tenantId: "tenant-1",
         lineChannelId: "line-channel-1",
         title: "Greeting",
-        body: "Hello"
+        body: "Hello",
+        userId: null,
+        shortcutKey: null,
+        imageUrl: null,
+        hotkeyBinding: null
       }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
@@ -724,10 +728,10 @@ describe("InboxService", () => {
         tenantId: "tenant-1",
         userId: "user-1",
         action: AuditAction.SAVED_REPLY_CREATED,
-        metadata: {
+        metadata: expect.objectContaining({
           lineChannelId: "line-channel-1",
           title: "Greeting"
-        }
+        })
       })
     });
   });

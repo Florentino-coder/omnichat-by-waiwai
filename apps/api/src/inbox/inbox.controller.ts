@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
   Conversation,
   ConversationInternalNote,
@@ -98,37 +98,51 @@ export class InboxController {
   @Roles(Role.ADMIN, Role.AGENT, Role.QC)
   listSavedReplies(
     @TenantCtx() ctx: JwtTenantPayload,
-    @Query("lineChannelId") lineChannelId?: string
+    @Query("lineChannelId") lineChannelId?: string,
+    @Query("type") type?: "all" | "shared" | "personal"
   ): Promise<SavedReply[]> {
-    return this.inboxService.listSavedReplies(ctx.tenantId, { lineChannelId });
+    return this.inboxService.listSavedReplies(ctx.tenantId, {
+      lineChannelId,
+      userId: ctx.sub,
+      type
+    });
   }
 
   @Post("saved-replies")
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
   createSavedReply(
     @TenantCtx() ctx: JwtTenantPayload,
     @Body() dto: CreateSavedReplyDto
   ): Promise<SavedReply> {
-    return this.inboxService.createSavedReply(ctx.tenantId, ctx.sub, dto);
+    if (!dto.userId && ctx.role !== Role.OWNER && ctx.role !== Role.ADMIN) {
+      throw new ForbiddenException("Only administrators can create shared quick replies");
+    }
+    if (dto.userId && dto.userId !== ctx.sub) {
+      throw new ForbiddenException("Cannot create personal quick replies for other users");
+    }
+    return this.inboxService.createSavedReply(ctx.tenantId, ctx.sub, {
+      ...dto,
+      userId: dto.userId || undefined
+    });
   }
 
   @Patch("saved-replies/:replyId")
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
   updateSavedReply(
     @TenantCtx() ctx: JwtTenantPayload,
     @Param("replyId") replyId: string,
     @Body() dto: UpdateSavedReplyDto
   ): Promise<SavedReply> {
-    return this.inboxService.updateSavedReply(ctx.tenantId, ctx.sub, replyId, dto);
+    return this.inboxService.updateSavedReply(ctx.tenantId, ctx.sub, ctx.role, replyId, dto);
   }
 
   @Delete("saved-replies/:replyId")
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
   deleteSavedReply(
     @TenantCtx() ctx: JwtTenantPayload,
     @Param("replyId") replyId: string
   ): Promise<SavedReply> {
-    return this.inboxService.deleteSavedReply(ctx.tenantId, ctx.sub, replyId);
+    return this.inboxService.deleteSavedReply(ctx.tenantId, ctx.sub, ctx.role, replyId);
   }
 
   @Patch("conversations/:id/customer-name")

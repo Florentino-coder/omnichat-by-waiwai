@@ -8,6 +8,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "./crypto-secret.service";
 import { RefreshSessionService } from "./refresh-session.service";
 import { TotpService } from "./totp.service";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import {
   AuthResponse,
   AuthTokens,
@@ -23,7 +24,7 @@ type ActiveMembership = Pick<
 
 type LoginUser = Pick<
   User,
-  "id" | "email" | "passwordHash" | "displayName" | "isActive" | "deletedAt" | "emailVerified" | "twoFaEnabled" | "twoFaSecret"
+  "id" | "email" | "passwordHash" | "displayName" | "isActive" | "deletedAt" | "emailVerified" | "twoFaEnabled" | "twoFaSecret" | "isSuperOwner"
 > & {
   memberships: ActiveMembership[];
 };
@@ -144,6 +145,19 @@ export class AuthService {
 
     await this.assertUserCanLogin(user, totpCode);
 
+    if (user.isSuperOwner) {
+      const tokens = await this.issueSuperOwnerTokens(user);
+      return {
+        tokens,
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          isSuperOwner: true
+        }
+      };
+    }
+
     const membership = this.getPrimaryMembership(user);
     const tokens = await this.issueTokens(user, membership);
 
@@ -199,6 +213,14 @@ export class AuthService {
 
     const user = storedToken.user;
     this.assertUserAccountCanUseTokens(user);
+
+    if (user.isSuperOwner) {
+      const tokens = await this.issueSuperOwnerTokens(user);
+      await this.revokeRefreshToken(tokenHash);
+      await this.refreshSessionService.delete(tokenHash, session.userId);
+      return tokens;
+    }
+
     const membership = this.getPrimaryMembership(user);
     const tokens = await this.issueTokens(user, membership);
     await this.revokeRefreshToken(tokenHash);
@@ -213,7 +235,7 @@ export class AuthService {
     await this.revokeRefreshToken(tokenHash);
     await this.refreshSessionService.delete(tokenHash, session?.userId);
 
-    if (session) {
+    if (session && !session.isSuperOwner && session.tenantId) {
       await this.prisma.auditLog.create({
         data: {
           tenantId: session.tenantId,
@@ -398,6 +420,40 @@ export class AuthService {
     };
   }
 
+  private async issueSuperOwnerTokens(
+    user: Pick<User, "id" | "email">
+  ): Promise<AuthTokens> {
+    const payload: JwtTenantPayload = {
+      sub: user.id,
+      email: user.email,
+      isSuperOwner: true
+    } as any;
+    const refreshToken = this.createRefreshToken();
+    const tokenHash = this.hashRefreshToken(refreshToken);
+    const expiresAt = this.refreshExpiry();
+
+    await this.prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt
+      }
+    });
+    await this.refreshSessionService.store(tokenHash, {
+      userId: user.id,
+      isSuperOwner: true,
+      expiresAt: expiresAt.toISOString()
+    } as any);
+
+    return {
+      accessToken: await this.jwtService.signAsync(payload, {
+        secret: this.requiredConfig("JWT_SECRET"),
+        expiresIn: ACCESS_TOKEN_TTL
+      }),
+      refreshToken
+    };
+  }
+
   private toAuthUser(
     user: Pick<User, "id" | "email" | "displayName">,
     membership: ActiveMembership
@@ -464,6 +520,38 @@ export class AuthService {
         metadata: {
           reason: "REFRESH_REUSE_DETECTED"
         }
+      }
+    });
+  }
+
+  async changePassword(userId: string, tenantId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    const validPassword = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!validPassword) {
+      throw new ForbiddenException("Current password is incorrect");
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash }
+    });
+
+    await this.revokeAllUserRefreshTokens(userId);
+    await this.refreshSessionService.deleteAllForUser(userId);
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.PASSWORD_CHANGED
       }
     });
   }

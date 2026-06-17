@@ -44,24 +44,34 @@ export type ListConversationsOptions = {
 
 export type ListSavedRepliesOptions = {
   lineChannelId?: string;
+  userId?: string;
+  type?: "all" | "shared" | "personal";
+};
+
+export type CreateSavedReplyInput = {
+  lineChannelId?: string;
+  userId?: string;
+  title: string;
+  body: string;
+  shortcutKey?: string;
+  imageUrl?: string;
+  hotkeyBinding?: string;
+};
+
+export type UpdateSavedReplyInput = {
+  lineChannelId?: string;
+  userId?: string;
+  title?: string;
+  body?: string;
+  shortcutKey?: string;
+  imageUrl?: string;
+  hotkeyBinding?: string;
+  isActive?: boolean;
 };
 
 export type CreateTagInput = {
   name: string;
   color?: string;
-};
-
-export type CreateSavedReplyInput = {
-  lineChannelId?: string;
-  title: string;
-  body: string;
-};
-
-export type UpdateSavedReplyInput = {
-  lineChannelId?: string;
-  title?: string;
-  body?: string;
-  isActive?: boolean;
 };
 
 @Injectable()
@@ -587,13 +597,36 @@ export class InboxService {
     tenantId: string,
     options: ListSavedRepliesOptions = {}
   ): Promise<SavedReply[]> {
+    const where: any = {
+      tenantId,
+      deletedAt: null,
+      isActive: true
+    };
+
+    if (options.lineChannelId) {
+      where.lineChannelId = options.lineChannelId;
+    }
+
+    if (options.type === "shared") {
+      where.userId = null;
+    } else if (options.type === "personal") {
+      where.userId = options.userId || "NOT_FOUND";
+    } else if (options.type === "all") {
+      where.OR = [
+        { userId: null },
+        { userId: options.userId || "" }
+      ];
+    } else {
+      if (options.userId) {
+        where.OR = [
+          { userId: null },
+          { userId: options.userId }
+        ];
+      }
+    }
+
     return this.prisma.savedReply.findMany({
-      where: {
-        tenantId,
-        ...(options.lineChannelId ? { lineChannelId: options.lineChannelId } : {}),
-        deletedAt: null,
-        isActive: true
-      },
+      where,
       orderBy: [{ title: "asc" }, { createdAt: "desc" }]
     });
   }
@@ -611,9 +644,13 @@ export class InboxService {
     const savedReply = await this.prisma.savedReply.create({
       data: {
         tenantId,
-        lineChannelId,
+        lineChannelId: lineChannelId || null,
+        userId: input.userId || null,
         title: input.title.trim(),
-        body: input.body.trim()
+        body: input.body.trim(),
+        shortcutKey: input.shortcutKey?.trim() || null,
+        imageUrl: input.imageUrl?.trim() || null,
+        hotkeyBinding: input.hotkeyBinding?.trim() || null
       }
     });
 
@@ -626,7 +663,8 @@ export class InboxService {
         targetId: savedReply.id,
         metadata: {
           lineChannelId: savedReply.lineChannelId,
-          title: savedReply.title
+          title: savedReply.title,
+          isPersonal: Boolean(savedReply.userId)
         }
       }
     });
@@ -637,20 +675,27 @@ export class InboxService {
   async updateSavedReply(
     tenantId: string,
     userId: string,
+    userRole: string,
     id: string,
     input: UpdateSavedReplyInput
   ): Promise<SavedReply> {
     const savedReply = await this.findTenantSavedReply(tenantId, id);
-    const data: {
-      lineChannelId?: string;
-      title?: string;
-      body?: string;
-      isActive?: boolean;
-    } = {};
+
+    // Security check
+    if (savedReply.userId && savedReply.userId !== userId && userRole !== "OWNER" && userRole !== "ADMIN") {
+      throw new ForbiddenException("You do not have permission to modify this personal quick reply");
+    }
+    if (!savedReply.userId && userRole !== "OWNER" && userRole !== "ADMIN") {
+      throw new ForbiddenException("Only administrators can modify shared quick replies");
+    }
+
+    const data: any = {};
 
     if (input.lineChannelId !== undefined) {
-      const lineChannelId = input.lineChannelId.trim();
-      await this.findTenantLineChannel(tenantId, lineChannelId);
+      const lineChannelId = input.lineChannelId ? input.lineChannelId.trim() : null;
+      if (lineChannelId) {
+        await this.findTenantLineChannel(tenantId, lineChannelId);
+      }
       data.lineChannelId = lineChannelId;
     }
 
@@ -662,6 +707,15 @@ export class InboxService {
     }
     if (input.isActive !== undefined) {
       data.isActive = input.isActive;
+    }
+    if (input.shortcutKey !== undefined) {
+      data.shortcutKey = input.shortcutKey ? input.shortcutKey.trim() : null;
+    }
+    if (input.imageUrl !== undefined) {
+      data.imageUrl = input.imageUrl ? input.imageUrl.trim() : null;
+    }
+    if (input.hotkeyBinding !== undefined) {
+      data.hotkeyBinding = input.hotkeyBinding ? input.hotkeyBinding.trim() : null;
     }
 
     const updatedSavedReply = await this.prisma.savedReply.update({
@@ -686,9 +740,19 @@ export class InboxService {
   async deleteSavedReply(
     tenantId: string,
     userId: string,
+    userRole: string,
     id: string
   ): Promise<SavedReply> {
     const savedReply = await this.findTenantSavedReply(tenantId, id);
+
+    // Security check
+    if (savedReply.userId && savedReply.userId !== userId && userRole !== "OWNER" && userRole !== "ADMIN") {
+      throw new ForbiddenException("You do not have permission to delete this personal quick reply");
+    }
+    if (!savedReply.userId && userRole !== "OWNER" && userRole !== "ADMIN") {
+      throw new ForbiddenException("Only administrators can delete shared quick replies");
+    }
+
     const deletedSavedReply = await this.prisma.savedReply.update({
       where: { id: savedReply.id },
       data: { deletedAt: new Date(), isActive: false }

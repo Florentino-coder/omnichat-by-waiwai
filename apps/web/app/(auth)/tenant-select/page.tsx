@@ -52,6 +52,17 @@ export default function TenantSelectPage() {
   const [isCreatingTenant, setIsCreatingTenant] = useState(false);
 
   useEffect(() => {
+    const userStr = window.localStorage.getItem(SESSION_KEYS.user);
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.isSuperOwner) {
+          router.push("/super-admin");
+          return;
+        }
+      } catch {}
+    }
+
     let active = true;
     setIsLoading(true);
     apiFetch<TenantMembership[]>("/api/v1/auth/memberships")

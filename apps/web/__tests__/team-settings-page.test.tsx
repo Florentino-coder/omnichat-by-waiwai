@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import TeamSettingsPage from "../app/app/settings/team/page";
 
+jest.mock("../app/lib/language-context", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: () => {} }),
+  LanguageProvider: ({ children }: any) => <>{children}</>
+}));
+
 describe("TeamSettingsPage", () => {
   beforeEach(() => {
     window.localStorage.clear();

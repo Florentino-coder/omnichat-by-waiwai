@@ -91,6 +91,10 @@ enum MessageDirection {
 enum MessageType {
   TEXT
   STICKER
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
   UNKNOWN
 }
 
@@ -131,6 +135,7 @@ model Tenant {
   conversationTagLinks      ConversationTagLink[]
   conversationInternalNotes ConversationInternalNote[]
   savedReplies              SavedReply[]
+  files                     File[]
 
   @@index([slug])
   @@index([planId])
@@ -204,6 +209,7 @@ model User {
   passwordHash    String
   displayName     String
   avatarUrl       String?
+  isSuperOwner    Boolean   @default(false)
   // 2FA
   twoFaSecret     String? // encrypted AES-256
   twoFaEnabled    Boolean   @default(false)
@@ -222,6 +228,7 @@ model User {
   refreshTokens   RefreshToken[]
   sentInvitations Invitation[]      @relation("InvitedBy")
   auditLogs       AuditLog[]
+  savedReplies    SavedReply[]
 
   @@map("users")
 }
@@ -397,6 +404,7 @@ model Conversation {
   messages      Message[]
   tagLinks      ConversationTagLink[]
   internalNotes ConversationInternalNote[]
+  files         File[]
 
   @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
@@ -471,13 +479,19 @@ model SavedReply {
   tenant        Tenant       @relation(fields: [tenantId], references: [id])
   lineChannelId String?
   lineChannel   LineChannel? @relation(fields: [lineChannelId], references: [id], onDelete: SetNull)
+  userId        String?
+  user          User?        @relation(fields: [userId], references: [id])
   title         String
   body          String
+  shortcutKey   String?
+  imageUrl      String?
+  hotkeyBinding String?
   isActive      Boolean      @default(true)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   deletedAt     DateTime?
 
+  @@index([tenantId, userId, shortcutKey])
   @@index([tenantId])
   @@index([tenantId, lineChannelId])
   @@map("saved_replies")
@@ -498,6 +512,11 @@ model Message {
   text              String?
   rawPayload        Json?
   sentAt            DateTime?
+  mediaUrl          String?   // R2 public/signed URL
+  mediaMimeType     String?
+  mediaSize         Int?
+  mediaR2Key        String?   // R2 object key
+  mediaFileName     String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   deletedAt         DateTime?
@@ -509,6 +528,41 @@ model Message {
   @@index([createdAt])
   @@index([tenantId, conversationId, deletedAt, createdAt])
   @@map("messages")
+}
+
+model File {
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  conversationId  String?
+  conversation    Conversation?  @relation(fields: [conversationId], references: [id])
+  fileName        String
+  fileType        FileType       // IMAGE, AUDIO, VIDEO, DOCUMENT
+  mimeType        String         // "image/jpeg", "audio/mp4", etc.
+  fileSize        Int            // bytes
+  r2Key           String         // "temporary/tenant-001/images/2026/06/17/abc.jpg"
+  publicUrl       String?        // signed URL or public URL
+  retentionType   RetentionType  // PERMANENT or TEMPORARY
+  expiresAt       DateTime?      // NULL for permanent, createdAt+7d for temporary
+  createdAt       DateTime       @default(now())
+  deletedAt       DateTime?
+
+  @@index([tenantId])
+  @@index([expiresAt])
+  @@index([retentionType, expiresAt])
+  @@map("files")
+}
+
+enum FileType {
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+}
+
+enum RetentionType {
+  PERMANENT
+  TEMPORARY
 }
 
 // ============================================================

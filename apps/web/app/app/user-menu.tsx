@@ -4,6 +4,8 @@ import { Building2, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@omnichat/ui";
+import { useLanguage } from "../lib/language-context";
+import { getMessages } from "../lib/i18n";
 
 type UserData = {
   displayName?: string;
@@ -12,6 +14,8 @@ type UserData = {
 };
 
 export function UserMenu() {
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
   const [user, setUser] = useState<UserData | null>(null);
 
   useEffect(() => {
@@ -70,22 +74,24 @@ export function UserMenu() {
             className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-secondary"
           >
             <Building2 size={14} aria-hidden="true" />
-            Switch Workspace
+            {t.switchWorkspace}
           </Link>
-          <Link
-            href="/app/settings"
-            className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-secondary"
-          >
-            <Settings size={14} aria-hidden="true" />
-            Settings
-          </Link>
+          {role !== "QC" && role !== "VIEWER" && (
+            <Link
+              href="/app/settings"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-secondary"
+            >
+              <Settings size={14} aria-hidden="true" />
+              {t.settings}
+            </Link>
+          )}
           <button
             type="button"
             className="flex w-full items-center gap-2 px-4 py-2 text-sm text-danger hover:bg-danger/10"
             onClick={handleLogout}
           >
             <LogOut size={14} aria-hidden="true" />
-            ออกจากระบบ
+            {t.logout}
           </button>
         </div>
       </div>

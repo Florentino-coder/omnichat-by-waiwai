@@ -13,12 +13,17 @@ import { RedisModule } from "./redis/redis.module";
 import { TenantsModule } from "./tenants/tenants.module";
 import { UsersModule } from "./users/users.module";
 import { WorkspacesModule } from "./workspaces/workspaces.module";
+import { SuperAdminModule } from "./super-admin/super-admin.module";
+import { ScheduleModule } from "@nestjs/schedule";
+import { StorageModule } from "./storage/storage.module";
+import { BackupModule } from "./backup/backup.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     MailModule,
@@ -31,7 +36,10 @@ import { WorkspacesModule } from "./workspaces/workspaces.module";
     RealtimeModule,
     TenantsModule,
     WorkspacesModule,
-    LineModule
+    LineModule,
+    SuperAdminModule,
+    StorageModule,
+    BackupModule
   ]
 })
 export class AppModule {}

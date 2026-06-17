@@ -6,6 +6,7 @@ export interface JwtTenantPayload {
   tenantId: string;
   workspaceId: string;
   role: Role;
+  isSuperOwner?: boolean;
 }
 
 export interface AuthTokens {
@@ -17,9 +18,10 @@ export interface AuthUserResponse {
   id: string;
   email: string;
   displayName: string;
-  tenantId: string;
-  workspaceId: string;
-  role: Role;
+  tenantId?: string;
+  workspaceId?: string;
+  role?: Role;
+  isSuperOwner?: boolean;
 }
 
 export interface AuthResponse {

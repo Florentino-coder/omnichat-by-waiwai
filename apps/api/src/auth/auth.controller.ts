@@ -5,6 +5,7 @@ import { LoginDto } from "./dto/login.dto";
 import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { SwitchTenantDto } from "./dto/switch-tenant.dto";
 import { TwoFaCodeDto } from "./dto/two-fa-code.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { TenantGuard } from "./guards/tenant.guard";
 import {
@@ -74,5 +75,15 @@ export class AuthController {
     @Body() dto: TwoFaCodeDto
   ): Promise<void> {
     return this.authService.disableTwoFa(ctx, dto.code);
+  }
+
+  @Post("change-password")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, TenantGuard)
+  async changePassword(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Body() dto: ChangePasswordDto
+  ): Promise<void> {
+    await this.authService.changePassword(ctx.sub, ctx.tenantId, dto);
   }
 }

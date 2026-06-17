@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Socket } from "node:net";
+import * as os from "node:os";
 import { PrismaService } from "../prisma/prisma.service";
 import { HealthCheckResponse, HealthServiceStatus } from "./types/health.types";
 
@@ -12,16 +13,32 @@ export class HealthService {
   ) {}
 
   async check(): Promise<HealthCheckResponse> {
-    const [database, redis] = await Promise.all([
+    const [database, redis, r2] = await Promise.all([
       this.checkDatabase(),
-      this.checkRedis()
+      this.checkRedis(),
+      this.checkR2()
     ]);
 
+    const memory = process.memoryUsage();
+    const loadAvg = os.loadavg();
+    const uptime = process.uptime();
+
     return {
-      status: database === "up" && redis === "up" ? "ok" : "degraded",
+      status: database === "up" && redis === "up" && r2 !== "down" ? "ok" : "degraded",
       services: {
         database,
-        redis
+        redis,
+        r2
+      },
+      metrics: {
+        memory: {
+          rss: `${(memory.rss / 1024 / 1024).toFixed(1)} MB`,
+          heapUsed: `${(memory.heapUsed / 1024 / 1024).toFixed(1)} MB`
+        },
+        cpu: {
+          loadAvg,
+          uptime: `${(uptime / 3600).toFixed(2)} hours`
+        }
       }
     };
   }
@@ -46,6 +63,21 @@ export class HealthService {
       const url = new URL(redisUrl);
       const port = Number(url.port || 6379);
       await this.tcpCheck(url.hostname, port);
+      return "up";
+    } catch {
+      return "down";
+    }
+  }
+
+  private async checkR2(): Promise<HealthServiceStatus> {
+    const accountId = this.configService.get<string>("R2_ACCOUNT_ID");
+    if (!accountId) {
+      return "not_configured";
+    }
+
+    try {
+      const host = `${accountId}.r2.cloudflarestorage.com`;
+      await this.tcpCheck(host, 443);
       return "up";
     } catch {
       return "down";

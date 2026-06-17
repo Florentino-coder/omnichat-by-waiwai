@@ -6,6 +6,7 @@ export type SafeUserProfile = Pick<
   | "email"
   | "displayName"
   | "avatarUrl"
+  | "username"
   | "emailVerified"
   | "twoFaEnabled"
   | "lastLoginAt"

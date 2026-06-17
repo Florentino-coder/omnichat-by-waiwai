@@ -67,12 +67,16 @@ export function LoginForm() {
         return;
       }
 
-      const login = body as LoginSuccess;
+      const login = body as LoginSuccess & { data: { user: { isSuperOwner?: boolean } } };
       window.localStorage.setItem(SESSION_KEYS.accessToken, login.data.tokens.accessToken);
       window.localStorage.setItem(SESSION_KEYS.refreshToken, login.data.tokens.refreshToken);
       window.localStorage.setItem(SESSION_KEYS.user, JSON.stringify(login.data.user));
       document.cookie = `omnichat.accessToken=${encodeURIComponent(login.data.tokens.accessToken)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
-      router.push("/tenant-select");
+      if (login.data.user.isSuperOwner) {
+        router.push("/super-admin");
+      } else {
+        router.push("/tenant-select");
+      }
     } catch {
       setError("Cannot sign in right now. Try again.");
     } finally {

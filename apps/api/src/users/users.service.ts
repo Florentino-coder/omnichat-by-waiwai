@@ -8,6 +8,7 @@ const safeUserSelect = {
   email: true,
   displayName: true,
   avatarUrl: true,
+  username: true,
   emailVerified: true,
   twoFaEnabled: true,
   lastLoginAt: true,

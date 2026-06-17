@@ -16,9 +16,10 @@ import {
 } from "./line-webhook-queue.service";
 import { LineWebhookProcessorService } from "./line-webhook-processor.service";
 import { LineWebhookService } from "./line-webhook.service";
+import { StorageModule } from "../storage/storage.module";
 
 @Module({
-  imports: [AuthModule, PrismaModule, RealtimeModule],
+  imports: [AuthModule, PrismaModule, RealtimeModule, StorageModule],
   controllers: [LineChannelsController, LineWebhookController],
   providers: [
     LineChannelsService,

@@ -67,6 +67,9 @@ type SavedReply = {
   title: string;
   body: string;
   isActive?: boolean;
+  shortcutKey?: string | null;
+  imageUrl?: string | null;
+  hotkeyBinding?: string | null;
 };
 
 type ConversationInternalNote = {
@@ -83,6 +86,11 @@ type InboxMessage = {
   text: string | null;
   createdAt: string;
   rawPayload?: LineMessagePayload | null;
+  mediaUrl?: string | null;
+  mediaMimeType?: string | null;
+  mediaSize?: number | null;
+  mediaR2Key?: string | null;
+  mediaFileName?: string | null;
 };
 
 type LineMessagePayload = {
@@ -375,6 +383,35 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
     void loadInboxOperations(selectedId);
   }, [selectedConversation, selectedId]);
+
+  useEffect(() => {
+    function handleGlobalKeyDown(event: globalThis.KeyboardEvent) {
+      const fKeyMatch = event.key.match(/^F(1[0-2]|[1-9])$/);
+      if (!fKeyMatch) {
+        return;
+      }
+
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.tagName === "INPUT") {
+        return;
+      }
+      if (activeEl && activeEl.tagName === "TEXTAREA" && activeEl.id !== "reply-text") {
+        return;
+      }
+
+      const fKey = event.key;
+      const foundReply = activeSavedReplies.find((reply) => reply.hotkeyBinding === fKey);
+      if (foundReply) {
+        event.preventDefault();
+        void useQuickReply(foundReply);
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown);
+    };
+  }, [activeSavedReplies, selectedConversation, isQuickReplyAutoEnter, isSendingQuickReply]);
 
   async function loadInboxOperations(conversationId: string): Promise<void> {
     const lineChannelId = selectedConversation?.lineChannel.id;
@@ -705,7 +742,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     setError(null);
     try {
       await apiFetch<null>(`/api/v1/line/conversations/${selectedConversation.id}/reply`, {
-        body: JSON.stringify({ text: reply.body }),
+        body: JSON.stringify(reply.imageUrl ? { imageUrl: reply.imageUrl } : { text: reply.body }),
         headers: { "Content-Type": "application/json" },
         method: "POST"
       });
@@ -729,12 +766,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }
 
   const filters: FilterPill[] = [
-    { id: "all", label: "ทั้งหมด", count: conversations.length },
-    { id: "unread", label: "เปิด", count: unreadCount },
-    { id: "pending", label: "รอ", count: readNotRepliedCount },
+    { id: "all", label: t.filterAll, count: conversations.length },
+    { id: "unread", label: t.filterOpen, count: unreadCount },
+    { id: "pending", label: t.filterWaiting, count: readNotRepliedCount },
     {
       id: "resolved",
-      label: "ปิดแล้ว",
+      label: t.filterClosed,
       count: conversations.filter((conversation) => conversationStatus(conversation) === "RESOLVED").length
     }
   ];
@@ -746,8 +783,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       customerName: customerLabel(conversation),
       customerInitial: customerInitial(customerLabel(conversation)),
       preview: latestMessage
-        ? `${latestMessage.direction === "OUTBOUND" ? "You: " : ""}${messageSummary(latestMessage)}`
-        : "No messages yet",
+        ? `${latestMessage.direction === "OUTBOUND" ? (locale === "th" ? "คุณ: " : "You: ") : ""}${messageSummary(latestMessage)}`
+        : t.noMessagesYet,
       time: formatRelativeTime(conversation.lastMessageAt ?? latestMessage?.createdAt),
       channelTag: conversation.lineChannel.name,
       channelStyle: lineChannelBadgeStyle(conversation.lineChannel),
@@ -761,7 +798,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     variant: message.direction === "OUTBOUND" ? "outbound" : "inbound",
     body: messageSummary(message),
     authorInitial: message.direction === "INBOUND" ? customerInitial(selectedCustomerName) : undefined,
-    time: `${message.direction === "OUTBOUND" ? "Outbound" : "Inbound"} · ${formatDateTime(message.createdAt)}`
+    time: `${message.direction === "OUTBOUND" ? "Outbound" : "Inbound"} · ${formatDateTime(message.createdAt)}`,
+    type: message.type,
+    mediaUrl: message.mediaUrl,
+    mediaMimeType: message.mediaMimeType,
+    mediaSize: message.mediaSize,
+    mediaR2Key: message.mediaR2Key,
+    mediaFileName: message.mediaFileName
   }));
   const selectedTags = (selectedConversation?.tagLinks ?? [])
     .filter((link) => !link.deletedAt && link.tag)
@@ -1119,6 +1162,18 @@ function messageSummary(message: {
 }): string {
   if (message.text) {
     return message.text;
+  }
+  if (message.type === "IMAGE") {
+    return "[Image]";
+  }
+  if (message.type === "VIDEO") {
+    return "[Video]";
+  }
+  if (message.type === "AUDIO") {
+    return "[Audio]";
+  }
+  if (message.type === "FILE") {
+    return "[File]";
   }
   if (isStickerMessage(message)) {
     return `Sticker ${message.rawPayload?.message?.stickerId ?? "received"}\nPackage ${message.rawPayload?.message?.packageId ?? "-"}`;

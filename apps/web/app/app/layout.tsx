@@ -2,7 +2,7 @@
 
 import { BookOpen, ChartNoAxesColumn, Inbox, Settings, Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { UserMenu } from "./user-menu";
 import { LanguageProvider, useLanguage } from "../lib/language-context";
 
@@ -16,14 +16,31 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
 
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const { locale, setLocale } = useLanguage();
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("omnichat.user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setRole(parsed.role ?? "AGENT");
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
 
   const navItems = [
-    { label: locale === "th" ? "กล่องข้อความ" : "Inbox", icon: Inbox, disabled: false, href: "/app/inbox" },
-    { label: locale === "th" ? "ลูกค้า" : "Customers", icon: Users, disabled: true },
-    { label: locale === "th" ? "รายงาน" : "Reports", icon: ChartNoAxesColumn, disabled: true },
-    { label: locale === "th" ? "คลังความรู้" : "Knowledge", icon: BookOpen, disabled: true },
-    { label: locale === "th" ? "ตั้งค่า" : "Settings", icon: Settings, disabled: false, href: "/app/settings" }
+    { label: locale === "th" ? "กล่องข้อความ" : "Inbox", icon: Inbox, disabled: false, href: "/app/inbox", roles: ["OWNER", "ADMIN", "AGENT", "QC"] },
+    { label: locale === "th" ? "ลูกค้า" : "Customers", icon: Users, disabled: true, roles: ["OWNER", "ADMIN", "AGENT"] },
+    { label: locale === "th" ? "รายงาน" : "Reports", icon: ChartNoAxesColumn, disabled: true, roles: ["OWNER", "ADMIN", "QC", "VIEWER"] },
+    { label: locale === "th" ? "คลังความรู้" : "Knowledge", icon: BookOpen, disabled: true, roles: ["OWNER", "ADMIN", "AGENT"] },
+    { label: locale === "th" ? "ตั้งค่า" : "Settings", icon: Settings, disabled: false, href: "/app/settings", roles: ["OWNER", "ADMIN", "AGENT"] }
   ];
+
+  const currentRole = role || "OWNER";
+  const filteredNavItems = navItems.filter((item) => item.roles.includes(currentRole));
+
 
   useEffect(() => {
     // 15 minutes = 15 * 60 * 1000 ms
@@ -65,7 +82,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   return (
     <main className="flex h-screen overflow-hidden bg-[#F7F7FA] text-foreground">
       <nav aria-label="Primary" className="flex w-14 shrink-0 flex-col items-center gap-2 border-r border-border bg-white py-3">
-        {navItems.map((item) => {
+        {filteredNavItems.map((item) => {
           const Icon = item.icon;
           const className =
             "flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40";

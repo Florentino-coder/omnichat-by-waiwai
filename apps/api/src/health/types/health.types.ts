@@ -5,5 +5,16 @@ export interface HealthCheckResponse {
   services: {
     database: HealthServiceStatus;
     redis: HealthServiceStatus;
+    r2: HealthServiceStatus;
+  };
+  metrics?: {
+    memory: {
+      rss: string;
+      heapUsed: string;
+    };
+    cpu: {
+      loadAvg: number[];
+      uptime: string;
+    };
   };
 }

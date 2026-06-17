@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { Locale, defaultLocale } from "./i18n";
 
 type LanguageContextType = {
@@ -11,18 +11,19 @@ type LanguageContextType = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("chatwai.locale") as Locale;
-      if (stored === "th" || stored === "en") {
-        setLocaleState(stored);
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = window.localStorage.getItem("chatwai.locale") as Locale;
+        if (stored === "th" || stored === "en") {
+          return stored;
+        }
+      } catch {
+        // Ignore
       }
-    } catch {
-      // Ignore localStorage block
     }
-  }, []);
+    return defaultLocale;
+  });
 
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale);

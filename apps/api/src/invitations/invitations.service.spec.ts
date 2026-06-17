@@ -45,6 +45,7 @@ type MockPrisma = {
   };
   workspaceMember: {
     count: jest.Mock<Promise<number>, [unknown]>;
+    findMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
   $transaction: jest.Mock<Promise<unknown>, [(tx: MockTransaction) => Promise<unknown>]>;
 };
@@ -88,7 +89,8 @@ const createPrisma = (tx = createTx()): MockPrisma => ({
     findUnique: jest.fn<Promise<unknown>, [unknown]>()
   },
   workspaceMember: {
-    count: jest.fn<Promise<number>, [unknown]>()
+    count: jest.fn<Promise<number>, [unknown]>(),
+    findMany: jest.fn<Promise<unknown>, [unknown]>()
   },
   $transaction: jest.fn<Promise<unknown>, [(tx: MockTransaction) => Promise<unknown>]>(
     (callback) => callback(tx)
@@ -258,7 +260,7 @@ describe("InvitationsService", () => {
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.tenant.findUnique.mockResolvedValue({ planId: "free" });
     prisma.planLimit.findUnique.mockResolvedValue({ maxAgents: 2 });
-    prisma.workspaceMember.count.mockResolvedValue(1);
+    prisma.workspaceMember.findMany.mockResolvedValue([{ userId: "user-existing" }]);
     tx.user.create.mockResolvedValue({
       id: "user-1",
       email: "agent@example.com"
@@ -334,7 +336,7 @@ describe("InvitationsService", () => {
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.tenant.findUnique.mockResolvedValue({ planId: "free" });
     prisma.planLimit.findUnique.mockResolvedValue({ maxAgents: 2 });
-    prisma.workspaceMember.count.mockResolvedValue(2);
+    prisma.workspaceMember.findMany.mockResolvedValue([{ userId: "user-1" }, { userId: "user-2" }]);
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
     await expect(

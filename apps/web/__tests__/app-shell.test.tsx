@@ -1,11 +1,18 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import AppLayout from "../app/app/layout";
 import SettingsPage from "../app/app/settings/page";
+import { LanguageProvider } from "../app/lib/language-context";
+
+jest.mock("../app/lib/language-context", () => ({
+  useLanguage: () => ({ locale: "en", setLocale: () => {} }),
+  LanguageProvider: ({ children }: any) => <>{children}</>
+}));
 
 describe("App shell", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.localStorage.setItem("omnichat.accessToken", "access-token");
+    window.localStorage.setItem("chatwai.locale", "en");
   });
 
   afterEach(() => {
@@ -100,7 +107,11 @@ describe("App shell", () => {
       value: fetchMock
     });
 
-    render(<SettingsPage />);
+    render(
+      <LanguageProvider>
+        <SettingsPage />
+      </LanguageProvider>
+    );
 
     expect(await screen.findByText("Default Workspace")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Channel name"), {
@@ -232,7 +243,11 @@ describe("App shell", () => {
       value: fetchMock
     });
 
-    render(<SettingsPage />);
+    render(
+      <LanguageProvider>
+        <SettingsPage />
+      </LanguageProvider>
+    );
 
     const nameInput = await screen.findByLabelText("Channel name");
     expect(nameInput).toHaveValue("");
@@ -273,6 +288,7 @@ describe("App shell", () => {
   });
 
   it("manages quick replies per LINE OA from settings", async () => {
+    window.localStorage.setItem("omnichat.user", JSON.stringify({ id: "user-1", role: "OWNER" }));
     const fetchMock = jest
       .fn()
       .mockResolvedValueOnce({
@@ -379,11 +395,15 @@ describe("App shell", () => {
       value: fetchMock
     });
 
-    render(<SettingsPage />);
+    render(
+      <LanguageProvider>
+        <SettingsPage />
+      </LanguageProvider>
+    );
 
     expect(await screen.findByText("Line OA 1 : Quick Reply Greeting")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/inbox/saved-replies?lineChannelId=line-channel-1",
+      "/api/v1/inbox/saved-replies?lineChannelId=line-channel-1&type=shared",
       {
         headers: { Authorization: "Bearer access-token" }
       }
