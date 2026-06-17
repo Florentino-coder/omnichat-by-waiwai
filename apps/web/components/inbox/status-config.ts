@@ -30,6 +30,14 @@ export const STATUS_CONFIG = {
     border: "#D8D6CC",
     avatarText: "#71717A",
     className: "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+  },
+  UNREAD: {
+    dot: "#EF4444",
+    text: "ยังไม่ได้อ่าน",
+    bg: "#FEE2E2",
+    border: "#FCA5A5",
+    avatarText: "#991B1B",
+    className: "border-red-400 bg-red-50 text-red-700 hover:bg-red-100"
   }
 } as const;
 

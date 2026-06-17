@@ -100,8 +100,18 @@ const createPrisma = (): MockPrisma => ({
   }
 });
 
+import { CryptoSecretService } from "../auth/crypto-secret.service";
+
+const mockCryptoSecretService = {
+  decrypt: jest.fn().mockImplementation((val) => val),
+  encrypt: jest.fn().mockImplementation((val) => val)
+} as unknown as CryptoSecretService;
+
 const createService = (prisma: MockPrisma): InboxService =>
-  new InboxService(prisma as unknown as PrismaService);
+  new InboxService(
+    prisma as unknown as PrismaService,
+    mockCryptoSecretService
+  );
 
 type Stage3BInboxService = InboxService & {
   assignConversation: (

@@ -33,6 +33,7 @@ type LineWebhookEvent = {
     stickerResourceType?: string;
   };
   timestamp?: number;
+  markAsReadToken?: string;
 };
 
 type LineProfile = {
@@ -82,8 +83,24 @@ export class LineWebhookService {
 
     const events = payload.events ?? [];
     for (const event of events) {
+      if (event.type === "follow") {
+        await this.handleFollow(channel, event);
+        continue;
+      }
+      if (event.type === "unfollow") {
+        await this.handleUnfollow(channel, event);
+        continue;
+      }
+      if (event.type === "unsend") {
+        await this.handleUnsend(channel, event);
+        continue;
+      }
+
+      if (event.type !== "message") {
+        continue;
+      }
       const messageType = this.messageType(event);
-      if (event.type !== "message" || !messageType) {
+      if (!messageType) {
         continue;
       }
 
@@ -210,11 +227,13 @@ export class LineWebhookService {
           type: messageType,
           externalMessageId: lineMessage.id,
           text: messageType === MessageType.TEXT ? lineMessage.text : null,
+          markAsReadToken: event.markAsReadToken,
           rawPayload: lineProfile ? { ...event, lineProfile } : event,
           sentAt: eventTime,
           ...mediaData
         },
         update: {
+          markAsReadToken: event.markAsReadToken,
           rawPayload: lineProfile ? { ...event, lineProfile } : event,
           ...mediaData
         }
@@ -324,6 +343,127 @@ export class LineWebhookService {
       statusMessage: readString(profile.statusMessage),
       language: readString(profile.language)
     };
+  }
+
+  private async handleFollow(channel: any, event: LineWebhookEvent): Promise<void> {
+    const externalThreadId = this.externalThreadId(event);
+    if (!externalThreadId) return;
+
+    const lineProfile = await this.loadLineProfile(channel.encryptedChannelAccessToken, event);
+    const eventTime = event.timestamp ? new Date(event.timestamp) : new Date();
+
+    const conversation = await this.prisma.conversation.upsert({
+      where: {
+        tenantId_source_lineChannelId_externalThreadId: {
+          tenantId: channel.tenantId,
+          source: MessageSource.LINE,
+          lineChannelId: channel.id,
+          externalThreadId
+        }
+      },
+      create: {
+        tenantId: channel.tenantId,
+        workspaceId: channel.workspaceId,
+        lineChannelId: channel.id,
+        source: MessageSource.LINE,
+        externalThreadId,
+        displayName: lineProfile?.displayName,
+        lastMessageAt: eventTime,
+        status: "OPEN"
+      },
+      update: {
+        displayName: lineProfile?.displayName,
+        lastMessageAt: eventTime,
+        deletedAt: null
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId: channel.tenantId,
+        action: AuditAction.LINE_FOLLOW_RECEIVED,
+        targetType: "Conversation",
+        targetId: conversation.id,
+        metadata: {
+          lineChannelId: channel.id,
+          externalThreadId
+        }
+      }
+    });
+
+    await this.realtimeService?.publishTenantEvent(channel.tenantId, "conversation.updated", {
+      conversationId: conversation.id,
+      status: conversation.status
+    });
+  }
+
+  private async handleUnfollow(channel: any, event: LineWebhookEvent): Promise<void> {
+    const externalThreadId = this.externalThreadId(event);
+    if (!externalThreadId) return;
+
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        tenantId: channel.tenantId,
+        source: MessageSource.LINE,
+        lineChannelId: channel.id,
+        externalThreadId,
+        deletedAt: null
+      }
+    });
+
+    if (conversation) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId: channel.tenantId,
+          action: AuditAction.LINE_UNFOLLOW_RECEIVED,
+          targetType: "Conversation",
+          targetId: conversation.id,
+          metadata: {
+            lineChannelId: channel.id,
+            externalThreadId
+          }
+        }
+      });
+    }
+  }
+
+  private async handleUnsend(channel: any, event: any): Promise<void> {
+    const unsendMessageId = event.unsend?.messageId;
+    if (!unsendMessageId) return;
+
+    const message = await this.prisma.message.findFirst({
+      where: {
+        lineChannelId: channel.id,
+        externalMessageId: unsendMessageId,
+        deletedAt: null
+      }
+    });
+
+    if (message) {
+      const now = new Date();
+      await this.prisma.message.update({
+        where: { id: message.id },
+        data: { deletedAt: now }
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId: channel.tenantId,
+          action: AuditAction.LINE_UNSEND_RECEIVED,
+          targetType: "Message",
+          targetId: message.id,
+          metadata: {
+            lineChannelId: channel.id,
+            externalMessageId: unsendMessageId
+          }
+        }
+      });
+
+      await this.realtimeService?.publishTenantEvent(channel.tenantId, "message.deleted", {
+        conversationId: message.conversationId,
+        messageId: message.id
+      });
+    }
   }
 }
 

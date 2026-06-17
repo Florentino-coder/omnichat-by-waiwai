@@ -200,14 +200,14 @@ export function ReplyComposer({
             type="button"
             aria-label={locale === "th" ? "เพิ่มรูปภาพด้วย URL" : "Add image URL"}
             className={[
-              "inline-flex h-9 w-9 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-60",
+              "inline-flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-60",
               imageUrl ? "border-primary bg-primary-soft text-primary" : "border-border bg-white"
             ].join(" ")}
             disabled={!conversationId || isSending}
             onClick={() => setIsImagePanelOpen((current) => !current)}
             title={locale === "th" ? "เพิ่มรูปภาพด้วย URL" : "Add image URL"}
           >
-            <ImagePlus aria-hidden="true" size={15} />
+            <ImagePlus aria-hidden="true" className="h-5 w-5 sm:h-4 sm:w-4" />
           </button>
           <span className="truncate font-medium">
             LINE OA: {lineChannelName ?? "-"}

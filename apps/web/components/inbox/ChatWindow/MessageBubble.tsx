@@ -3,6 +3,19 @@ import { LockKeyhole, FileDown, X } from "lucide-react";
 
 export type MessageVariant = "outbound" | "inbound" | "note" | "system";
 
+function getStickerUrl(rawPayload: unknown): string | null {
+  if (!rawPayload || typeof rawPayload !== "object") return null;
+  const payload = rawPayload as Record<string, any>;
+  
+  const messageObj = payload.message || payload;
+  if (!messageObj || typeof messageObj !== "object") return null;
+  
+  const stickerId = messageObj.stickerId;
+  if (!stickerId) return null;
+  
+  return `https://stickershop.line-scdn.net/stickershop/v1/sticker/${stickerId}/iPhone/sticker_key@2x.png`;
+}
+
 interface MessageBubbleProps {
   variant: MessageVariant;
   body: string;
@@ -14,6 +27,7 @@ interface MessageBubbleProps {
   mediaSize?: number | null;
   mediaR2Key?: string | null;
   mediaFileName?: string | null;
+  rawPayload?: unknown;
 }
 
 export function MessageBubble({
@@ -26,7 +40,8 @@ export function MessageBubble({
   mediaMimeType: _mediaMimeType,
   mediaSize,
   mediaR2Key: _mediaR2Key,
-  mediaFileName
+  mediaFileName,
+  rawPayload
 }: MessageBubbleProps) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
@@ -42,7 +57,8 @@ export function MessageBubble({
 
   const isOutbound = variant === "outbound";
   const isNote = variant === "note";
-  const isMedia = ["IMAGE", "VIDEO", "AUDIO", "FILE"].includes(type || "");
+  const stickerUrl = type === "STICKER" ? getStickerUrl(rawPayload) : null;
+  const isMedia = ["IMAGE", "VIDEO", "AUDIO", "FILE"].includes(type || "") || !!stickerUrl;
 
   return (
     <div className={["flex items-end gap-2", isOutbound ? "justify-end" : "justify-start"].join(" ")}>
@@ -55,7 +71,7 @@ export function MessageBubble({
         <div
           className={[
             "inline-block whitespace-pre-wrap shadow-sm",
-            isMedia ? "rounded-[18px] p-1.5" : "px-6 py-4 text-base leading-7",
+            isMedia ? "rounded-[18px] p-1.5 shadow-none" : "px-6 py-4 text-base leading-7",
             isOutbound
               ? isMedia
                 ? "bg-transparent text-white"
@@ -74,7 +90,15 @@ export function MessageBubble({
             </span>
           ) : null}
 
-          {type === "IMAGE" ? (
+          {stickerUrl ? (
+            <div className="relative">
+              <img
+                src={stickerUrl}
+                alt="LINE Sticker"
+                className="w-24 h-24 sm:w-32 sm:h-32 object-contain hover:scale-105 transition-transform"
+              />
+            </div>
+          ) : type === "IMAGE" ? (
             <div className="relative">
               <img
                 src={mediaUrl || ""}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Pencil, StickyNote, Tags, UserPlus, X } from "lucide-react";
+import { Check, Pencil, StickyNote, Tags, UserPlus, X, ChevronDown, Zap, Smartphone, Globe, MessageSquare } from "lucide-react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { AssignDropdown } from "./AssignDropdown";
 import { QuickReplyList } from "./QuickReplyList";
@@ -88,6 +88,89 @@ export function CustomerPanel({
   onCreateNote
 }: CustomerPanelProps) {
   const [newTagName, setNewTagName] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    assign: true,
+    tags: true,
+    quickReply: true,
+    notes: true,
+    contact: false,
+    channel: false,
+    latestMessage: false
+  });
+
+  const toggleSection = (section: string) => {
+    setExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
+  };
+
+  const renderSectionHeader = (title: string, icon: React.ReactNode, key: string) => {
+    const isExpanded = expanded[key];
+    return (
+      <button
+        onClick={() => toggleSection(key)}
+        className="flex w-full items-center justify-between py-4 text-left font-heading font-semibold text-[#6B6D7A] hover:text-foreground transition-colors"
+        type="button"
+      >
+        <span className="flex items-center gap-2 text-base">
+          {icon}
+          {title}
+        </span>
+        <ChevronDown
+          size={18}
+          className={`text-muted-foreground transition-transform duration-200 ${
+            isExpanded ? "transform rotate-0" : "transform -rotate-90"
+          }`}
+        />
+      </button>
+    );
+  };
+
+  const renderQuickReplyHeader = () => {
+    const isExpanded = expanded.quickReply;
+    return (
+      <div className="flex w-full items-center justify-between py-4 text-left font-heading font-semibold text-[#6B6D7A] transition-colors">
+        <button
+          onClick={() => toggleSection("quickReply")}
+          className="flex flex-1 items-center gap-2 text-base text-[#6B6D7A] hover:text-foreground transition-colors"
+          type="button"
+        >
+          <Zap size={17} aria-hidden="true" />
+          Quick Reply
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className={[
+              "flex h-7 w-16 items-center rounded-full px-1 transition-colors",
+              autoQuickReply ? "justify-end bg-primary" : "justify-start bg-[#E6E5ED]"
+            ].join(" ")}
+            disabled={disabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAutoQuickReply?.();
+            }}
+            type="button"
+            role="switch"
+            aria-checked={autoQuickReply}
+            aria-label="Quick Reply Auto Enter"
+          >
+            <span className="h-5 w-5 rounded-full bg-white shadow-sm" />
+          </button>
+          <button
+            onClick={() => toggleSection("quickReply")}
+            className="text-muted-foreground transition-colors p-1"
+            type="button"
+          >
+            <ChevronDown
+              size={18}
+              className={`transition-transform duration-200 ${
+                isExpanded ? "transform rotate-0" : "transform -rotate-90"
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   if (disabled) {
     return (
       <aside className="flex h-full min-h-0 w-full flex-col items-center justify-center border-l border-border bg-white p-6 text-center select-none" aria-labelledby="context-heading-empty">
@@ -142,222 +225,264 @@ export function CustomerPanel({
           </p>
         </section>
 
-        <section className="border-b border-border px-6 py-5">
-          <p className="mb-3 flex items-center gap-2 text-base font-semibold text-[#6B6D7A]">
-            <UserPlus size={17} aria-hidden="true" />
-            มอบหมายให้
-          </p>
-          <AssignDropdown
-            disabled={disabled || isSavingAssignment}
-            value={assigneeValue}
-            options={assigneeValue ? [{ id: assigneeValue, label: assigneeValue }] : []}
-            onChange={(value) => onAssigneeChange?.(value)}
-          />
-          <div className="mt-3 grid gap-2">
-            <label className="sr-only" htmlFor="assignee-member-id">
-              Workspace member ID
-            </label>
-            <input
-              id="assignee-member-id"
-              className="h-11 rounded-xl border border-border bg-[#F7F6FB] px-3 text-sm outline-none focus:border-primary"
+        {/* มอบหมายให้ */}
+        <section className="border-b border-border px-6">
+          {renderSectionHeader("มอบหมายให้", <UserPlus size={17} aria-hidden="true" />, "assign")}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded.assign ? "max-h-[300px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+            }`}
+          >
+            <AssignDropdown
               disabled={disabled || isSavingAssignment}
-              onChange={(event) => onAssigneeChange?.(event.target.value)}
-              placeholder="Workspace member ID"
               value={assigneeValue}
+              options={assigneeValue ? [{ id: assigneeValue, label: assigneeValue }] : []}
+              onChange={(value) => onAssigneeChange?.(value)}
+            />
+            <div className="mt-3 grid gap-2">
+              <label className="sr-only" htmlFor="assignee-member-id">
+                Workspace member ID
+              </label>
+              <input
+                id="assignee-member-id"
+                className="h-11 rounded-xl border border-border bg-[#F7F6FB] px-3 text-sm outline-none focus:border-primary"
+                disabled={disabled || isSavingAssignment}
+                onChange={(event) => onAssigneeChange?.(event.target.value)}
+                placeholder="Workspace member ID"
+                value={assigneeValue}
+              />
+              <button
+                type="button"
+                aria-label="Assign conversation"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+                disabled={disabled || isSavingAssignment}
+                onClick={onSaveAssignment}
+              >
+                <UserPlus size={16} aria-hidden="true" />
+                Assign
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* แท็ก */}
+        <section className="border-b border-border px-6">
+          {renderSectionHeader("แท็ก", <Tags size={17} aria-hidden="true" />, "tags")}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded.tags ? "max-h-[400px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+            }`}
+          >
+            <TagList tags={tags.map((tag) => tag.name)} onAdd={() => document.getElementById("new-tag-input")?.focus()} />
+            <div className="mt-3 flex flex-wrap gap-2">
+              {availableTags.length === 0 && !isLoadingOperations ? (
+                <span className="rounded-full border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground">
+                  ยังไม่มีแท็ก
+                </span>
+              ) : null}
+              {availableTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  aria-label={`${tag.isAttached ? "Remove" : "Add"} tag ${tag.name}`}
+                  className={[
+                    "rounded-full border px-3 py-1.5 text-sm font-semibold",
+                    tag.isAttached ? "text-white" : "bg-white text-foreground hover:bg-secondary"
+                  ].join(" ")}
+                  disabled={disabled}
+                  onClick={() => onToggleTag?.(tag)}
+                  style={
+                    tag.isAttached
+                      ? { backgroundColor: tag.color ?? "#64748b", borderColor: tag.color ?? "#64748b" }
+                      : { borderColor: tag.color ?? "#cbd5e1" }
+                  }
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newTagName.trim() && onCreateTag) {
+                  onCreateTag(newTagName.trim());
+                  setNewTagName("");
+                }
+              }}
+              className="mt-4 flex items-center gap-2"
+            >
+              <Input
+                id="new-tag-input"
+                type="text"
+                placeholder="เพิ่มแท็กใหม่ เช่น สนใจ, VIP"
+                value={newTagName}
+                onChange={(e) => setNewTagName(e.target.value)}
+                className="h-9 text-xs"
+                disabled={disabled}
+              />
+              <Button type="submit" size="sm" className="h-9 px-3 shrink-0" disabled={disabled || !newTagName.trim()}>
+                สร้าง
+              </Button>
+            </form>
+          </div>
+        </section>
+
+        {/* ควิกรีพลาย */}
+        <section id="quick-reply-section" className="border-b border-border px-6">
+          {renderQuickReplyHeader()}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded.quickReply ? "max-h-[500px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+            }`}
+          >
+            <QuickReplyList
+              autoEnabled={autoQuickReply}
+              replies={savedReplies}
+              disabled={disabled}
+              hideHeader={true}
+              onToggleAuto={onToggleAutoQuickReply ?? (() => undefined)}
+              onSelect={(id) => onSelectQuickReply?.(id)}
+            />
+          </div>
+        </section>
+
+        {/* โน้ตภายใน */}
+        <section className="border-b border-border px-6">
+          {renderSectionHeader("โน้ตภายใน", <StickyNote size={17} aria-hidden="true" />, "notes")}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded.notes ? "max-h-[500px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+            }`}
+          >
+            <textarea
+              aria-label="Internal note"
+              className="min-h-24 w-full resize-none rounded-xl border border-border bg-[#F7F6FB] px-3 py-3 text-sm outline-none focus:border-primary"
+              disabled={disabled || isSavingNote}
+              maxLength={2000}
+              onChange={(event) => onNoteDraftChange?.(event.target.value)}
+              placeholder="บันทึกเฉพาะทีม ไม่ส่งให้ลูกค้า"
+              value={noteDraft}
             />
             <button
               type="button"
-              aria-label="Assign conversation"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
-              disabled={disabled || isSavingAssignment}
-              onClick={onSaveAssignment}
+              className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
+              disabled={disabled || isSavingNote || !noteDraft.trim()}
+              onClick={onCreateNote}
             >
-              <UserPlus size={16} aria-hidden="true" />
-              Assign
+              บันทึก
             </button>
-          </div>
-        </section>
-
-        <section className="border-b border-border px-6 py-5">
-          <p className="mb-3 flex items-center gap-2 text-base font-semibold text-[#6B6D7A]">
-            <Tags size={17} aria-hidden="true" />
-            แท็ก
-          </p>
-          <TagList tags={tags.map((tag) => tag.name)} onAdd={() => document.getElementById("new-tag-input")?.focus()} />
-          <div className="mt-3 flex flex-wrap gap-2">
-            {availableTags.length === 0 && !isLoadingOperations ? (
-              <span className="rounded-full border border-dashed border-border px-3 py-1.5 text-sm text-muted-foreground">
-                ยังไม่มีแท็ก
-              </span>
-            ) : null}
-            {availableTags.map((tag) => (
-              <button
-                key={tag.id}
-                type="button"
-                aria-label={`${tag.isAttached ? "Remove" : "Add"} tag ${tag.name}`}
-                className={[
-                  "rounded-full border px-3 py-1.5 text-sm font-semibold",
-                  tag.isAttached ? "text-white" : "bg-white text-foreground hover:bg-secondary"
-                ].join(" ")}
-                disabled={disabled}
-                onClick={() => onToggleTag?.(tag)}
-                style={
-                  tag.isAttached
-                    ? { backgroundColor: tag.color ?? "#64748b", borderColor: tag.color ?? "#64748b" }
-                    : { borderColor: tag.color ?? "#cbd5e1" }
-                }
-              >
-                {tag.name}
-              </button>
-            ))}
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (newTagName.trim() && onCreateTag) {
-                onCreateTag(newTagName.trim());
-                setNewTagName("");
-              }
-            }}
-            className="mt-4 flex items-center gap-2"
-          >
-            <Input
-              id="new-tag-input"
-              type="text"
-              placeholder="เพิ่มแท็กใหม่ เช่น สนใจ, VIP"
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              className="h-9 text-xs"
-              disabled={disabled}
-            />
-            <Button type="submit" size="sm" className="h-9 px-3 shrink-0" disabled={disabled || !newTagName.trim()}>
-              สร้าง
-            </Button>
-          </form>
-        </section>
-
-        <section id="quick-reply-section" className="border-b border-border px-6 py-5">
-          <QuickReplyList
-            autoEnabled={autoQuickReply}
-            replies={savedReplies}
-            disabled={disabled}
-            onToggleAuto={onToggleAutoQuickReply ?? (() => undefined)}
-            onSelect={(id) => onSelectQuickReply?.(id)}
-          />
-        </section>
-
-        <section className="border-b border-border px-6 py-5">
-          <p className="mb-3 flex items-center gap-2 text-base font-semibold text-[#6B6D7A]">
-            <StickyNote size={17} aria-hidden="true" />
-            โน้ตภายใน
-          </p>
-          <textarea
-            aria-label="Internal note"
-            className="min-h-24 w-full resize-none rounded-xl border border-border bg-[#F7F6FB] px-3 py-3 text-sm outline-none focus:border-primary"
-            disabled={disabled || isSavingNote}
-            maxLength={2000}
-            onChange={(event) => onNoteDraftChange?.(event.target.value)}
-            placeholder="บันทึกเฉพาะทีม ไม่ส่งให้ลูกค้า"
-            value={noteDraft}
-          />
-          <button
-            type="button"
-            className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
-            disabled={disabled || isSavingNote || !noteDraft.trim()}
-            onClick={onCreateNote}
-          >
-            บันทึก
-          </button>
-          <div className="mt-3 grid gap-2">
-            {notes.length === 0 && !isLoadingOperations ? (
-              <p className="text-sm text-muted-foreground">ยังไม่มีโน้ต</p>
-            ) : null}
-            {notes.map((note) => (
-              <div key={note.id} className="rounded-xl border border-[#F2C94C] bg-[#FFF9E8] px-3 py-3 text-sm">
-                <p className="whitespace-pre-wrap text-[#7A470F]">{note.body}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(note.createdAt)}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="border-b border-border px-6 py-5">
-          <p className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">Contact</p>
-          <dl className="space-y-4 text-sm">
-            <div>
-              <dt className="text-sm text-muted-foreground">ชื่อลูกค้า</dt>
-              <dd className="mt-1">
-                {isEditingName ? (
-                  <div className="grid gap-2">
-                    <Label htmlFor="customer-nickname" className="sr-only">
-                      Customer nickname
-                    </Label>
-                    <Input
-                      id="customer-nickname"
-                      name="customer-nickname"
-                      value={nicknameDraft}
-                      onChange={(event) => onNicknameChange?.(event.target.value)}
-                      autoComplete="off"
-                      maxLength={80}
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={onSaveCustomerName}
-                        disabled={isSavingName || nicknameDraft.trim().length === 0}
-                        aria-label="Save customer name"
-                      >
-                        <Check size={14} aria-hidden="true" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        onClick={onCancelEditingName}
-                        aria-label="Cancel customer name edit"
-                      >
-                        <X size={14} aria-hidden="true" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="break-all font-semibold">{customerName}</span>
-                    {!disabled ? (
-                      <button
-                        type="button"
-                        className="rounded-md border border-border p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        onClick={onStartEditingName}
-                        aria-label="Edit customer name"
-                      >
-                        <Pencil size={14} aria-hidden="true" />
-                      </button>
-                    ) : null}
-                  </div>
-                )}
-              </dd>
+            <div className="mt-3 grid gap-2">
+              {notes.length === 0 && !isLoadingOperations ? (
+                <p className="text-sm text-muted-foreground">ยังไม่มีโน้ต</p>
+              ) : null}
+              {notes.map((note) => (
+                <div key={note.id} className="rounded-xl border border-[#F2C94C] bg-[#FFF9E8] px-3 py-3 text-sm">
+                  <p className="whitespace-pre-wrap text-[#7A470F]">{note.body}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(note.createdAt)}</p>
+                </div>
+              ))}
             </div>
-            <Description label="Customer ID" value={sourceId} mono />
-          </dl>
+          </div>
         </section>
 
-        <section className="border-b border-border px-6 py-5">
-          <p className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">Channel</p>
-          <dl className="space-y-4 text-sm">
-            <Description label="Source" value="LINE OA" />
-            <Description label="LINE source type" value={sourceType} />
-            <Description label="OA channel name" value={lineLabel} />
-            <Description label="OA channel ID" value={lineChannelId} mono />
-          </dl>
+        {/* Contact */}
+        <section className="border-b border-border px-6">
+          {renderSectionHeader("Contact", <Smartphone size={17} aria-hidden="true" />, "contact")}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded.contact ? "max-h-[350px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+            }`}
+          >
+            <dl className="space-y-4 text-sm">
+              <div>
+                <dt className="text-sm text-muted-foreground">ชื่อลูกค้า</dt>
+                <dd className="mt-1">
+                  {isEditingName ? (
+                    <div className="grid gap-2">
+                      <Label htmlFor="customer-nickname" className="sr-only">
+                        Customer nickname
+                      </Label>
+                      <Input
+                        id="customer-nickname"
+                        name="customer-nickname"
+                        value={nicknameDraft}
+                        onChange={(event) => onNicknameChange?.(event.target.value)}
+                        autoComplete="off"
+                        maxLength={80}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={onSaveCustomerName}
+                          disabled={isSavingName || nicknameDraft.trim().length === 0}
+                          aria-label="Save customer name"
+                        >
+                          <Check size={14} aria-hidden="true" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={onCancelEditingName}
+                          aria-label="Cancel customer name edit"
+                        >
+                          <X size={14} aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="break-all font-semibold">{customerName}</span>
+                      {!disabled ? (
+                        <button
+                          type="button"
+                          className="rounded-md border border-border p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          onClick={onStartEditingName}
+                          aria-label="Edit customer name"
+                        >
+                          <Pencil size={14} aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </div>
+                  )}
+                </dd>
+              </div>
+              <Description label="Customer ID" value={sourceId} mono />
+            </dl>
+          </div>
         </section>
 
-        <section className="px-6 py-5">
-          <p className="mb-3 text-sm font-bold uppercase tracking-wider text-muted-foreground">Latest message</p>
-          <dl className="space-y-4 text-sm">
-            <Description label="Message type" value={latestMessageType} />
-            <Description label="Message ID" value={latestMessageId} mono />
-          </dl>
+        {/* Channel */}
+        <section className="border-b border-border px-6">
+          {renderSectionHeader("Channel", <Globe size={17} aria-hidden="true" />, "channel")}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded.channel ? "max-h-[300px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+            }`}
+          >
+            <dl className="space-y-4 text-sm">
+              <Description label="Source" value="LINE OA" />
+              <Description label="LINE source type" value={sourceType} />
+              <Description label="OA channel name" value={lineLabel} />
+              <Description label="OA channel ID" value={lineChannelId} mono />
+            </dl>
+          </div>
+        </section>
+
+        {/* Latest message */}
+        <section className="px-6">
+          {renderSectionHeader("Latest message", <MessageSquare size={17} aria-hidden="true" />, "latestMessage")}
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${
+              expanded.latestMessage ? "max-h-[200px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+            }`}
+          >
+            <dl className="space-y-4 text-sm">
+              <Description label="Message type" value={latestMessageType} />
+              <Description label="Message ID" value={latestMessageId} mono />
+            </dl>
+          </div>
         </section>
       </div>
     </aside>

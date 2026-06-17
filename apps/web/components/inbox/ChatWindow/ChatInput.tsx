@@ -16,11 +16,11 @@ export function ChatInput({ value, channelLabel, disabled = false, onChange, onS
           {[Paperclip, Image, Bolt].map((Icon, index) => (
             <button
               key={index}
-              className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-secondary"
+              className="flex h-11 w-11 sm:h-9 sm:w-9 items-center justify-center rounded-md hover:bg-secondary transition-colors"
               disabled={disabled}
               type="button"
             >
-              <Icon size={16} aria-hidden="true" />
+              <Icon className="h-5 w-5 sm:h-4 sm:w-4" aria-hidden="true" />
             </button>
           ))}
         </div>

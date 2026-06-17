@@ -251,6 +251,16 @@ export class InboxController {
       dto.inProgressAlertMinutes
     );
   }
+
+  @Patch("conversations/:id/mark-as-read")
+  @Roles(Role.ADMIN, Role.AGENT)
+  async markAsRead(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string
+  ): Promise<{ success: boolean }> {
+    await this.inboxService.markAsRead(ctx.tenantId, ctx.sub, id);
+    return { success: true };
+  }
 }
 
 function readPositiveInt(value: string | undefined): number | undefined {

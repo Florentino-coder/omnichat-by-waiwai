@@ -17,6 +17,8 @@ import {
 import { LineWebhookProcessorService } from "./line-webhook-processor.service";
 import { LineWebhookService } from "./line-webhook.service";
 import { StorageModule } from "../storage/storage.module";
+import { LineBroadcastService } from "./line-broadcast.service";
+import { LineBroadcastScheduler } from "./line-broadcast.scheduler";
 
 @Module({
   imports: [AuthModule, PrismaModule, RealtimeModule, StorageModule],
@@ -26,6 +28,8 @@ import { StorageModule } from "../storage/storage.module";
     LineReplyService,
     LineSignatureService,
     LineWebhookService,
+    LineBroadcastService,
+    LineBroadcastScheduler,
     {
       provide: LINE_WEBHOOK_QUEUE,
       inject: [ConfigService],

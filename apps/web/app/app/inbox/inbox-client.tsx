@@ -353,6 +353,17 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       setMessages([]);
       return;
     }
+
+    // Call LINE mark as read API silently if this conversation is unread
+    const conv = conversations.find((c) => c.id === selectedId);
+    if (conv && getReadState(conv, selectedId) === "unread") {
+      apiFetch(`/api/v1/inbox/conversations/${selectedId}/mark-as-read`, {
+        method: "PATCH"
+      }).catch(() => {
+        // Silent fail on frontend
+      });
+    }
+
     void loadMessages(selectedId);
     const refreshTimer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -360,7 +371,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       }
     }, 3000);
     return () => window.clearInterval(refreshTimer);
-  }, [selectedId]);
+  }, [selectedId, conversations]);
 
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
@@ -798,13 +809,16 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     variant: message.direction === "OUTBOUND" ? "outbound" : "inbound",
     body: messageSummary(message),
     authorInitial: message.direction === "INBOUND" ? customerInitial(selectedCustomerName) : undefined,
-    time: `${message.direction === "OUTBOUND" ? "Outbound" : "Inbound"} · ${formatDateTime(message.createdAt)}`,
+    time: message.direction === "OUTBOUND"
+      ? `คุณ → ${selectedCustomerName} · ${formatDateTime(message.createdAt)}`
+      : `${selectedCustomerName} → คุณ · ${formatDateTime(message.createdAt)}`,
     type: message.type,
     mediaUrl: message.mediaUrl,
     mediaMimeType: message.mediaMimeType,
     mediaSize: message.mediaSize,
     mediaR2Key: message.mediaR2Key,
-    mediaFileName: message.mediaFileName
+    mediaFileName: message.mediaFileName,
+    rawPayload: message.rawPayload
   }));
   const selectedTags = (selectedConversation?.tagLinks ?? [])
     .filter((link) => !link.deletedAt && link.tag)
@@ -1221,6 +1235,9 @@ function conversationCardStatus(
 ): ConversationCardProps["status"] {
   if (conversationStatus(conversation) === "RESOLVED") {
     return "RESOLVED";
+  }
+  if (readState === "unread") {
+    return "UNREAD";
   }
   if (conversationStatus(conversation) === "IN_PROGRESS" || readState === "read-not-replied") {
     return "PENDING";

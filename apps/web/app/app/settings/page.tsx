@@ -41,7 +41,7 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="h-full overflow-y-auto bg-[#F7F7FA] p-6 md:p-8">
+    <div className="h-full overflow-y-auto bg-[#F7F7FA] p-4 sm:p-6 md:p-8">
       <section aria-labelledby="settings-heading" className="mx-auto max-w-5xl space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-1.5 border-b border-[#DEDDE6]/60 pb-5">
@@ -60,12 +60,12 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex flex-wrap gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm max-w-lg">
+        <div className="flex overflow-x-auto scrollbar-none flex-nowrap gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm max-w-full sm:max-w-lg">
           {(role === "OWNER" || role === "ADMIN") && (
             <button
               type="button"
               onClick={() => setActiveTab("channels")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "channels"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -79,7 +79,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("replies")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "replies"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -93,7 +93,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("team")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "team"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -107,7 +107,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("profile")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === "profile"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -123,7 +123,7 @@ export default function SettingsPage() {
         <div className="transition-all duration-300">
           {(role === "OWNER" || role === "ADMIN") && (
             <div className={`${activeTab === "channels" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
-              <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+              <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
                 <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
                   <h2 className="font-heading text-lg font-semibold text-[#16182B]">LINE OA Integration</h2>
                   <p className="text-sm text-[#767A8C]">
@@ -137,7 +137,7 @@ export default function SettingsPage() {
 
           {(role === "OWNER" || role === "ADMIN" || role === "AGENT") && (
             <div className={`${activeTab === "replies" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
-              <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+              <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
                 <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
                   <h2 className="font-heading text-lg font-semibold text-[#16182B]">Quick Reply Templates</h2>
                   <p className="text-sm text-[#767A8C]">
@@ -151,7 +151,7 @@ export default function SettingsPage() {
 
           {(role === "OWNER" || role === "ADMIN") && (
             <div className={`${activeTab === "team" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
-              <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                 <div>
                   <h2 className="font-heading text-lg font-semibold text-[#16182B]">Team & Collaborators</h2>
                   <p className="text-sm text-[#767A8C] mt-1">

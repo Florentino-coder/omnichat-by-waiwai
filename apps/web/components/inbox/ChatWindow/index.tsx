@@ -15,6 +15,7 @@ export interface ChatMessageItem {
   mediaSize?: number | null;
   mediaR2Key?: string | null;
   mediaFileName?: string | null;
+  rawPayload?: unknown;
 }
 
 interface ChatWindowProps {
@@ -107,6 +108,7 @@ export function ChatWindow({
               mediaSize={message.mediaSize}
               mediaR2Key={message.mediaR2Key}
               mediaFileName={message.mediaFileName}
+              rawPayload={message.rawPayload}
             />
           ))}
         <div ref={messagesEndRef} />

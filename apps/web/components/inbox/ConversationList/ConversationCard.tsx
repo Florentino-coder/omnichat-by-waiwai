@@ -9,7 +9,7 @@ export interface ConversationCardProps {
   time: string;
   channelTag: string;
   channelStyle?: CSSProperties;
-  status: Extract<ConvStatus, "OPEN" | "PENDING" | "RESOLVED">;
+  status: Extract<ConvStatus, "OPEN" | "PENDING" | "RESOLVED" | "UNREAD">;
   unreadCount?: number;
   isActive?: boolean;
   onSelect?: (id: string) => void;
@@ -73,7 +73,10 @@ export function ConversationCard({
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: config.dot }} />
             {config.text}
             {unreadCount ? (
-              <span className="ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#E49A27] px-1.5 text-xs font-bold text-white">
+              <span 
+                className="ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold text-white transition-colors"
+                style={{ backgroundColor: status === "UNREAD" ? "#EF4444" : "#E49A27" }}
+              >
                 {unreadCount}
               </span>
             ) : null}

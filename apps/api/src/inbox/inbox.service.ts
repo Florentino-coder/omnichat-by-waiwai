@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, Logger } from "@nestjs/common";
 import {
   AuditAction,
   Conversation,
@@ -13,6 +13,7 @@ import {
   WorkspaceMember
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { ConversationStatus } from "./dto/update-conversation-status.dto";
 
 export type InboxConversation = Conversation & {
@@ -76,7 +77,12 @@ export type CreateTagInput = {
 
 @Injectable()
 export class InboxService {
-  constructor(private readonly prisma: PrismaService) { }
+  private readonly logger = new Logger(InboxService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cryptoSecret: CryptoSecretService
+  ) { }
 
   listConversations(
     tenantId: string,
@@ -915,6 +921,98 @@ export class InboxService {
     }
 
     return lineChannel;
+  }
+
+  async markAsRead(
+    tenantId: string,
+    userId: string,
+    conversationId: string
+  ): Promise<void> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId,
+        deletedAt: null
+      },
+      include: {
+        lineChannel: true
+      }
+    });
+
+    if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
+    // Find the latest inbound message with a markAsReadToken
+    const message = await this.prisma.message.findFirst({
+      where: {
+        tenantId,
+        conversationId,
+        direction: "INBOUND",
+        markAsReadToken: { not: null },
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (!message || !message.markAsReadToken) {
+      return; // Nothing to mark as read or already marked
+    }
+
+    const channel = conversation.lineChannel;
+    if (!channel || !channel.isActive) {
+      return; // Channel is not active
+    }
+
+    try {
+      const accessToken = this.cryptoSecret.decrypt(channel.encryptedChannelAccessToken);
+
+      const response = await fetch("https://api.line.me/v2/bot/message/markAsRead", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          chatId: conversation.externalThreadId,
+          markAsReadToken: message.markAsReadToken
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(`LINE markAsRead failed: ${response.status} - ${errorText}`);
+      } else {
+        // Update all messages in this conversation to clear their markAsReadTokens
+        await this.prisma.message.updateMany({
+          where: {
+            tenantId,
+            conversationId,
+            markAsReadToken: { not: null }
+          },
+          data: {
+            markAsReadToken: null
+          }
+        });
+
+        // Log audit log
+        await this.prisma.auditLog.create({
+          data: {
+            tenantId,
+            userId,
+            action: AuditAction.LINE_MARK_AS_READ,
+            targetType: "Conversation",
+            targetId: conversationId,
+            metadata: {
+              externalThreadId: conversation.externalThreadId,
+              messageId: message.id
+            }
+          }
+        });
+      }
+    } catch (err) {
+      this.logger.error("Error executing LINE markAsRead:", err);
+    }
   }
 }
 

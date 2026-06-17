@@ -77,6 +77,13 @@ enum AuditAction {
   LINE_MESSAGE_RECEIVED
   LINE_REPLY_SENT
   LINE_WEBHOOK_FAILED
+  LINE_MARK_AS_READ
+  LINE_BROADCAST_SENT
+  LINE_MULTICAST_SENT
+  LINE_FOLLOW_RECEIVED
+  LINE_UNFOLLOW_RECEIVED
+  LINE_UNSEND_RECEIVED
+  LINE_BROADCAST_SCHEDULED
 }
 
 enum MessageSource {
@@ -136,6 +143,7 @@ model Tenant {
   conversationInternalNotes ConversationInternalNote[]
   savedReplies              SavedReply[]
   files                     File[]
+  broadcastJobs             BroadcastJob[]
 
   @@index([slug])
   @@index([planId])
@@ -229,6 +237,7 @@ model User {
   sentInvitations Invitation[]      @relation("InvitedBy")
   auditLogs       AuditLog[]
   savedReplies    SavedReply[]
+  broadcastJobs   BroadcastJob[]
 
   @@map("users")
 }
@@ -371,6 +380,7 @@ model LineChannel {
   conversations Conversation[]
   messages      Message[]
   savedReplies  SavedReply[]
+  broadcastJobs BroadcastJob[]
 
   @@unique([tenantId, lineChannelId])
   @@index([tenantId])
@@ -509,6 +519,7 @@ model Message {
   source            MessageSource    @default(LINE)
   type              MessageType      @default(TEXT)
   externalMessageId String?
+  markAsReadToken   String?
   text              String?
   rawPayload        Json?
   sentAt            DateTime?
@@ -584,3 +595,40 @@ enum RetentionType {
 // model Plan { ... }
 // model Subscription { ... }
 // model Invoice { ... }
+
+enum BroadcastType {
+  BROADCAST
+  MULTICAST
+}
+
+enum BroadcastStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+model BroadcastJob {
+  id              String          @id @default(uuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  lineChannelId   String
+  lineChannel     LineChannel     @relation(fields: [lineChannelId], references: [id])
+  createdByUserId String
+  createdBy       User            @relation(fields: [createdByUserId], references: [id])
+  type            BroadcastType
+  status          BroadcastStatus @default(PENDING)
+  recipientCount  Int?
+  messages        Json
+  scheduledAt     DateTime?       // Null means send immediately
+  sentAt          DateTime?
+  errorMessage    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  @@index([tenantId])
+  @@index([lineChannelId])
+  @@index([status, scheduledAt])
+  @@map("broadcast_jobs")
+}
