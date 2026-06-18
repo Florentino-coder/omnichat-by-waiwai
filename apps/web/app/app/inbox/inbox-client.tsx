@@ -373,22 +373,49 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
 
     const abortController = new AbortController();
-    void streamTenantEvents(currentUser.tenantId, abortController.signal, (event) => {
-      if (!isMountedRef.current) {
+    let reconnectTimeoutId: number | undefined;
+
+    function startStream() {
+      if (abortController.signal.aborted) {
         return;
       }
-      if (event.type === "message.created" || event.type === "message.deleted" || event.type === "conversation.updated") {
-        void loadConversations({ quiet: true });
-        const eventConversationId = event.data?.conversationId;
-        const selectedConversationId = selectedIdRef.current;
-        if (eventConversationId && selectedConversationId === eventConversationId) {
-          void loadMessages(selectedConversationId, { quiet: true });
+
+      void streamTenantEvents(currentUser.tenantId!, abortController.signal, (event) => {
+        if (!isMountedRef.current) {
+          return;
         }
-      }
-    });
+        if (
+          event.type === "message.created" ||
+          event.type === "message.deleted" ||
+          event.type === "conversation.updated"
+        ) {
+          void loadConversations({ quiet: true });
+          const eventConversationId = event.data?.conversationId;
+          const selectedConversationId = selectedIdRef.current;
+          if (eventConversationId && selectedConversationId === eventConversationId) {
+            void loadMessages(selectedConversationId, { quiet: true });
+          }
+        }
+      })
+        .then(() => {
+          if (!abortController.signal.aborted) {
+            reconnectTimeoutId = window.setTimeout(startStream, 5000);
+          }
+        })
+        .catch(() => {
+          if (!abortController.signal.aborted) {
+            reconnectTimeoutId = window.setTimeout(startStream, 5000);
+          }
+        });
+    }
+
+    startStream();
 
     return () => {
       abortController.abort();
+      if (reconnectTimeoutId) {
+        window.clearTimeout(reconnectTimeoutId);
+      }
     };
   }, [currentUser?.tenantId, loadConversations]);
 
@@ -1260,7 +1287,8 @@ async function streamTenantEvents(
 ): Promise<void> {
   try {
     const token = window.localStorage.getItem("omnichat.accessToken");
-    const response = await fetch(`/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`, {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+    const response = await fetch(`${apiBaseUrl}/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       signal
     });

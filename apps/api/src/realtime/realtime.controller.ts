@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, MessageEvent, Param, Sse, UseGuards } from "@nestjs/common";
+import { Controller, ForbiddenException, Header, MessageEvent, Param, Sse, UseGuards } from "@nestjs/common";
 import { Role } from "@prisma/client";
 import { Observable, map } from "rxjs";
 import { Roles } from "../auth/decorators/roles.decorator";
@@ -15,6 +15,8 @@ export class RealtimeController {
   constructor(private readonly realtimeService: RealtimeService) {}
 
   @Sse("tenant/:tenantId")
+  @Header("X-Accel-Buffering", "no")
+  @Header("Cache-Control", "no-cache")
   @Roles(Role.ADMIN, Role.AGENT, Role.QC)
   streamTenantEvents(
     @Param("tenantId") tenantId: string,

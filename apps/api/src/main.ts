@@ -7,6 +7,11 @@ import { ResponseEnvelopeInterceptor } from "./common/http/response-envelope.int
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  app.enableCors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+  });
   app.setGlobalPrefix("api/v1");
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
