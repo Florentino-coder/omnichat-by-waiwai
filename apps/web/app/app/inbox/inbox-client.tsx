@@ -1192,8 +1192,8 @@ function OperationsSummary({
     <div className="border-b border-border px-3 py-2">
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         {unreadCount > 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-            <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
             {unreadCount} ยังไม่ได้อ่าน
           </span>
         ) : null}

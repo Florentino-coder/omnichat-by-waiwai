@@ -71,7 +71,7 @@ export const messages = {
     logout: "ออกจากระบบ",
     filterAll: "ทั้งหมด",
     filterOpen: "เปิด",
-    filterWaiting: "รอการตอบกลับ",
+    filterWaiting: "รอตอบ",
     filterClosed: "ปิดแล้ว",
     unread: "ยังไม่ได้อ่าน",
     readNoReply: "อ่านแล้วยังไม่ได้ตอบ",
