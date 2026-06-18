@@ -990,14 +990,13 @@ export class InboxService {
     try {
       const accessToken = this.cryptoSecret.decrypt(channel.encryptedChannelAccessToken);
 
-      const response = await fetch("https://api.line.me/v2/bot/message/markAsRead", {
+      const response = await fetch("https://api.line.me/v2/bot/chat/markAsRead", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          chatId: conversation.externalThreadId,
           markAsReadToken: message.markAsReadToken
         })
       });

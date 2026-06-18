@@ -31,9 +31,9 @@ type LineWebhookEvent = {
     packageId?: string;
     stickerId?: string;
     stickerResourceType?: string;
+    markAsReadToken?: string;
   };
   timestamp?: number;
-  markAsReadToken?: string;
 };
 
 type LineProfile = {
@@ -227,13 +227,13 @@ export class LineWebhookService {
           type: messageType,
           externalMessageId: lineMessage.id,
           text: messageType === MessageType.TEXT ? lineMessage.text : null,
-          markAsReadToken: event.markAsReadToken,
+          markAsReadToken: event.message?.markAsReadToken,
           rawPayload: lineProfile ? { ...event, lineProfile } : event,
           sentAt: eventTime,
           ...mediaData
         },
         update: {
-          markAsReadToken: event.markAsReadToken,
+          markAsReadToken: event.message?.markAsReadToken,
           rawPayload: lineProfile ? { ...event, lineProfile } : event,
           ...mediaData
         }

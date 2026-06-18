@@ -270,14 +270,13 @@ describe("InboxService", () => {
 
     await createService(prisma).markAsRead("tenant-1", "user-1", "conversation-1");
 
-    expect(fetchMock).toHaveBeenCalledWith("https://api.line.me/v2/bot/message/markAsRead", {
+    expect(fetchMock).toHaveBeenCalledWith("https://api.line.me/v2/bot/chat/markAsRead", {
       method: "POST",
       headers: {
         Authorization: "Bearer line-token",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        chatId: "U123",
         markAsReadToken: "read-token"
       })
     });
