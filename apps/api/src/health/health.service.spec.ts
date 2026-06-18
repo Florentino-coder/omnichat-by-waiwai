@@ -1,5 +1,6 @@
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
+import { RedisService } from "../redis/redis.service";
 import { HealthService } from "./health.service";
 
 type MockPrisma = {
@@ -14,9 +15,16 @@ const createConfig = (redisUrl?: string): ConfigService =>
 
 const createService = (
   prisma: MockPrisma,
-  redisUrl?: string
+  redisUrl?: string,
+  redis: { client: { ping: jest.Mock<Promise<string>, []> } } = {
+    client: { ping: jest.fn<Promise<string>, []>().mockResolvedValue("PONG") }
+  }
 ): HealthService =>
-  new HealthService(prisma as unknown as PrismaService, createConfig(redisUrl));
+  new HealthService(
+    prisma as unknown as PrismaService,
+    createConfig(redisUrl),
+    redis as unknown as RedisService
+  );
 
 describe("HealthService", () => {
   it("returns degraded when Redis is not configured", async () => {
@@ -46,6 +54,43 @@ describe("HealthService", () => {
       services: {
         database: "down",
         redis: "not_configured",
+        r2: "not_configured"
+      }
+    });
+  });
+
+  it("returns ok when Redis ping succeeds", async () => {
+    const prisma: MockPrisma = {
+      $queryRaw: jest.fn<Promise<unknown>, [TemplateStringsArray]>().mockResolvedValue(1)
+    };
+    const redis = {
+      client: { ping: jest.fn<Promise<string>, []>().mockResolvedValue("PONG") }
+    };
+
+    await expect(createService(prisma, "rediss://redis.example.test:6379", redis).check()).resolves.toMatchObject({
+      status: "ok",
+      services: {
+        database: "up",
+        redis: "up",
+        r2: "not_configured"
+      }
+    });
+    expect(redis.client.ping).toHaveBeenCalled();
+  });
+
+  it("returns degraded when Redis ping fails", async () => {
+    const prisma: MockPrisma = {
+      $queryRaw: jest.fn<Promise<unknown>, [TemplateStringsArray]>().mockResolvedValue(1)
+    };
+    const redis = {
+      client: { ping: jest.fn<Promise<string>, []>().mockRejectedValue(new Error("wrong redis")) }
+    };
+
+    await expect(createService(prisma, "rediss://redis.example.test:6379", redis).check()).resolves.toMatchObject({
+      status: "degraded",
+      services: {
+        database: "up",
+        redis: "down",
         r2: "not_configured"
       }
     });

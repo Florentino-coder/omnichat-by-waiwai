@@ -3,13 +3,15 @@ import { ConfigService } from "@nestjs/config";
 import { Socket } from "node:net";
 import * as os from "node:os";
 import { PrismaService } from "../prisma/prisma.service";
+import { RedisService } from "../redis/redis.service";
 import { HealthCheckResponse, HealthServiceStatus } from "./types/health.types";
 
 @Injectable()
 export class HealthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly redisService: RedisService
   ) {}
 
   async check(): Promise<HealthCheckResponse> {
@@ -60,9 +62,7 @@ export class HealthService {
     }
 
     try {
-      const url = new URL(redisUrl);
-      const port = Number(url.port || 6379);
-      await this.tcpCheck(url.hostname, port);
+      await this.redisService.client.ping();
       return "up";
     } catch {
       return "down";

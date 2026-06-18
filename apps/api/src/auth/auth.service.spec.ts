@@ -318,6 +318,33 @@ describe("AuthService", () => {
     });
   });
 
+  it("revokes the DB refresh token when Redis session storage fails during login", async () => {
+    const prisma = createPrisma();
+    const refreshSessions = createRefreshSessions();
+    const redisError = new Error("Redis unavailable");
+    prisma.user.findFirst.mockResolvedValue(await createLoginUser());
+    prisma.refreshToken.create.mockResolvedValue({ id: "token-1" });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+    refreshSessions.store.mockRejectedValue(redisError);
+
+    await expect(
+      createService(prisma, refreshSessions).login("owner@omnichat.local", "ChangeMe123!")
+    ).rejects.toThrow("Redis unavailable");
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: {
+        tokenHash: expect.any(String),
+        revokedAt: null
+      },
+      data: {
+        revokedAt: expect.any(Date)
+      }
+    });
+    expect(prisma.auditLog.create).not.toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: AuditAction.LOGIN })
+    });
+  });
+
   it("rejects invalid passwords", async () => {
     const prisma = createPrisma();
     prisma.user.findFirst.mockResolvedValue(await createLoginUser());

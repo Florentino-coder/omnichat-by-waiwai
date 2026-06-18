@@ -4,6 +4,7 @@ import Redis from "ioredis";
 import type { RedisOptions } from "ioredis";
 
 export interface RedisClient {
+  ping(): Promise<string>;
   set(key: string, value: string, mode: "EX", ttlSeconds: number): Promise<unknown>;
   get(key: string): Promise<string | null>;
   del(key: string | string[]): Promise<unknown>;
@@ -28,7 +29,7 @@ const REDIS_ERROR_LOG_THROTTLE_MS = 60000;
 
 export const createRedisOptions = (): RedisOptions => ({
   connectTimeout: 5000,
-  enableOfflineQueue: false,
+  enableOfflineQueue: true,
   maxRetriesPerRequest: 3,
   retryStrategy: (times) => Math.min(times * 1000, 30000)
 });

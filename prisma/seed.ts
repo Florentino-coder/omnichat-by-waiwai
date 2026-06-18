@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { AuditAction, PrismaClient, Role } from "@prisma/client";
+import { pathToFileURL } from "node:url";
 
 const prisma = new PrismaClient();
 
@@ -117,15 +118,7 @@ async function main(): Promise<void> {
 
   const owner = await prisma.user.upsert({
     where: { email: seedOwner.email },
-    update: {
-      displayName: seedOwner.displayName,
-      username: "owner",
-      passwordHash,
-      emailVerified: true,
-      emailVerifiedAt: new Date(),
-      isActive: true,
-      deletedAt: null,
-    },
+    update: buildExistingSeedOwnerUpdate(),
     create: {
       email: seedOwner.email,
       username: "owner",
@@ -184,11 +177,31 @@ async function main(): Promise<void> {
   }
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+export function buildExistingSeedOwnerUpdate(): {
+  displayName: string;
+  username: string;
+  emailVerified: boolean;
+  emailVerifiedAt: Date;
+  isActive: boolean;
+  deletedAt: null;
+} {
+  return {
+    displayName: seedOwner.displayName,
+    username: "owner",
+    emailVerified: true,
+    emailVerifiedAt: new Date(),
+    isActive: true,
+    deletedAt: null,
+  };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

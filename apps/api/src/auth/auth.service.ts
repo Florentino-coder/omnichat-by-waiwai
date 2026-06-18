@@ -403,13 +403,18 @@ export class AuthService {
         expiresAt
       }
     });
-    await this.refreshSessionService.store(tokenHash, {
-      userId: user.id,
-      tenantId: membership.tenantId,
-      workspaceId: membership.workspaceId,
-      role: membership.role,
-      expiresAt: expiresAt.toISOString()
-    });
+    try {
+      await this.refreshSessionService.store(tokenHash, {
+        userId: user.id,
+        tenantId: membership.tenantId,
+        workspaceId: membership.workspaceId,
+        role: membership.role,
+        expiresAt: expiresAt.toISOString()
+      });
+    } catch (error) {
+      await this.revokeRefreshToken(tokenHash);
+      throw error;
+    }
 
     return {
       accessToken: await this.jwtService.signAsync(payload, {
@@ -439,11 +444,16 @@ export class AuthService {
         expiresAt
       }
     });
-    await this.refreshSessionService.store(tokenHash, {
-      userId: user.id,
-      isSuperOwner: true,
-      expiresAt: expiresAt.toISOString()
-    } as any);
+    try {
+      await this.refreshSessionService.store(tokenHash, {
+        userId: user.id,
+        isSuperOwner: true,
+        expiresAt: expiresAt.toISOString()
+      });
+    } catch (error) {
+      await this.revokeRefreshToken(tokenHash);
+      throw error;
+    }
 
     return {
       accessToken: await this.jwtService.signAsync(payload, {

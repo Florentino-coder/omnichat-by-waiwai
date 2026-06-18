@@ -5,6 +5,7 @@ import { RedisModule } from "./redis.module";
 import { createRedisOptions, REDIS_FACTORY, RedisService } from "./redis.service";
 
 const createRedisClient = () => ({
+  ping: jest.fn(),
   set: jest.fn(),
   get: jest.fn(),
   del: jest.fn(),
@@ -24,7 +25,7 @@ describe("RedisService", () => {
     const options = createRedisOptions();
 
     expect(options.connectTimeout).toBe(5000);
-    expect(options.enableOfflineQueue).toBe(false);
+    expect(options.enableOfflineQueue).toBe(true);
     expect(options.maxRetriesPerRequest).toBe(3);
     expect(options.retryStrategy?.(1)).toBe(1000);
     expect(options.retryStrategy?.(60)).toBe(30000);
