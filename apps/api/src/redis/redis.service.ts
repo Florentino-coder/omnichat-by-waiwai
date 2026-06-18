@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleDestroy } from "@nestjs/common";
+import { Inject, Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import Redis from "ioredis";
 
@@ -12,7 +12,9 @@ export interface RedisClient {
   publish(channel: string, message: string): Promise<unknown>;
   subscribe(channel: string): Promise<unknown>;
   unsubscribe(channel: string): Promise<unknown>;
+  on(event: "error", handler: (error: Error) => void): void;
   on(event: "message", handler: (channel: string, message: string) => void): void;
+  off(event: "error", handler: (error: Error) => void): void;
   off(event: "message", handler: (channel: string, message: string) => void): void;
   duplicate?(): RedisClient;
   quit?(): Promise<unknown>;
@@ -26,6 +28,7 @@ export const defaultRedisFactory: RedisFactory = (url) => new Redis(url) as unkn
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
   readonly client: RedisClient;
   private readonly subscribers: RedisClient[] = [];
 
@@ -34,6 +37,7 @@ export class RedisService implements OnModuleDestroy {
     @Inject(REDIS_FACTORY) factory: RedisFactory = defaultRedisFactory
   ) {
     this.client = factory(configService.get<string>("REDIS_URL") ?? "redis://localhost:6379");
+    this.attachErrorHandler(this.client, "primary");
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -44,6 +48,13 @@ export class RedisService implements OnModuleDestroy {
   createSubscriber(): RedisClient {
     const subscriber = this.client.duplicate?.() ?? this.client;
     this.subscribers.push(subscriber);
+    this.attachErrorHandler(subscriber, "subscriber");
     return subscriber;
+  }
+
+  private attachErrorHandler(client: RedisClient, label: string): void {
+    client.on("error", (error) => {
+      this.logger.warn(`Redis ${label} connection error: ${error.message}`);
+    });
   }
 }

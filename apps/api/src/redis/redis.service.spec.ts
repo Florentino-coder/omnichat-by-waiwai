@@ -36,6 +36,36 @@ describe("RedisService", () => {
     expect(createdUrls).toEqual(["redis://redis.example.test:6379"]);
   });
 
+  it("attaches error handlers to Redis clients", () => {
+    const config = {
+      get: (key: string): string | undefined =>
+        key === "REDIS_URL" ? "redis://redis.example.test:6379" : undefined
+    };
+    const client = createRedisClient();
+
+    const service = new RedisService(config as ConfigService, () => client);
+
+    expect(service.client).toBe(client);
+    expect(client.on).toHaveBeenCalledWith("error", expect.any(Function));
+  });
+
+  it("attaches error handlers to subscriber Redis clients", () => {
+    const config = {
+      get: (key: string): string | undefined =>
+        key === "REDIS_URL" ? "redis://redis.example.test:6379" : undefined
+    };
+    const subscriber = createRedisClient();
+    const client = {
+      ...createRedisClient(),
+      duplicate: jest.fn().mockReturnValue(subscriber)
+    };
+    const service = new RedisService(config as ConfigService, () => client);
+
+    service.createSubscriber();
+
+    expect(subscriber.on).toHaveBeenCalledWith("error", expect.any(Function));
+  });
+
   it("can be created by Nest dependency injection", async () => {
     const moduleBuilder = Test.createTestingModule({
       imports: [
