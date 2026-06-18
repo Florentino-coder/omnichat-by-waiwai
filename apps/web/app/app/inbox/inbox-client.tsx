@@ -30,6 +30,7 @@ export type ConversationPreviewMessage = {
 
 export type InboxConversation = {
   id: string;
+  workspaceId?: string;
   externalThreadId: string;
   displayName?: string | null;
   nickname?: string | null;
@@ -39,6 +40,7 @@ export type InboxConversation = {
   tagLinks?: ConversationTagLink[];
   inProgressStartedAt?: string | null;
   lastMessageAt?: string | null;
+  unreadInboundMessageCount?: number;
   lineChannel: {
     id: string;
     name: string;
@@ -46,6 +48,27 @@ export type InboxConversation = {
     lineChannelId: string;
   };
   messages: ConversationPreviewMessage[];
+};
+
+type AuthUser = {
+  displayName?: string | null;
+  tenantId?: string | null;
+  workspaceId?: string | null;
+};
+
+type WorkspaceMember = {
+  id: string;
+  user?: {
+    displayName?: string | null;
+    email?: string | null;
+  } | null;
+};
+
+type TenantRealtimeEvent = {
+  type: string;
+  data?: {
+    conversationId?: string;
+  };
 };
 
 type ConversationTag = {
@@ -164,12 +187,16 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
   const [mobileTab, setMobileTab] = useState<MobileInboxTab>("chats");
   const [now, setNow] = useState(() => Date.now());
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const isMountedRef = useRef(false);
   const hasInitialConversationsRef = useRef(initialConversations.length > 0);
   const conversationsRef = useRef<InboxConversation[]>(initialConversations);
   const selectedIdRef = useRef<string | null>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
+  const markingReadRef = useRef(new Set<string>());
   const isLoadingOperations = false;
 
   const selectedConversation = useMemo(
@@ -301,6 +328,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
   useEffect(() => {
     isMountedRef.current = true;
+    setCurrentUser(readCurrentUser());
     if (hasInitialConversationsRef.current) {
       setIsLoadingConversations(false);
       setHasMoreConversations(initialConversations.length === CONVERSATION_PAGE_SIZE);
@@ -311,7 +339,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       if (document.visibilityState === "visible") {
         void loadConversations({ quiet: true });
       }
-    }, 5000);
+    }, 60000);
     const clockTimer = window.setInterval(() => {
       setNow(Date.now());
     }, 1000);
@@ -340,13 +368,59 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }, [initialConversations.length, loadConversations]);
 
   useEffect(() => {
-    if (selectedId) {
-      const latestMessage = conversations.find((conversation) => conversation.id === selectedId)?.messages?.[0];
-      if (latestMessage) {
-        markRead(selectedId, latestMessage.id);
+    if (!currentUser?.tenantId) {
+      return;
+    }
+
+    const abortController = new AbortController();
+    void streamTenantEvents(currentUser.tenantId, abortController.signal, (event) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+      if (event.type === "message.created" || event.type === "message.deleted" || event.type === "conversation.updated") {
+        void loadConversations({ quiet: true });
+        const eventConversationId = event.data?.conversationId;
+        const selectedConversationId = selectedIdRef.current;
+        if (eventConversationId && selectedConversationId === eventConversationId) {
+          void loadMessages(selectedConversationId, { quiet: true });
+        }
+      }
+    });
+
+    return () => {
+      abortController.abort();
+    };
+  }, [currentUser?.tenantId, loadConversations]);
+
+  useEffect(() => {
+    const workspaceId = selectedConversation?.workspaceId;
+    if (!workspaceId) {
+      setWorkspaceMembers([]);
+      return;
+    }
+
+    let isCurrent = true;
+    async function loadMembers() {
+      try {
+        const data = await apiFetch<WorkspaceMember[]>(`/api/v1/workspaces/${workspaceId}/members`);
+        if (isCurrent) {
+          setWorkspaceMembers(data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load workspace members", err);
       }
     }
-  }, [conversations, selectedId]);
+    void loadMembers();
+    return () => {
+      isCurrent = false;
+    };
+  }, [selectedConversation?.workspaceId]);
+
+  useEffect(() => {
+    if (selectedId && selectedConversation && hasUnreadInboundMessages(selectedConversation)) {
+      void markLineConversationAsRead(selectedId);
+    }
+  }, [selectedConversation?.unreadInboundMessageCount, selectedId]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -354,28 +428,26 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       return;
     }
 
-    // Call LINE mark as read API silently if this conversation is unread
-    const conv = conversations.find((c) => c.id === selectedId);
-    if (conv && getReadState(conv, selectedId) === "unread") {
-      apiFetch(`/api/v1/inbox/conversations/${selectedId}/mark-as-read`, {
-        method: "PATCH"
-      }).catch(() => {
-        // Silent fail on frontend
-      });
-    }
-
+    prevMessageCountRef.current = 0;
     void loadMessages(selectedId);
     const refreshTimer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         void loadMessages(selectedId, { quiet: true });
       }
-    }, 3000);
+    }, 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [selectedId, conversations]);
+  }, [selectedId]);
 
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
-      messagesEndRef.current?.scrollIntoView?.({ behavior: "auto" });
+      window.requestAnimationFrame(() => {
+        const scrollContainer = messagesScrollRef.current;
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          return;
+        }
+        messagesEndRef.current?.scrollIntoView?.({ behavior: "auto", block: "end" });
+      });
     }
     prevMessageCountRef.current = messages.length;
   }, [messages]);
@@ -468,6 +540,29 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       if (isMountedRef.current && selectedIdRef.current === conversationId && !options?.quiet) {
         setIsLoadingMessages(false);
       }
+    }
+  }
+
+  async function markLineConversationAsRead(conversationId: string): Promise<void> {
+    if (markingReadRef.current.has(conversationId)) {
+      return;
+    }
+    markingReadRef.current.add(conversationId);
+    try {
+      await apiFetch(`/api/v1/inbox/conversations/${conversationId}/mark-as-read`, {
+        method: "PATCH"
+      });
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === conversationId
+            ? { ...conversation, unreadInboundMessageCount: 0 }
+            : conversation
+        )
+      );
+    } catch {
+      // LINE read receipt is best-effort; keep inbox usable if LINE rejects token.
+    } finally {
+      markingReadRef.current.delete(conversationId);
     }
   }
 
@@ -766,11 +861,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }
 
   function handleSelectConversation(id: string) {
-    const conversation = conversations.find((item) => item.id === id);
-    const latestMessage = conversation?.messages?.[0];
-    if (latestMessage) {
-      markRead(id, latestMessage.id);
-    }
     selectedIdRef.current = id;
     setSelectedId(id);
     setMobileTab("thread");
@@ -810,8 +900,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     body: messageSummary(message),
     authorInitial: message.direction === "INBOUND" ? customerInitial(selectedCustomerName) : undefined,
     time: message.direction === "OUTBOUND"
-      ? `คุณ → ${selectedCustomerName} · ${formatDateTime(message.createdAt)}`
-      : `${selectedCustomerName} → คุณ · ${formatDateTime(message.createdAt)}`,
+      ? `${currentUser?.displayName ?? "คุณ"} · ${formatDateTime(message.createdAt)}`
+      : `${selectedCustomerName} · ${formatDateTime(message.createdAt)}`,
     type: message.type,
     mediaUrl: message.mediaUrl,
     mediaMimeType: message.mediaMimeType,
@@ -826,6 +916,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const availableTags = tags.map((tag) => ({
     ...tag,
     isAttached: selectedTagIds.has(tag.id)
+  }));
+  const assigneeOptions = workspaceMembers.map((m) => ({
+    id: m.id,
+    label: m.user?.displayName || m.user?.email || m.id
   }));
   const customerPanel = (
     <CustomerPanel
@@ -856,8 +950,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       onSaveCustomerName={saveCustomerName}
       isSavingName={isSavingName}
       assigneeValue={assigneeDraft}
+      assigneeOptions={assigneeOptions}
       onAssigneeChange={setAssigneeDraft}
-      onSaveAssignment={() => void saveAssignment()}
+      onSaveAssignment={(val) => void saveAssignment(val)}
       isSavingAssignment={isSavingAssignment}
       tags={selectedTags}
       availableTags={availableTags}
@@ -972,7 +1067,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                     lineChannelName={selectedConversation?.lineChannel.name ?? null}
                     onSent={async () => {
                       if (selectedConversation) {
-                        await loadMessages(selectedConversation.id, { quiet: true });
+                        await Promise.all([
+                          loadMessages(selectedConversation.id, { quiet: true }),
+                          loadConversations({ quiet: true })
+                        ]);
                       }
                     }}
                   />
@@ -989,6 +1087,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                 isLoading={isLoadingMessages}
                 loadingText={t.loadingMessages}
                 messages={chatMessages}
+                messagesScrollRef={messagesScrollRef}
                 messagesEndRef={messagesEndRef}
                 onOpenCustomer={() => setMobileTab("customers")}
                 onQuickReply={() => {
@@ -1130,31 +1229,89 @@ function OperationsSummary({
   );
 }
 
-function markRead(id: string, messageId: string) {
-  try {
-    sessionStorage.setItem(`omni_read_${id}`, messageId);
-  } catch {
-    // ignore read tracking failures
-  }
-}
-
-function isRead(id: string, messageId: string): boolean {
-  try {
-    return sessionStorage.getItem(`omni_read_${id}`) === messageId;
-  } catch {
-    return false;
-  }
-}
-
 function getReadState(conversation: InboxConversation, selectedId: string | null): ConvReadState {
   const latestMessage = conversation.messages?.[0];
   if (!latestMessage || latestMessage.direction === "OUTBOUND") {
     return "normal";
   }
-  if (conversation.id === selectedId || isRead(conversation.id, latestMessage.id)) {
+  if (conversation.id === selectedId) {
     return "read-not-replied";
   }
-  return "unread";
+  return hasUnreadInboundMessages(conversation) ? "unread" : "read-not-replied";
+}
+
+function hasUnreadInboundMessages(conversation: InboxConversation): boolean {
+  return (conversation.unreadInboundMessageCount ?? 0) > 0;
+}
+
+function readCurrentUser(): AuthUser | null {
+  try {
+    const stored = window.localStorage.getItem("omnichat.user");
+    return stored ? (JSON.parse(stored) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function streamTenantEvents(
+  tenantId: string,
+  signal: AbortSignal,
+  onEvent: (event: TenantRealtimeEvent) => void
+): Promise<void> {
+  try {
+    const token = window.localStorage.getItem("omnichat.accessToken");
+    const response = await fetch(`/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      signal
+    });
+    const reader = response.body?.getReader();
+    if (!response.ok || !reader) {
+      return;
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (!signal.aborted) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      buffer += decoder.decode(value, { stream: true });
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary >= 0) {
+        const block = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const event = parseSseBlock(block);
+        if (event) {
+          onEvent(event);
+        }
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+    reader.releaseLock();
+  } catch {
+    if (!signal.aborted) {
+      // Polling remains as fallback when the realtime stream is unavailable.
+    }
+  }
+}
+
+function parseSseBlock(block: string): TenantRealtimeEvent | null {
+  const lines = block.split(/\r?\n/);
+  const eventType = lines.find((line) => line.startsWith("event:"))?.slice("event:".length).trim();
+  const dataLine = lines.find((line) => line.startsWith("data:"))?.slice("data:".length).trim();
+  if (!eventType) {
+    return null;
+  }
+  if (!dataLine) {
+    return { type: eventType };
+  }
+  try {
+    const data = JSON.parse(dataLine) as TenantRealtimeEvent["data"];
+    return { type: eventType, data };
+  } catch {
+    return { type: eventType };
+  }
 }
 
 function readMessage(error: unknown, fallback: string): string {

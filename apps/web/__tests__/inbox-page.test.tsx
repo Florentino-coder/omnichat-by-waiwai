@@ -7,6 +7,46 @@ jest.mock("../app/lib/language-context", () => ({
   LanguageProvider: ({ children }: any) => <>{children}</>
 }));
 
+jest.mock("../app/lib/api-client", () => {
+  const original = jest.requireActual("../app/lib/api-client");
+  return {
+    ...original,
+    apiFetch: jest.fn().mockImplementation(async (path, options) => {
+      const fetchMock = globalThis.fetch as any;
+      if (jest.isMockFunction(fetchMock)) {
+        const impl = fetchMock.getMockImplementation();
+        if (impl) {
+          return original.apiFetch(path, options);
+        }
+      }
+      if (
+        path.includes("/saved-replies") ||
+        path.includes("/tags") ||
+        path.includes("/notes") ||
+        path.includes("/members")
+      ) {
+        return [];
+      }
+      return original.apiFetch(path, options);
+    })
+  };
+});
+
+function createSseReader(chunks: string[]) {
+  let index = 0;
+  return {
+    read: jest.fn(async () => {
+      if (index >= chunks.length) {
+        return { done: true, value: undefined };
+      }
+      const value = Uint8Array.from(chunks[index].split("").map((char) => char.charCodeAt(0)));
+      index += 1;
+      return { done: false, value };
+    }),
+    releaseLock: jest.fn()
+  };
+}
+
 describe("InboxPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -89,12 +129,12 @@ describe("InboxPage", () => {
     fireEvent.click(openBtn);
 
     expect((await screen.findAllByText("Somchai LINE")).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("สวัสดีครับ")).toBeInTheDocument();
+    expect(screen.getAllByText("สวัสดีครับ").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("Messages from LINE will render here after API binding.")).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/v1/inbox/conversations?limit=10&offset=0", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations?limit=10&offset=0", {
       headers: { Authorization: "Bearer access-token" }
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/v1/inbox/conversations/conversation-1/messages", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-1/messages", {
       headers: { Authorization: "Bearer access-token" }
     });
     expect(screen.getByText("ข้อมูลลูกค้า")).toBeInTheDocument();
@@ -171,14 +211,16 @@ describe("InboxPage", () => {
     expect(await screen.findByText("ยังไม่มีแชท LINE")).toBeInTheDocument();
 
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(60000);
     });
 
     const openBtn = await screen.findByRole("button", { name: "Open conversation U456" });
     fireEvent.click(openBtn);
 
     expect((await screen.findAllByText("U456")).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("new LINE message")).toHaveLength(2);
+    await waitFor(() => {
+      expect(screen.getAllByText("new LINE message")).toHaveLength(2);
+    });
   });
 
   it("refreshes the selected message thread without a browser reload", async () => {
@@ -254,10 +296,149 @@ describe("InboxPage", () => {
     expect(await screen.findByText("first message")).toBeInTheDocument();
 
     await act(async () => {
-      jest.advanceTimersByTime(3000);
+      jest.advanceTimersByTime(30000);
     });
 
     expect(await screen.findByText("second live message")).toBeInTheDocument();
+  });
+
+  it("marks an unread LINE conversation as read when opened", async () => {
+    const fetchMock = jest.fn((url) => {
+      if (url.includes("/api/v1/inbox/conversations?")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-unread",
+                externalThreadId: "U-unread",
+                displayName: "Unread Customer",
+                status: "OPEN",
+                unreadInboundMessageCount: 1,
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: [
+                  {
+                    id: "message-preview-unread",
+                    direction: "INBOUND",
+                    text: "needs read receipt",
+                    createdAt: "2026-06-14T01:00:00.000Z"
+                  }
+                ]
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "message-unread",
+                direction: "INBOUND",
+                text: "needs read receipt",
+                createdAt: "2026-06-14T01:00:00.000Z"
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation Unread Customer" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-unread/mark-as-read", {
+        headers: { Authorization: "Bearer access-token" },
+        method: "PATCH"
+      });
+    });
+  });
+
+  it("opens the tenant SSE stream and refreshes the active thread on realtime events", async () => {
+    window.localStorage.setItem("omnichat.user", JSON.stringify({ tenantId: "tenant-1", workspaceId: "workspace-1" }));
+    const sseReader = createSseReader([
+      'event: message.created\ndata: {"conversationId":"conversation-1"}\n\n'
+    ]);
+    const fetchMock = jest.fn((url) => {
+      if (url.includes("/api/v1/sse/tenant/tenant-1")) {
+        return Promise.resolve({
+          ok: true,
+          body: {
+            getReader: () => sseReader
+          }
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations?")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-1",
+                externalThreadId: "U123",
+                displayName: "Realtime Customer",
+                status: "OPEN",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "message-live",
+                direction: "INBOUND",
+                text: "live via sse",
+                createdAt: "2026-06-14T01:00:02.000Z"
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
+
+    render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation Realtime Customer" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/sse/tenant/tenant-1", {
+        headers: { Authorization: "Bearer access-token" },
+        signal: expect.any(AbortSignal)
+      });
+    });
+    expect(await screen.findByText("live via sse")).toBeInTheDocument();
   });
 
   it("ignores stale message responses after switching conversations", async () => {
@@ -516,15 +697,14 @@ describe("InboxPage", () => {
 
     render(await InboxPage());
 
-    const openBtn = await screen.findByRole("button", { name: "Open conversation F" });
-    fireEvent.click(openBtn);
+    const openBtns = await screen.findAllByRole("button", { name: "Open conversation F" });
+    fireEvent.click(openBtns[0]);
 
     expect(await screen.findByText("ดีๆ")).toBeInTheDocument();
     expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({ backgroundColor: "#16a34a" });
     expect(screen.getAllByText("Line OA 1")[0]).toHaveStyle({ backgroundColor: "#4f46e5" });
     expect(screen.getAllByText("F").length).toBeGreaterThanOrEqual(3);
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
+    expect(fetchMock).toHaveBeenCalledWith(
       "/api/v1/inbox/conversations/conversation-oa-2/messages",
       {
         headers: { Authorization: "Bearer access-token" }
@@ -862,9 +1042,10 @@ describe("InboxPage", () => {
     });
 
     render(await InboxPage());
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation Customer Ops" }));
 
     expect((await screen.findAllByText("Customer Ops")).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Assign conversation" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "มอบหมาย" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Priority" })).toBeInTheDocument();
     expect(screen.getByText("แท็ก")).toBeInTheDocument();
     expect(screen.getByText("โน้ตภายใน")).toBeInTheDocument();
@@ -872,76 +1053,83 @@ describe("InboxPage", () => {
   });
 
   it("loads usable inbox operation data for tags, notes, and saved replies", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-1",
-              externalThreadId: "U123",
-              displayName: "Customer Ops",
-              status: "OPEN",
-              priority: "NORMAL",
-              assignedToMemberId: null,
-              tagLinks: [],
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Main LINE",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
-              },
-              messages: []
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [{ id: "tag-vip", name: "VIP", color: "#f97316" }]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "reply-1",
-              lineChannelId: "line-channel-1",
-              title: "Greeting",
-              body: "สวัสดีค่ะ ทีมงานกำลังตรวจสอบให้ค่ะ",
-              isActive: true
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "note-1",
-              body: "ลูกค้ารอใบเสนอราคา",
-              createdAt: "2026-06-14T01:00:00.000Z",
-              authorMemberId: "member-1"
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
+    const fetchMock = jest.fn((url) => {
+      if (url.includes("/api/v1/inbox/conversations?")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-1",
+                externalThreadId: "U123",
+                displayName: "Customer Ops",
+                status: "OPEN",
+                priority: "NORMAL",
+                assignedToMemberId: null,
+                tagLinks: [],
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/messages")) {
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      }
+      if (url.includes("/tags")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [{ id: "tag-vip", name: "VIP", color: "#f97316" }]
+          })
+        });
+      }
+      if (url.includes("/saved-replies")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "reply-1",
+                lineChannelId: "line-channel-1",
+                title: "Greeting",
+                body: "สวัสดีค่ะ ทีมงานกำลังตรวจสอบให้ค่ะ",
+                isActive: true
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/notes")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "note-1",
+                body: "ลูกค้ารอใบเสนอราคา",
+                createdAt: "2026-06-14T01:00:00.000Z",
+                authorMemberId: "member-1"
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({
         ok: true,
         json: async () => ({ success: true, data: { id: "link-1" } })
       });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -1224,8 +1412,8 @@ describe("InboxPage", () => {
       });
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Add image URL" }));
-    fireEvent.change(screen.getByPlaceholderText("Paste https image URL"), {
+    fireEvent.click(screen.getByRole("button", { name: "เพิ่มรูปภาพด้วย URL" }));
+    fireEvent.change(screen.getByPlaceholderText("วาง https image URL"), {
       target: { value: "https://cdn.example.com/image.png" }
     });
     fireEvent.click(screen.getByRole("button", { name: "Send reply" }));
@@ -1278,11 +1466,11 @@ describe("InboxPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation U123" }));
 
     expect((await screen.findAllByText("U123")).length).toBeGreaterThanOrEqual(2);
-    expect(screen.queryByPlaceholderText("Paste https image URL")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("วาง https image URL")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add image URL" }));
+    fireEvent.click(screen.getByRole("button", { name: "เพิ่มรูปภาพด้วย URL" }));
 
-    expect(screen.getByPlaceholderText("Paste https image URL")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("วาง https image URL")).toBeInTheDocument();
   });
 
   it("renders server-provided initial conversations before the client refresh", async () => {

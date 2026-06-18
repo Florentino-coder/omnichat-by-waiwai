@@ -48,7 +48,9 @@ type MockPrisma = {
     upsert: jest.Mock<Promise<unknown>, [unknown]>;
   };
   message: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
+    updateMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
@@ -93,7 +95,9 @@ const createPrisma = (): MockPrisma => ({
     upsert: jest.fn<Promise<unknown>, [unknown]>()
   },
   message: {
-    findMany: jest.fn<Promise<unknown>, [unknown]>()
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    findMany: jest.fn<Promise<unknown>, [unknown]>(),
+    updateMany: jest.fn<Promise<unknown>, [unknown]>()
   },
   auditLog: {
     create: jest.fn<Promise<unknown>, [unknown]>()
@@ -174,11 +178,19 @@ describe("InboxService", () => {
       {
         id: "conversation-1",
         tenantId: "tenant-1",
-        displayName: "Customer A"
+        displayName: "Customer A",
+        _count: { messages: 1 }
       }
     ]);
 
-    await createService(prisma).listConversations("tenant-1", { limit: 10, offset: 20 });
+    await expect(createService(prisma).listConversations("tenant-1", { limit: 10, offset: 20 })).resolves.toEqual([
+      {
+        id: "conversation-1",
+        tenantId: "tenant-1",
+        displayName: "Customer A",
+        unreadInboundMessageCount: 1
+      }
+    ]);
 
     expect(prisma.conversation.findMany).toHaveBeenCalledWith({
       where: {
@@ -207,6 +219,17 @@ describe("InboxService", () => {
             sentAt: true
           }
         },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                direction: MessageDirection.INBOUND,
+                markAsReadToken: { not: null },
+                deletedAt: null
+              }
+            }
+          }
+        },
         tagLinks: {
           where: { deletedAt: null },
           include: {
@@ -217,6 +240,56 @@ describe("InboxService", () => {
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
       skip: 20,
       take: 10
+    });
+  });
+
+  it("marks the latest unread LINE message as read and clears unread tokens", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      externalThreadId: "U123",
+      lineChannel: {
+        id: "line-channel-1",
+        isActive: true,
+        encryptedChannelAccessToken: "line-token"
+      }
+    });
+    prisma.message.findFirst.mockResolvedValue({
+      id: "message-1",
+      markAsReadToken: "read-token"
+    });
+    prisma.message.updateMany.mockResolvedValue({ count: 2 });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => ""
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await createService(prisma).markAsRead("tenant-1", "user-1", "conversation-1");
+
+    expect(fetchMock).toHaveBeenCalledWith("https://api.line.me/v2/bot/message/markAsRead", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer line-token",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        chatId: "U123",
+        markAsReadToken: "read-token"
+      })
+    });
+    expect(prisma.message.updateMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        markAsReadToken: { not: null }
+      },
+      data: {
+        markAsReadToken: null
+      }
     });
   });
 

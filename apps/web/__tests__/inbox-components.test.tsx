@@ -62,6 +62,16 @@ describe("Inbox components", () => {
     expect(onSend).toHaveBeenCalled();
   });
 
+  it("contains very long message text inside the bubble", () => {
+    const longText = "x".repeat(240);
+
+    render(<MessageBubble variant="inbound" body={longText} time="10:20" />);
+
+    const messageText = screen.getByText(longText);
+    expect(messageText).toHaveClass("break-words");
+    expect(messageText.closest('[data-testid="message-bubble-frame"]')).toHaveClass("max-w-full");
+  });
+
   it("renders customer panel and mobile bottom navigation", () => {
     const onChange = jest.fn();
 

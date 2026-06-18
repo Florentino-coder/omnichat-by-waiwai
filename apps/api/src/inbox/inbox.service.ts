@@ -32,6 +32,13 @@ export type InboxConversation = Conversation & {
     createdAt: Date;
     sentAt: Date | null;
   }[];
+  unreadInboundMessageCount: number;
+};
+
+type InboxConversationRow = Omit<InboxConversation, "unreadInboundMessageCount"> & {
+  _count?: {
+    messages?: number;
+  };
 };
 
 export type InboxSettings = {
@@ -84,14 +91,14 @@ export class InboxService {
     private readonly cryptoSecret: CryptoSecretService
   ) { }
 
-  listConversations(
+  async listConversations(
     tenantId: string,
     options: ListConversationsOptions = {}
   ): Promise<InboxConversation[]> {
     const limit = clampInteger(options.limit ?? 10, 1, 50);
     const offset = Math.max(0, Math.trunc(options.offset ?? 0));
 
-    return this.prisma.conversation.findMany({
+    const conversations = await this.prisma.conversation.findMany({
       where: {
         tenantId,
         deletedAt: null
@@ -118,6 +125,17 @@ export class InboxService {
             sentAt: true
           }
         },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                direction: "INBOUND",
+                markAsReadToken: { not: null },
+                deletedAt: null
+              }
+            }
+          }
+        },
         tagLinks: {
           where: { deletedAt: null },
           include: {
@@ -129,6 +147,11 @@ export class InboxService {
       skip: offset,
       take: limit
     });
+
+    return (conversations as InboxConversationRow[]).map(({ _count, ...conversation }) => ({
+      ...conversation,
+      unreadInboundMessageCount: _count?.messages ?? 0
+    }));
   }
 
   async getConversationMessages(

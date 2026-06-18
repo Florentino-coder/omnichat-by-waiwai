@@ -32,7 +32,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const navItems = [
     { label: locale === "th" ? "กล่องข้อความ" : "Inbox", icon: Inbox, disabled: false, href: "/app/inbox", roles: ["OWNER", "ADMIN", "AGENT", "QC"] },
-    { label: locale === "th" ? "บรอดแคสต์" : "Broadcast", icon: Megaphone, disabled: false, href: "/app/broadcast", roles: ["OWNER", "ADMIN", "AGENT"] },
+    { label: locale === "th" ? "บรอดแคสต์" : "Broadcast", icon: Megaphone, disabled: false, href: "/app/broadcast", roles: ["OWNER", "ADMIN"] },
     { label: locale === "th" ? "ลูกค้า" : "Customers", icon: Users, disabled: true, roles: ["OWNER", "ADMIN", "AGENT"] },
     { label: locale === "th" ? "รายงาน" : "Reports", icon: ChartNoAxesColumn, disabled: true, roles: ["OWNER", "ADMIN", "QC", "VIEWER"] },
     { label: locale === "th" ? "คลังความรู้" : "Knowledge", icon: BookOpen, disabled: true, roles: ["OWNER", "ADMIN", "AGENT"] },

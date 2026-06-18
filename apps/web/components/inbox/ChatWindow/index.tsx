@@ -33,6 +33,7 @@ interface ChatWindowProps {
   emptyText?: string;
   isLoading?: boolean;
   loadingText?: string;
+  messagesScrollRef?: RefObject<HTMLDivElement | null>;
   messagesEndRef?: RefObject<HTMLDivElement | null>;
   statusElapsed?: string | null;
   statusMenuOpen?: boolean;
@@ -59,6 +60,7 @@ export function ChatWindow({
   emptyText,
   isLoading = false,
   loadingText = "กำลังโหลดข้อความ...",
+  messagesScrollRef,
   messagesEndRef,
   statusElapsed,
   statusMenuOpen = false,
@@ -90,7 +92,7 @@ export function ChatWindow({
         toggleStatusMenu={toggleStatusMenu}
         onClose={onClose}
       />
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+      <div ref={messagesScrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <DateSeparator label="15 มิ.ย. · เริ่มแชท" />
         {isLoading ? <ChatWindowSkeleton label={loadingText} /> : null}
         {!isLoading && emptyText ? <p className="text-sm text-muted-foreground">{emptyText}</p> : null}

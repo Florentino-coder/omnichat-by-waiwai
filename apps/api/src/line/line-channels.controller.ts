@@ -69,7 +69,7 @@ export class LineChannelsController {
   }
 
   @Post("channels/:channelId/broadcast")
-  @Roles(Role.AGENT)
+  @Roles(Role.OWNER, Role.ADMIN)
   broadcast(
     @TenantCtx() ctx: JwtTenantPayload,
     @Param("channelId") channelId: string,
@@ -79,7 +79,7 @@ export class LineChannelsController {
   }
 
   @Post("channels/:channelId/multicast")
-  @Roles(Role.AGENT)
+  @Roles(Role.OWNER, Role.ADMIN)
   multicast(
     @TenantCtx() ctx: JwtTenantPayload,
     @Param("channelId") channelId: string,
@@ -89,7 +89,7 @@ export class LineChannelsController {
   }
 
   @Get("channels/:channelId/broadcasts")
-  @Roles(Role.AGENT)
+  @Roles(Role.OWNER, Role.ADMIN)
   getBroadcasts(
     @TenantCtx() ctx: JwtTenantPayload,
     @Param("channelId") channelId: string

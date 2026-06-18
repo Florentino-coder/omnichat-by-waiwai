@@ -188,3 +188,19 @@ Stage 3 makes stored LINE conversations usable by agents in a tenant-safe inbox.
 - Passed: `npm run api:test -- --runInBand`
 - Passed: `npm run api:test -- apps/api/src/auth/auth.service.spec.ts apps/api/src/invitations/invitations.service.spec.ts apps/api/src/workspaces/workspaces.service.spec.ts apps/api/src/inbox/inbox.service.spec.ts --runInBand`
 - Passed with CRLF-only warnings: `git diff --check`
+
+## Verification - 2026-06-19 Inbox Realtime + Read Receipt Polish
+
+- Added: inbox conversation list returns `unreadInboundMessageCount` from server-side LINE `markAsReadToken` state.
+- Added: inbox web client opens the tenant SSE stream and refreshes conversations/thread messages from realtime events, with polling kept as a slower fallback.
+- Fixed: opening an unread LINE conversation now calls the existing LINE mark-as-read endpoint and clears the local unread state after success.
+- Fixed: selected message thread no longer reloads on every conversation-list refresh, reducing flicker and jumpy scrolling.
+- Fixed: chat thread scroll targets the message scroll container directly so new messages stay anchored at the bottom.
+- Fixed: long message text and media stay contained within the message bubble.
+- Passed: `npm run web:test -- --runInBand`
+- Passed: `npm run api:test -- apps/api/src/inbox/inbox.service.spec.ts apps/api/src/realtime/realtime.service.spec.ts apps/api/src/realtime/realtime.controller.spec.ts apps/api/src/line/line-reply.service.spec.ts apps/api/src/line/line-webhook.service.spec.ts --runInBand`
+- Passed: `npm run lint`
+- Passed: `npm run prisma:validate`
+- Passed: `npm run web:build`
+- Passed: `npm run api:build`
+- Not run to completion: `npm run api:test -- --runInBand` because the Stage 1 RBAC integration suite correctly blocked destructive setup against the configured Supabase pooler `DATABASE_URL`; use local Docker DB for that suite.

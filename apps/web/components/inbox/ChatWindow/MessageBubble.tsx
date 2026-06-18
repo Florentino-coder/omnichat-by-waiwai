@@ -5,12 +5,13 @@ export type MessageVariant = "outbound" | "inbound" | "note" | "system";
 
 function getStickerUrl(rawPayload: unknown): string | null {
   if (!rawPayload || typeof rawPayload !== "object") return null;
-  const payload = rawPayload as Record<string, any>;
+  const payload = rawPayload as Record<string, unknown>;
   
-  const messageObj = payload.message || payload;
+  const messageObj = payload.message && typeof payload.message === "object" ? payload.message : payload;
   if (!messageObj || typeof messageObj !== "object") return null;
+  const messageRecord = messageObj as Record<string, unknown>;
   
-  const stickerId = messageObj.stickerId;
+  const stickerId = typeof messageRecord.stickerId === "string" ? messageRecord.stickerId : null;
   if (!stickerId) return null;
   
   return `https://stickershop.line-scdn.net/stickershop/v1/sticker/${stickerId}/iPhone/sticker_key@2x.png`;
@@ -67,10 +68,13 @@ export function MessageBubble({
           {authorInitial ?? "F"}
         </div>
       ) : null}
-      <div className={["max-w-[76%]", isOutbound ? "text-right" : "text-left"].join(" ")}>
+      <div
+        data-testid="message-bubble-frame"
+        className={["min-w-0 max-w-full sm:max-w-[76%]", isOutbound ? "text-right" : "text-left"].join(" ")}
+      >
         <div
           className={[
-            "inline-block whitespace-pre-wrap shadow-sm",
+            "inline-block max-w-full overflow-hidden whitespace-pre-wrap break-words shadow-sm [overflow-wrap:anywhere]",
             isMedia ? "rounded-[18px] p-1.5 shadow-none" : "px-6 py-4 text-base leading-7",
             isOutbound
               ? isMedia
@@ -97,13 +101,18 @@ export function MessageBubble({
                 alt="LINE Sticker"
                 className="w-24 h-24 sm:w-32 sm:h-32 object-contain hover:scale-105 transition-transform"
               />
+              {body.split("\n").map((line, idx) => (
+                <span key={idx} className="sr-only">
+                  {line}
+                </span>
+              ))}
             </div>
           ) : type === "IMAGE" ? (
             <div className="relative">
               <img
                 src={mediaUrl || ""}
                 alt={mediaFileName || "Image"}
-                className="max-w-xs rounded-xl cursor-pointer hover:opacity-95 transition-opacity border border-slate-200 shadow-sm object-cover max-h-60"
+                className="max-h-60 max-w-full rounded-xl cursor-pointer hover:opacity-95 transition-opacity border border-slate-200 shadow-sm object-cover"
                 onClick={() => setIsLightboxOpen(true)}
               />
               {isLightboxOpen && (
@@ -134,7 +143,7 @@ export function MessageBubble({
               <video
                 src={mediaUrl || ""}
                 controls
-                className="max-w-xs sm:max-w-md rounded-xl overflow-hidden shadow-md border border-slate-200"
+                className="max-w-full sm:max-w-md rounded-xl overflow-hidden shadow-md border border-slate-200"
               />
             </div>
           ) : type === "AUDIO" ? (
@@ -142,7 +151,7 @@ export function MessageBubble({
               <audio
                 src={mediaUrl || ""}
                 controls
-                className="max-w-xs"
+                className="max-w-full"
               />
             </div>
           ) : type === "FILE" ? (
@@ -153,7 +162,7 @@ export function MessageBubble({
                 target="_blank"
                 rel="noopener noreferrer"
                 className={[
-                  "flex items-center gap-3 border p-3.5 rounded-xl transition-all max-w-xs sm:max-w-md",
+                  "flex max-w-full items-center gap-3 border p-3.5 rounded-xl transition-all sm:max-w-md",
                   isOutbound
                     ? "bg-primary border-primary-dark hover:bg-primary/90 text-white"
                     : "bg-white border-slate-200 hover:bg-slate-50 text-foreground"
@@ -179,9 +188,9 @@ export function MessageBubble({
               </a>
             </div>
           ) : (
-            <p className="whitespace-pre-wrap">
+            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
               {body.split("\n").map((line, idx) => (
-                <span key={idx} className="block">
+                <span key={idx} className="block break-words [overflow-wrap:anywhere]">
                   {line}
                 </span>
               ))}

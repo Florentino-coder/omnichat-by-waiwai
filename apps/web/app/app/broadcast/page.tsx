@@ -5,6 +5,7 @@ import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { Megaphone, Calendar, Clock, Send, Users, Info, AlertCircle, FileText, Image as ImageIcon, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
+import { useRouter } from "next/navigation";
 
 type LineChannel = {
   id: string;
@@ -27,11 +28,31 @@ type BroadcastJob = {
 
 export default function BroadcastPage() {
   const { locale } = useLanguage();
+  const router = useRouter();
+  const [role, setRole] = useState<string | null>(null);
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>("");
   const [jobs, setJobs] = useState<BroadcastJob[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("omnichat.user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const userRole = parsed.role ?? "AGENT";
+        setRole(userRole);
+        if (userRole !== "OWNER" && userRole !== "ADMIN") {
+          router.push("/app/inbox");
+        }
+      } else {
+        router.push("/login");
+      }
+    } catch {
+      // Ignore
+    }
+  }, [router]);
 
   // Form states
   const [type, setType] = useState<"BROADCAST" | "MULTICAST">("BROADCAST");
@@ -163,6 +184,14 @@ export default function BroadcastPage() {
   };
 
   const selectedChannel = channels.find((c) => c.id === selectedChannelId);
+
+  if (role === null || (role !== "OWNER" && role !== "ADMIN")) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F7F7FA]">
+        <Loader2 className="animate-spin text-[#4636D7]" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto bg-[#F7F7FA] p-4 sm:p-6 md:p-8">

@@ -25,6 +25,7 @@ interface CustomerPanelProps {
   nicknameDraft?: string;
   isSavingName?: boolean;
   assigneeValue?: string;
+  assigneeOptions?: Array<{ id: string; label: string }>;
   isSavingAssignment?: boolean;
   tags?: Array<{ id: string; name: string; color?: string | null }>;
   availableTags?: Array<{ id: string; name: string; color?: string | null; isAttached: boolean }>;
@@ -40,7 +41,7 @@ interface CustomerPanelProps {
   onCancelEditingName?: () => void;
   onSaveCustomerName?: () => void;
   onAssigneeChange?: (value: string) => void;
-  onSaveAssignment?: () => void;
+  onSaveAssignment?: (value?: string) => void;
   onToggleTag?: (tag: { id: string; name: string; color?: string | null; isAttached: boolean }) => void;
   onCreateTag?: (name: string) => void;
   onToggleAutoQuickReply?: () => void;
@@ -64,6 +65,7 @@ export function CustomerPanel({
   nicknameDraft = "",
   isSavingName = false,
   assigneeValue = "",
+  assigneeOptions = [],
   isSavingAssignment = false,
   tags = [],
   availableTags = [],
@@ -236,32 +238,12 @@ export function CustomerPanel({
             <AssignDropdown
               disabled={disabled || isSavingAssignment}
               value={assigneeValue}
-              options={assigneeValue ? [{ id: assigneeValue, label: assigneeValue }] : []}
-              onChange={(value) => onAssigneeChange?.(value)}
+              options={assigneeOptions}
+              onChange={(value) => {
+                onAssigneeChange?.(value);
+                onSaveAssignment?.(value);
+              }}
             />
-            <div className="mt-3 grid gap-2">
-              <label className="sr-only" htmlFor="assignee-member-id">
-                Workspace member ID
-              </label>
-              <input
-                id="assignee-member-id"
-                className="h-11 rounded-xl border border-border bg-[#F7F6FB] px-3 text-sm outline-none focus:border-primary"
-                disabled={disabled || isSavingAssignment}
-                onChange={(event) => onAssigneeChange?.(event.target.value)}
-                placeholder="Workspace member ID"
-                value={assigneeValue}
-              />
-              <button
-                type="button"
-                aria-label="Assign conversation"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-secondary disabled:opacity-60"
-                disabled={disabled || isSavingAssignment}
-                onClick={onSaveAssignment}
-              >
-                <UserPlus size={16} aria-hidden="true" />
-                Assign
-              </button>
-            </div>
           </div>
         </section>
 

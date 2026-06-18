@@ -174,7 +174,7 @@ export function QuickReplyManager() {
       body: form.body.trim(),
       shortcutKey: form.shortcutKey.trim() || undefined,
       imageUrl: form.imageUrl.trim() || undefined,
-      hotkeyBinding: form.hotkeyBinding !== "NONE" ? form.hotkeyBinding : undefined,
+      hotkeyBinding: (form.hotkeyBinding && form.hotkeyBinding !== "NONE") ? form.hotkeyBinding : undefined,
       // For personal replies, set the userId
       userId: replyTab === "personal" ? currentUser?.id : undefined
     };

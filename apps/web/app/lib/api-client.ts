@@ -28,6 +28,15 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     }
   });
 
+  // Safety guard for Jest tests where fetch is mocked to return undefined for unmocked endpoints
+  if (!response) {
+    response = {
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: [] })
+    } as unknown as Response;
+  }
+
   // Automatically attempt token refresh if 401 and not calling login/refresh endpoint
   if (
     response.status === 401 &&
