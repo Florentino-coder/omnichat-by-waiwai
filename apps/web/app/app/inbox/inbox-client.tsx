@@ -1194,13 +1194,13 @@ function OperationsSummary({
         {unreadCount > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
             <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-            {unreadCount} ยังไม่ได้อ่าน
+            {unreadCount} {t.unread}
           </span>
         ) : null}
         {readNotRepliedCount > 0 ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-            {readNotRepliedCount} อ่านแล้วไม่ตอบ
+            {readNotRepliedCount} {t.readNoReply}
           </span>
         ) : null}
         {unreadCount === 0 && readNotRepliedCount === 0 ? (

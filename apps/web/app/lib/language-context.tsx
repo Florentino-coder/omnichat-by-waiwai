@@ -11,19 +11,18 @@ type LanguageContextType = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = window.localStorage.getItem("chatwai.locale") as Locale;
-        if (stored === "th" || stored === "en") {
-          return stored;
-        }
-      } catch {
-        // Ignore
+  const [locale, setLocaleState] = useState<Locale>(defaultLocale);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("chatwai.locale") as Locale;
+      if (stored === "th" || stored === "en") {
+        setLocaleState(stored);
       }
+    } catch {
+      // Ignore
     }
-    return defaultLocale;
-  });
+  }, []);
 
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale);
