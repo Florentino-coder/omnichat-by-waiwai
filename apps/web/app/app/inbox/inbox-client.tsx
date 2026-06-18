@@ -368,7 +368,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }, [initialConversations.length, loadConversations]);
 
   useEffect(() => {
-    if (!currentUser?.tenantId) {
+    const tenantId = currentUser?.tenantId;
+    if (!tenantId) {
       return;
     }
 
@@ -380,7 +381,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         return;
       }
 
-      void streamTenantEvents(currentUser.tenantId!, abortController.signal, (event) => {
+      void streamTenantEvents(tenantId as string, abortController.signal, (event) => {
         if (!isMountedRef.current) {
           return;
         }
