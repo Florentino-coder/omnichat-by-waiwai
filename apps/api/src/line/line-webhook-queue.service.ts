@@ -15,6 +15,10 @@ export interface WebhookQueuePort {
   close?(): Promise<unknown>;
 }
 
+export interface InlineWebhookProcessor {
+  process(lineChannelId: string, payload: unknown): Promise<void>;
+}
+
 export interface WebhookQueueOptions {
   attempts: number;
   backoff: {
@@ -30,11 +34,25 @@ export const createLineWebhookQueue = (redisUrl: string): WebhookQueuePort =>
     connection: { url: redisUrl }
   });
 
+export const createInlineLineWebhookQueue = (processor: InlineWebhookProcessor): WebhookQueuePort => ({
+  async add(
+    _name: string,
+    data: LineWebhookJobData,
+    _options: WebhookQueueOptions
+  ): Promise<unknown> {
+    await processor.process(data.lineChannelId, data.payload);
+    return { id: "inline-line-webhook-job" };
+  }
+});
+
 export const createNoopLineWebhookQueue = (): WebhookQueuePort => ({
   async add(): Promise<unknown> {
     return { id: "noop-line-webhook-job" };
   }
 });
+
+export const isBullmqLineWebhookQueueEnabled = (mode: string | undefined): boolean =>
+  mode?.trim().toLowerCase() === "bullmq";
 
 @Injectable()
 export class LineWebhookQueueService implements OnModuleDestroy {

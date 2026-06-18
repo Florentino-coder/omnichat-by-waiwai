@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Job, Worker } from "bullmq";
 import {
+  isBullmqLineWebhookQueueEnabled,
   LINE_WEBHOOK_QUEUE_NAME,
   type LineWebhookJobData
 } from "./line-webhook-queue.service";
@@ -20,6 +21,13 @@ export class LineWebhookProcessorService implements OnModuleInit, OnModuleDestro
 
   onModuleInit(): void {
     if (process.env.NODE_ENV === "test") {
+      return;
+    }
+
+    const queueMode =
+      process.env.LINE_WEBHOOK_QUEUE_MODE ??
+      this.configService?.get<string>("LINE_WEBHOOK_QUEUE_MODE");
+    if (!isBullmqLineWebhookQueueEnabled(queueMode)) {
       return;
     }
 

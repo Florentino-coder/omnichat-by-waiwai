@@ -113,6 +113,8 @@ Use this only for temporary manual testing:
 - Render Free for `apps/api`.
 - Supabase Free if connection usage stays below limits.
 - Upstash Free if Redis usage stays below limits.
+- `LINE_WEBHOOK_QUEUE_MODE=inline` while using Upstash Free; enable `bullmq` only on paid or
+  self-hosted Redis because idle workers consume monthly command quota.
 
 Risk: Render Free cold starts can break LINE webhook reliability.
 

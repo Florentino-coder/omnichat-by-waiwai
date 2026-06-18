@@ -77,6 +77,7 @@ NODE_VERSION="20.14.0"
 DATABASE_URL="<supabase-transaction-pooler-url-port-6543>"
 DIRECT_URL="<supabase-direct-or-session-url-for-prisma>"
 REDIS_URL="<upstash-redis-url>"
+LINE_WEBHOOK_QUEUE_MODE="inline"
 JWT_SECRET="<strong-random-secret>"
 JWT_REFRESH_SECRET="<strong-random-secret>"
 ENCRYPTION_KEY="<32-byte-base64-key>"
@@ -95,6 +96,11 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
 Render generates `JWT_SECRET` and `JWT_REFRESH_SECRET` from the Blueprint. If you need stable secrets across service recreation, set them manually in Render instead.
+
+`LINE_WEBHOOK_QUEUE_MODE` defaults to `inline` for the free MVP deployment. Do not set it to
+`bullmq` on Upstash Free: an idle BullMQ worker polls Redis roughly every 10 seconds and can burn
+through the 500K monthly command quota before real traffic starts. Use `bullmq` only after moving
+Redis to a paid plan or a self-hosted Redis with enough command budget.
 
 ## Migration Rule
 

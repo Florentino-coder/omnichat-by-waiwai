@@ -21,6 +21,8 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
+      - key: LINE_WEBHOOK_QUEUE_MODE
+        value: inline
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

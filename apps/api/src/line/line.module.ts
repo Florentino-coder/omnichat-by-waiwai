@@ -9,8 +9,10 @@ import { LineChannelsService } from "./line-channels.service";
 import { LineReplyService } from "./line-reply.service";
 import { LineSignatureService } from "./line-signature.service";
 import {
+  createInlineLineWebhookQueue,
   createLineWebhookQueue,
   createNoopLineWebhookQueue,
+  isBullmqLineWebhookQueueEnabled,
   LINE_WEBHOOK_QUEUE,
   LineWebhookQueueService
 } from "./line-webhook-queue.service";
@@ -32,13 +34,20 @@ import { LineBroadcastScheduler } from "./line-broadcast.scheduler";
     LineBroadcastScheduler,
     {
       provide: LINE_WEBHOOK_QUEUE,
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) =>
-        process.env.NODE_ENV === "test"
-          ? createNoopLineWebhookQueue()
-          : createLineWebhookQueue(
-              configService.get<string>("REDIS_URL") ?? "redis://localhost:6379"
-            )
+      inject: [ConfigService, LineWebhookService],
+      useFactory: (configService: ConfigService, lineWebhookService: LineWebhookService) => {
+        if (process.env.NODE_ENV === "test") {
+          return createNoopLineWebhookQueue();
+        }
+
+        if (isBullmqLineWebhookQueueEnabled(configService.get<string>("LINE_WEBHOOK_QUEUE_MODE"))) {
+          return createLineWebhookQueue(
+            configService.get<string>("REDIS_URL") ?? "redis://localhost:6379"
+          );
+        }
+
+        return createInlineLineWebhookQueue(lineWebhookService);
+      }
     },
     LineWebhookQueueService,
     LineWebhookProcessorService
