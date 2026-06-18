@@ -37,6 +37,21 @@ describe("RealtimeService", () => {
     );
   });
 
+  it("does not open a Redis subscriber until a tenant stream is requested", async () => {
+    const redis = createRedis();
+    const subscriber = createRedis();
+    const createSubscriber = jest.fn().mockReturnValue(subscriber);
+    const service = new RealtimeService({
+      client: redis,
+      createSubscriber
+    } as unknown as RedisService);
+
+    await service.publishTenantEvent("tenant-1", "message.created", { messageId: "message-1" });
+
+    expect(createSubscriber).not.toHaveBeenCalled();
+    expect(subscriber.on).not.toHaveBeenCalled();
+  });
+
   it("subscribes one tenant stream and ignores other tenant channels", async () => {
     const redis = createRedis();
     const service = new RealtimeService({ client: redis } as unknown as RedisService);

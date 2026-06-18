@@ -18,7 +18,7 @@ type RealtimeRedisClient = {
 };
 @Injectable()
 export class RealtimeService implements OnModuleDestroy {
-  private readonly subscriber: RealtimeRedisClient;
+  private subscriber?: RealtimeRedisClient;
   private readonly handlers = new Map<string, Set<(event: TenantRealtimeEvent) => void>>();
   private readonly redisMessageHandler: RedisMessageHandler = (channel, message) => {
     const tenantId = readTenantIdFromChannel(channel);
@@ -39,13 +39,7 @@ export class RealtimeService implements OnModuleDestroy {
     subscribers.forEach((handler) => handler(parsed));
   };
 
-  constructor(private readonly redisService: RedisService) {
-    this.subscriber =
-      typeof redisService.createSubscriber === "function"
-        ? redisService.createSubscriber()
-        : redisService.client;
-    this.subscriber.on("message", this.redisMessageHandler);
-  }
+  constructor(private readonly redisService: RedisService) {}
 
   async publishTenantEvent(tenantId: string, type: string, data: unknown): Promise<void> {
     await this.redisService.client.publish(
@@ -56,11 +50,12 @@ export class RealtimeService implements OnModuleDestroy {
 
   streamTenantEvents(tenantId: string): Observable<TenantRealtimeEvent> {
     return new Observable<TenantRealtimeEvent>((subscriber) => {
+      const redisSubscriber = this.ensureSubscriber();
       const handler = (event: TenantRealtimeEvent): void => subscriber.next(event);
       const existing = this.handlers.get(tenantId) ?? new Set<(event: TenantRealtimeEvent) => void>();
       existing.add(handler);
       this.handlers.set(tenantId, existing);
-      void this.subscriber.subscribe(tenantChannel(tenantId));
+      void redisSubscriber.subscribe(tenantChannel(tenantId));
 
       const heartbeat = setInterval(() => {
         subscriber.next({ type: "heartbeat", data: { ts: Date.now() } });
@@ -71,15 +66,31 @@ export class RealtimeService implements OnModuleDestroy {
         existing.delete(handler);
         if (existing.size === 0) {
           this.handlers.delete(tenantId);
-          void this.subscriber.unsubscribe(tenantChannel(tenantId));
+          void redisSubscriber.unsubscribe(tenantChannel(tenantId));
         }
       };
     });
   }
 
   async onModuleDestroy(): Promise<void> {
+    if (!this.subscriber) {
+      return;
+    }
+
     this.subscriber.off("message", this.redisMessageHandler);
     await this.subscriber.quit?.();
+  }
+
+  private ensureSubscriber(): RealtimeRedisClient {
+    if (!this.subscriber) {
+      this.subscriber =
+        typeof this.redisService.createSubscriber === "function"
+          ? this.redisService.createSubscriber()
+          : this.redisService.client;
+      this.subscriber.on("message", this.redisMessageHandler);
+    }
+
+    return this.subscriber;
   }
 }
 
