@@ -110,7 +110,27 @@ export class LineWebhookService {
         continue;
       }
 
-      const lineProfile = await this.loadLineProfile(channel.encryptedChannelAccessToken, event);
+      // Try to find the conversation first to see if we already have the displayName
+      const existingConv = await this.prisma.conversation.findUnique({
+        where: {
+          tenantId_source_lineChannelId_externalThreadId: {
+            tenantId: channel.tenantId,
+            source: MessageSource.LINE,
+            lineChannelId: channel.id,
+            externalThreadId
+          }
+        },
+        select: {
+          id: true,
+          displayName: true
+        }
+      });
+
+      let lineProfile: LineProfile | undefined;
+      if (!existingConv || !existingConv.displayName) {
+        lineProfile = await this.loadLineProfile(channel.encryptedChannelAccessToken, event);
+      }
+
       const eventTime = event.timestamp ? new Date(event.timestamp) : new Date();
       const conversation = await this.prisma.conversation.upsert({
         where: {
@@ -131,7 +151,7 @@ export class LineWebhookService {
           lastMessageAt: eventTime
         },
         update: {
-          displayName: lineProfile?.displayName,
+          ...(lineProfile ? { displayName: lineProfile.displayName } : {}),
           lastMessageAt: eventTime
         }
       });
