@@ -11,6 +11,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Skip tenant-context check for platform-wide admin monitoring dashboard
+  if (pathname === "/app/admin/monitor") {
+    return NextResponse.next();
+  }
+
   const hasTenantContext = Boolean(
     request.cookies.get("omnichat.tenantId")?.value &&
       request.cookies.get("omnichat.workspaceId")?.value
