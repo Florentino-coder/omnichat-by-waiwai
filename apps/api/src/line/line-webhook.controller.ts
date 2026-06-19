@@ -32,7 +32,9 @@ export class LineWebhookController {
     }
 
     const flowId = `flow_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
-    await this.monitorService.recordEvent(flowId, "WEBHOOK_RECEIVED");
+    const now = Date.now();
+    console.log(`[TRACE] [WEBHOOK_RECEIVED] flowId=${flowId} ts=${now} time=${new Date(now).toISOString()}`);
+    await this.monitorService.recordEvent(flowId, "WEBHOOK_RECEIVED", now);
 
     await this.lineWebhookQueueService.enqueue(lineChannelId, body, flowId);
     return { accepted: true };

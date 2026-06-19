@@ -16,6 +16,7 @@ export class MonitorController {
     @Body() payload: { flowId: string; timestamp: number }
   ) {
     if (payload.flowId) {
+      console.log(`[TRACE] [BACKEND_BROWSER_RECEIVED_ACK] flowId=${payload.flowId} ts=${payload.timestamp} time=${new Date(payload.timestamp).toISOString()}`);
       await this.monitorService.recordEvent(payload.flowId, "BROWSER_RECEIVED", payload.timestamp);
     }
     return { success: true };

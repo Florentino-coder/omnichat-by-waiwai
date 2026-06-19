@@ -37,12 +37,21 @@ export class RealtimeService implements OnModuleDestroy {
       return;
     }
 
+    if (parsed.flowId) {
+      const now = Date.now();
+      console.log(`[TRACE] [REDIS_SUBSCRIBE_RECEIVE] flowId=${parsed.flowId} ts=${now} time=${new Date(now).toISOString()}`);
+    }
+
     subscribers.forEach((handler) => handler(parsed));
   };
 
   constructor(private readonly redisService: RedisService) {}
 
   async publishTenantEvent(tenantId: string, type: string, data: unknown, flowId?: string): Promise<void> {
+    if (flowId) {
+      const now = Date.now();
+      console.log(`[TRACE] [REDIS_PUBLISH] flowId=${flowId} ts=${now} time=${new Date(now).toISOString()}`);
+    }
     await this.redisService.client.publish(
       tenantChannel(tenantId),
       JSON.stringify({ event: type, data, flowId })
@@ -60,7 +69,7 @@ export class RealtimeService implements OnModuleDestroy {
 
       const heartbeat = setInterval(() => {
         subscriber.next({ type: "heartbeat", data: { ts: Date.now() } });
-      }, 30000);
+      }, 15000);
 
       return () => {
         clearInterval(heartbeat);

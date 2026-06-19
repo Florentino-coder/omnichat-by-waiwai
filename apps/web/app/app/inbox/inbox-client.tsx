@@ -391,11 +391,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
         const flowId = event.flowId || event.data?.flowId;
         if (flowId) {
+          const now = Date.now();
+          console.log(`[TRACE] [BROWSER_RECEIVED] flowId=${flowId} ts=${now} time=${new Date(now).toISOString()}`);
           const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
           void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ flowId, timestamp: Date.now() })
+            body: JSON.stringify({ flowId, timestamp: now })
           });
           pendingFlowIdRef.current = flowId;
           performance.mark(`render-start-${flowId}`);
@@ -416,12 +418,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       })
         .then(() => {
           if (!abortController.signal.aborted) {
-            reconnectTimeoutId = window.setTimeout(startStream, 5000);
+            reconnectTimeoutId = window.setTimeout(startStream, 1000);
           }
         })
         .catch(() => {
           if (!abortController.signal.aborted) {
-            reconnectTimeoutId = window.setTimeout(startStream, 5000);
+            reconnectTimeoutId = window.setTimeout(startStream, 1000);
           }
         });
     }

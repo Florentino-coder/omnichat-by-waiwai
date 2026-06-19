@@ -33,8 +33,12 @@ export class RealtimeController {
     return this.realtimeService.streamTenantEvents(tenantId).pipe(
       map((event) => {
         const data = toMessageEventData(event.data);
-        if (event.flowId && this.monitorService) {
-          void this.monitorService.recordEvent(event.flowId, "SSE_SEND");
+        if (event.flowId) {
+          const now = Date.now();
+          console.log(`[TRACE] [SSE_SEND] flowId=${event.flowId} ts=${now} time=${new Date(now).toISOString()}`);
+          if (this.monitorService) {
+            void this.monitorService.recordEvent(event.flowId, "SSE_SEND", now);
+          }
         }
         return {
           type: event.type,
