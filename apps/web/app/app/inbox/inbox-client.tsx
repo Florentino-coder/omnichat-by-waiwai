@@ -201,6 +201,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const componentRenderMapRef = useRef(new Map<string, number>());
   const isLoadingOperations = false;
   const sentTracesRef = useRef(new Map<string, Set<string>>());
+  const renderCount = useRef(0);
 
   const trace = useCallback((flowId: string, stage: string) => {
     const timestamp = Date.now();
@@ -334,6 +335,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const pendingFlowId = pendingFlowIdRef.current;
         if (pendingFlowId) {
           const now = Date.now();
+          console.log("[TRACE] STATE_UPDATE", pendingFlowId, now);
           trace(pendingFlowId, "STATE_UPDATE");
           stateUpdateMapRef.current.set(pendingFlowId, now);
         }
@@ -441,6 +443,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const flowId = event.flowId || event.data?.flowId;
         if (flowId) {
           const now = Date.now();
+          console.log("[TRACE] BROWSER_RECEIVE", flowId, now);
+          console.log("[TRACE] SSE_HANDLER_START", flowId, now);
           trace(flowId, "BROWSER_RECEIVE");
           trace(flowId, "SSE_HANDLER_START");
 
@@ -686,6 +690,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const pendingFlowId = pendingFlowIdRef.current;
         if (pendingFlowId) {
           const now = Date.now();
+          console.log("[TRACE] STATE_UPDATE", pendingFlowId, now);
           trace(pendingFlowId, "STATE_UPDATE");
           stateUpdateMapRef.current.set(pendingFlowId, now);
         }
@@ -1162,7 +1167,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     if (pendingFlowId) {
       trace(pendingFlowId, "REACT_RENDER_END");
     }
-    console.log("[TRACE] [MESSAGE_LIST_RENDER]", Date.now());
   }, [messages, conversations, trace]);
 
   useLayoutEffect(() => {
@@ -1172,6 +1176,17 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
     console.log("[TRACE] [DOM_PAINTED]", Date.now());
   }, [messages, trace]);
+
+  renderCount.current++;
+  console.log(
+    "[TRACE] MESSAGE_LIST_RENDER",
+    renderCount.current,
+    Date.now()
+  );
+  console.log(
+    "[TRACE] MESSAGE_COUNT",
+    messages.length
+  );
 
   const pendingFlowIdForRender = pendingFlowIdRef.current;
   if (pendingFlowIdForRender) {
@@ -1455,6 +1470,7 @@ async function streamTenantEvents(
     if (!response.ok || !reader) {
       return;
     }
+    console.log("[TRACE] SSE_OPEN", Date.now());
 
     const decoder = new TextDecoder();
     let buffer = "";
@@ -1468,9 +1484,20 @@ async function streamTenantEvents(
       while (boundary >= 0) {
         const block = buffer.slice(0, boundary);
         buffer = buffer.slice(boundary + 2);
+        console.log(
+          "[TRACE] RAW_SSE_MESSAGE",
+          Date.now(),
+          block
+        );
         const event = parseSseBlock(block);
         if (event) {
           onEvent(event);
+        } else {
+          console.error(
+            "[TRACE] SSE_PARSE_ERROR",
+            "Could not parse block:",
+            block
+          );
         }
         boundary = buffer.indexOf("\n\n");
       }
