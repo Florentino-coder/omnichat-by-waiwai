@@ -45,7 +45,8 @@ export class LineWebhookProcessorService implements OnModuleInit, OnModuleDestro
   async processJob(job: LineWebhookJob): Promise<void> {
     await this.lineWebhookService.process(
       job.data.lineChannelId,
-      job.data.payload as { events?: [] }
+      job.data.payload as { events?: [] },
+      job.data.flowId
     );
   }
 

@@ -51,8 +51,10 @@ describe("LineWebhookQueueService", () => {
       }
     );
 
-    expect(processor.process).toHaveBeenCalledWith("line-channel-1", {
-      events: [{ type: "message" }]
-    });
+    expect(processor.process).toHaveBeenCalledWith(
+      "line-channel-1",
+      { events: [{ type: "message" }] },
+      undefined
+    );
   });
 });

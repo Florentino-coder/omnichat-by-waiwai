@@ -17,6 +17,7 @@ import { SuperAdminModule } from "./super-admin/super-admin.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { StorageModule } from "./storage/storage.module";
 import { BackupModule } from "./backup/backup.module";
+import { MonitorModule } from "./monitor/monitor.module";
 
 @Module({
   imports: [
@@ -39,7 +40,8 @@ import { BackupModule } from "./backup/backup.module";
     LineModule,
     SuperAdminModule,
     StorageModule,
-    BackupModule
+    BackupModule,
+    MonitorModule
   ]
 })
 export class AppModule {}

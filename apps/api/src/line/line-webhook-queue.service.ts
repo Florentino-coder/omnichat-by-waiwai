@@ -8,6 +8,7 @@ export const LINE_WEBHOOK_JOB_NAME = "process-line-webhook";
 export interface LineWebhookJobData {
   lineChannelId: string;
   payload: unknown;
+  flowId?: string;
 }
 
 export interface WebhookQueuePort {
@@ -16,7 +17,7 @@ export interface WebhookQueuePort {
 }
 
 export interface InlineWebhookProcessor {
-  process(lineChannelId: string, payload: unknown): Promise<void>;
+  process(lineChannelId: string, payload: unknown, flowId?: string): Promise<void>;
 }
 
 export interface WebhookQueueOptions {
@@ -40,7 +41,7 @@ export const createInlineLineWebhookQueue = (processor: InlineWebhookProcessor):
     data: LineWebhookJobData,
     _options: WebhookQueueOptions
   ): Promise<unknown> {
-    await processor.process(data.lineChannelId, data.payload);
+    await processor.process(data.lineChannelId, data.payload, data.flowId);
     return { id: "inline-line-webhook-job" };
   }
 });
@@ -58,10 +59,10 @@ export const isBullmqLineWebhookQueueEnabled = (mode: string | undefined): boole
 export class LineWebhookQueueService implements OnModuleDestroy {
   constructor(@Inject(LINE_WEBHOOK_QUEUE) private readonly queue: WebhookQueuePort) {}
 
-  async enqueue(lineChannelId: string, payload: unknown): Promise<void> {
+  async enqueue(lineChannelId: string, payload: unknown, flowId?: string): Promise<void> {
     await this.queue.add(
       LINE_WEBHOOK_JOB_NAME,
-      { lineChannelId, payload },
+      { lineChannelId, payload, flowId },
       {
         attempts: 3,
         backoff: { type: "exponential", delay: 1000 },

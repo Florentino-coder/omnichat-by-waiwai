@@ -1,20 +1,17 @@
 services:
   - type: web
     name: omnichat-api
-    runtime: node
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     # Free is for MVP smoke tests only. Use starter or higher before production LINE webhooks.
     plan: free
     region: singapore
     branch: main
     autoDeploy: true
-    buildCommand: npm ci && npm run api:deploy:build
-    startCommand: npm run api:start
     healthCheckPath: /api/v1/health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NODE_VERSION
-        value: 20.14.0
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
@@ -41,3 +38,13 @@ services:
         sync: false
       - key: MINIO_SECRET_KEY
         sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_BACKUPS
+        value: chatwai-backups
+      - key: R2_BUCKET_STORAGE
+        value: chatwai-storage

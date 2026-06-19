@@ -80,6 +80,6 @@ describe("LineWebhookProcessorService", () => {
       }
     });
 
-    expect(lineWebhookService.process).toHaveBeenCalledWith("line-channel-1", { events: [] });
+    expect(lineWebhookService.process).toHaveBeenCalledWith("line-channel-1", { events: [] }, undefined);
   });
 });

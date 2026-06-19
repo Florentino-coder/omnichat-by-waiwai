@@ -140,7 +140,7 @@ describe("LineWebhookService", () => {
       encrypt: jest.fn()
     } as unknown as CryptoSecretService;
     const realtime = {
-      publishTenantEvent: jest.fn<Promise<void>, [string, string, unknown]>().mockResolvedValue(undefined)
+      publishTenantEvent: jest.fn<Promise<void>, [string, string, unknown, string?]>().mockResolvedValue(undefined)
     };
 
     await new LineWebhookService(
@@ -165,7 +165,8 @@ describe("LineWebhookService", () => {
         conversationId: "conversation-1",
         messageId: "message-1",
         direction: MessageDirection.INBOUND
-      })
+      }),
+      undefined
     );
   });
 

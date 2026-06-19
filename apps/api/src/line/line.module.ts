@@ -21,9 +21,10 @@ import { LineWebhookService } from "./line-webhook.service";
 import { StorageModule } from "../storage/storage.module";
 import { LineBroadcastService } from "./line-broadcast.service";
 import { LineBroadcastScheduler } from "./line-broadcast.scheduler";
+import { MonitorModule } from "../monitor/monitor.module";
 
 @Module({
-  imports: [AuthModule, PrismaModule, RealtimeModule, StorageModule],
+  imports: [AuthModule, PrismaModule, RealtimeModule, StorageModule, MonitorModule],
   controllers: [LineChannelsController, LineWebhookController],
   providers: [
     LineChannelsService,

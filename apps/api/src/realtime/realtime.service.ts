@@ -5,6 +5,7 @@ import { RedisService } from "../redis/redis.service";
 export interface TenantRealtimeEvent {
   type: string;
   data: unknown;
+  flowId?: string;
 }
 
 type RedisMessageHandler = (channel: string, message: string) => void;
@@ -41,10 +42,10 @@ export class RealtimeService implements OnModuleDestroy {
 
   constructor(private readonly redisService: RedisService) {}
 
-  async publishTenantEvent(tenantId: string, type: string, data: unknown): Promise<void> {
+  async publishTenantEvent(tenantId: string, type: string, data: unknown, flowId?: string): Promise<void> {
     await this.redisService.client.publish(
       tenantChannel(tenantId),
-      JSON.stringify({ event: type, data })
+      JSON.stringify({ event: type, data, flowId })
     );
   }
 
@@ -103,8 +104,10 @@ function readTenantIdFromChannel(channel: string): string | null {
 
 function parseRedisEvent(message: string): TenantRealtimeEvent | null {
   try {
-    const parsed = JSON.parse(message) as { event?: unknown; data?: unknown };
-    return typeof parsed.event === "string" ? { type: parsed.event, data: parsed.data } : null;
+    const parsed = JSON.parse(message) as { event?: unknown; data?: unknown; flowId?: string };
+    return typeof parsed.event === "string"
+      ? { type: parsed.event, data: parsed.data, flowId: parsed.flowId }
+      : null;
   } catch {
     return null;
   }

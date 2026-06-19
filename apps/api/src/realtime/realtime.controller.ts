@@ -8,11 +8,15 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { TenantGuard } from "../auth/guards/tenant.guard";
 import { JwtTenantPayload } from "../auth/types/auth.types";
 import { RealtimeService } from "./realtime.service";
+import { MonitorService } from "../monitor/monitor.service";
 
 @Controller("sse")
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
 export class RealtimeController {
-  constructor(private readonly realtimeService: RealtimeService) {}
+  constructor(
+    private readonly realtimeService: RealtimeService,
+    private readonly monitorService?: MonitorService
+  ) {}
 
   @Sse("tenant/:tenantId")
   @Header("X-Accel-Buffering", "no")
@@ -27,10 +31,18 @@ export class RealtimeController {
     }
 
     return this.realtimeService.streamTenantEvents(tenantId).pipe(
-      map((event) => ({
-        type: event.type,
-        data: toMessageEventData(event.data)
-      }))
+      map((event) => {
+        const data = toMessageEventData(event.data);
+        if (event.flowId && this.monitorService) {
+          void this.monitorService.recordEvent(event.flowId, "SSE_SEND");
+        }
+        return {
+          type: event.type,
+          data: event.flowId && typeof data === "object" && data !== null
+            ? { ...data, flowId: event.flowId }
+            : data
+        };
+      })
     );
   }
 }

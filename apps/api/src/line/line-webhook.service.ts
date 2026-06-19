@@ -11,6 +11,7 @@ import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { StorageService } from "../storage/storage.service";
+import { MonitorService } from "../monitor/monitor.service";
 
 type LineWebhookPayload = {
   events?: LineWebhookEvent[];
@@ -49,7 +50,8 @@ export class LineWebhookService {
     private readonly prisma: PrismaService,
     private readonly cryptoSecret: CryptoSecretService,
     private readonly realtimeService?: RealtimeService,
-    private readonly storageService?: StorageService
+    private readonly storageService?: StorageService,
+    private readonly monitorService?: MonitorService
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
@@ -68,7 +70,7 @@ export class LineWebhookService {
     return this.cryptoSecret.decrypt(channel.encryptedChannelSecret);
   }
 
-  async process(lineChannelId: string, payload: LineWebhookPayload): Promise<void> {
+  async process(lineChannelId: string, payload: LineWebhookPayload, flowId?: string): Promise<void> {
     const channel = await this.prisma.lineChannel.findFirst({
       where: {
         lineChannelId,
@@ -108,6 +110,10 @@ export class LineWebhookService {
       const lineMessage = event.message;
       if (!externalThreadId || !lineMessage?.id) {
         continue;
+      }
+
+      if (flowId && this.monitorService) {
+        await this.monitorService.recordEvent(flowId, "DB_SAVE_START");
       }
 
       // Try to find the conversation first to see if we already have the displayName
@@ -272,12 +278,21 @@ export class LineWebhookService {
         }
       });
 
+      if (flowId && this.monitorService) {
+        await this.monitorService.recordEvent(flowId, "DB_SAVE_END");
+        await this.monitorService.recordEvent(flowId, "REDIS_PUBLISH_START");
+      }
+
       await this.realtimeService?.publishTenantEvent(channel.tenantId, "message.created", {
         conversationId: conversation.id,
         messageId: message.id,
         lineChannelId: channel.id,
         direction: MessageDirection.INBOUND
-      });
+      }, flowId);
+
+      if (flowId && this.monitorService) {
+        await this.monitorService.recordEvent(flowId, "REDIS_PUBLISH_END");
+      }
     }
 
     await this.prisma.lineChannel.update({

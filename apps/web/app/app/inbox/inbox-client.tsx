@@ -68,7 +68,9 @@ type TenantRealtimeEvent = {
   type: string;
   data?: {
     conversationId?: string;
+    flowId?: string;
   };
+  flowId?: string;
 };
 
 type ConversationTag = {
@@ -197,6 +199,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
   const markingReadRef = useRef(new Set<string>());
+  const pendingFlowIdRef = useRef<string | undefined>(undefined);
   const isLoadingOperations = false;
 
   const selectedConversation = useMemo(
@@ -385,6 +388,19 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         if (!isMountedRef.current) {
           return;
         }
+
+        const flowId = event.flowId || event.data?.flowId;
+        if (flowId) {
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+          void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ flowId, timestamp: Date.now() })
+          });
+          pendingFlowIdRef.current = flowId;
+          performance.mark(`render-start-${flowId}`);
+        }
+
         if (
           event.type === "message.created" ||
           event.type === "message.deleted" ||
@@ -419,6 +435,32 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       }
     };
   }, [currentUser?.tenantId, loadConversations]);
+
+  useEffect(() => {
+    const pendingFlowId = pendingFlowIdRef.current;
+    if (pendingFlowId) {
+      pendingFlowIdRef.current = undefined;
+      try {
+        performance.mark(`render-end-${pendingFlowId}`);
+        performance.measure(
+          `render-${pendingFlowId}`,
+          `render-start-${pendingFlowId}`,
+          `render-end-${pendingFlowId}`
+        );
+        const measures = performance.getEntriesByName(`render-${pendingFlowId}`);
+        const duration = measures[measures.length - 1]?.duration || 0;
+
+        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+        void fetch(`${apiBaseUrl}/api/v1/monitor/ui-rendered`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ flowId: pendingFlowId, duration })
+        });
+      } catch (err) {
+        // Ignore measure errors
+      }
+    }
+  }, [conversations, messages]);
 
   useEffect(() => {
     const workspaceId = selectedConversation?.workspaceId;

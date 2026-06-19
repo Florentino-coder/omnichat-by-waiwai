@@ -2,6 +2,8 @@ import { Body, Controller, Headers, Param, Post, Req, UnauthorizedException } fr
 import { LineSignatureService } from "./line-signature.service";
 import { LineWebhookQueueService } from "./line-webhook-queue.service";
 import { LineWebhookService } from "./line-webhook.service";
+import { MonitorService } from "../monitor/monitor.service";
+import * as crypto from "crypto";
 
 type RawBodyRequest = {
   rawBody?: Buffer;
@@ -12,7 +14,8 @@ export class LineWebhookController {
   constructor(
     private readonly lineSignatureService: LineSignatureService,
     private readonly lineWebhookService: LineWebhookService,
-    private readonly lineWebhookQueueService: LineWebhookQueueService
+    private readonly lineWebhookQueueService: LineWebhookQueueService,
+    private readonly monitorService: MonitorService
   ) {}
 
   @Post(":lineChannelId")
@@ -28,7 +31,10 @@ export class LineWebhookController {
       throw new UnauthorizedException("Invalid LINE signature");
     }
 
-    await this.lineWebhookQueueService.enqueue(lineChannelId, body);
+    const flowId = `flow_${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
+    await this.monitorService.recordEvent(flowId, "WEBHOOK_RECEIVED");
+
+    await this.lineWebhookQueueService.enqueue(lineChannelId, body, flowId);
     return { accepted: true };
   }
 }
