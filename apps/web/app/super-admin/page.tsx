@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Plus, Users, LogOut, ArrowRight, ShieldCheck, RefreshCw } from "lucide-react";
+import { Building2, Plus, Users, LogOut, ArrowRight, ShieldCheck, RefreshCw, Activity } from "lucide-react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../lib/api-client";
 
@@ -157,13 +157,22 @@ export default function SuperAdminPage() {
               <p className="text-xs text-slate-400 font-medium">Platform Management Portal</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-red-950/40 hover:border-red-900/40 border border-slate-700 rounded-xl transition-all"
-          >
-            <LogOut size={16} />
-            Sign Out
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/app/admin/monitor")}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-300 hover:text-white bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/50 hover:border-indigo-700 rounded-xl transition-all"
+            >
+              <Activity size={16} />
+              Latency Monitor
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-red-950/40 hover:border-red-900/40 border border-slate-700 rounded-xl transition-all"
+            >
+              <LogOut size={16} />
+              Sign Out
+            </button>
+          </div>
         </div>
       </header>
 
