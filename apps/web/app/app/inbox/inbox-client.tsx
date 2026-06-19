@@ -1514,18 +1514,24 @@ function parseSseBlock(block: string): TenantRealtimeEvent | null {
   const lines = block.split(/\r?\n/);
   const eventType = lines.find((line) => line.startsWith("event:"))?.slice("event:".length).trim();
   const dataLine = lines.find((line) => line.startsWith("data:"))?.slice("data:".length).trim();
-  if (!eventType) {
+
+  let parsedData: any = null;
+  if (dataLine) {
+    try {
+      parsedData = JSON.parse(dataLine);
+    } catch {
+      // ignore
+    }
+  }
+
+  const type = eventType || parsedData?.type || parsedData?.event;
+  if (!type) {
     return null;
   }
-  if (!dataLine) {
-    return { type: eventType };
-  }
-  try {
-    const data = JSON.parse(dataLine) as TenantRealtimeEvent["data"];
-    return { type: eventType, data };
-  } catch {
-    return { type: eventType };
-  }
+
+  const flowId = parsedData?.flowId;
+
+  return { type, data: parsedData, flowId };
 }
 
 function readMessage(error: unknown, fallback: string): string {
