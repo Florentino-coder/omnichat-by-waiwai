@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { ChatWindow, type ChatMessageItem } from "../../../components/inbox/ChatWindow";
 import {
@@ -177,18 +177,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [composerInsertText, setComposerInsertText] = useState("");
   const [composerInsertNonce, setComposerInsertNonce] = useState(0);
-  const [isQuickReplyAutoEnter, setIsQuickReplyAutoEnter] = useState(() => {
-    if (typeof window === "undefined") {
-      return false;
-    }
-    return window.localStorage.getItem("omni_quick_reply_auto_enter") === "true";
-  });
+  const [isQuickReplyAutoEnter, setIsQuickReplyAutoEnter] = useState(false);
   const [isSendingQuickReply, setIsSendingQuickReply] = useState(false);
   const [tags, setTags] = useState<ConversationTag[]>([]);
   const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
   const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
   const [mobileTab, setMobileTab] = useState<MobileInboxTab>("chats");
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(0);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const isMountedRef = useRef(false);
@@ -200,6 +195,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const prevMessageCountRef = useRef(0);
   const markingReadRef = useRef(new Set<string>());
   const pendingFlowIdRef = useRef<string | undefined>(undefined);
+  const sseReceivedMapRef = useRef(new Map<string, number>());
+  const stateUpdateMapRef = useRef(new Map<string, number>());
+  const componentRenderMapRef = useRef(new Map<string, number>());
   const isLoadingOperations = false;
 
   const selectedConversation = useMemo(
@@ -299,6 +297,14 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           : safeData;
         setHasMoreConversations(safeData.length === CONVERSATION_PAGE_SIZE);
         conversationsRef.current = nextConversations;
+
+        const pendingFlowId = pendingFlowIdRef.current;
+        if (pendingFlowId) {
+          const now = Date.now();
+          console.log("[TRACE] [STATE_UPDATE]", pendingFlowId, now);
+          stateUpdateMapRef.current.set(pendingFlowId, now);
+        }
+
         setConversations(nextConversations);
         setSelectedId((current) => {
           if (current && nextConversations.some((conversation) => conversation.id === current)) {
@@ -332,6 +338,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   useEffect(() => {
     isMountedRef.current = true;
     setCurrentUser(readCurrentUser());
+    setNow(Date.now());
+    
+    if (typeof window !== "undefined") {
+      const savedAutoEnter = window.localStorage.getItem("omni_quick_reply_auto_enter") === "true";
+      setIsQuickReplyAutoEnter(savedAutoEnter);
+    }
+
     if (hasInitialConversationsRef.current) {
       setIsLoadingConversations(false);
       setHasMoreConversations(initialConversations.length === CONVERSATION_PAGE_SIZE);
@@ -384,6 +397,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         return;
       }
 
+      const connTime = Date.now();
+      console.log(`[TRACE] [SSE_CONNECT] ts=${connTime} time=${new Date(connTime).toISOString()}`);
+
       void streamTenantEvents(tenantId as string, abortController.signal, (event) => {
         if (!isMountedRef.current) {
           return;
@@ -392,7 +408,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const flowId = event.flowId || event.data?.flowId;
         if (flowId) {
           const now = Date.now();
-          console.log(`[TRACE] [BROWSER_RECEIVED] flowId=${flowId} ts=${now} time=${new Date(now).toISOString()}`);
+          console.log("[TRACE] [BROWSER_RECEIVE]", flowId, now);
+          console.log("[TRACE] [SSE_HANDLER_START]", flowId, now);
+
+          // Store SSE receive timestamp
+          const sseReceivedVal = now;
+          sseReceivedMapRef.current.set(flowId, sseReceivedVal);
+
           const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
           void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
             method: "POST",
@@ -408,6 +430,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           event.type === "message.deleted" ||
           event.type === "conversation.updated"
         ) {
+          if (flowId) {
+            console.log("[TRACE] [STATE_UPDATE]", flowId, Date.now());
+          }
           void loadConversations({ quiet: true });
           const eventConversationId = event.data?.conversationId;
           const selectedConversationId = selectedIdRef.current;
@@ -418,11 +443,17 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       })
         .then(() => {
           if (!abortController.signal.aborted) {
+            const discTime = Date.now();
+            console.log(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
+            console.log(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
             reconnectTimeoutId = window.setTimeout(startStream, 1000);
           }
         })
         .catch(() => {
           if (!abortController.signal.aborted) {
+            const discTime = Date.now();
+            console.log(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
+            console.log(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
             reconnectTimeoutId = window.setTimeout(startStream, 1000);
           }
         });
@@ -452,11 +483,28 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const measures = performance.getEntriesByName(`render-${pendingFlowId}`);
         const duration = measures[measures.length - 1]?.duration || 0;
 
+        const now = Date.now();
+        const sseReceived = sseReceivedMapRef.current.get(pendingFlowId);
+        const stateUpdate = stateUpdateMapRef.current.get(pendingFlowId);
+        const componentRender = componentRenderMapRef.current.get(pendingFlowId);
+
+        // Cleanup
+        sseReceivedMapRef.current.delete(pendingFlowId);
+        stateUpdateMapRef.current.delete(pendingFlowId);
+        componentRenderMapRef.current.delete(pendingFlowId);
+
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
         void fetch(`${apiBaseUrl}/api/v1/monitor/ui-rendered`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ flowId: pendingFlowId, duration })
+          body: JSON.stringify({
+            flowId: pendingFlowId,
+            duration,
+            endTimestamp: now,
+            sseReceived,
+            stateUpdate,
+            componentRender
+          })
         });
       } catch (err) {
         // Ignore measure errors
@@ -602,6 +650,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     try {
       const data = await apiFetch<InboxMessage[]>(`/api/v1/inbox/conversations/${conversationId}/messages`);
       if (isMountedRef.current && selectedIdRef.current === conversationId) {
+        const pendingFlowId = pendingFlowIdRef.current;
+        if (pendingFlowId) {
+          const now = Date.now();
+          console.log("[TRACE] [STATE_UPDATE]", pendingFlowId, now);
+          stateUpdateMapRef.current.set(pendingFlowId, now);
+        }
         setMessages(Array.isArray(data) ? data : []);
       }
     } catch (loadError) {
@@ -1068,6 +1122,23 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       </p>
     </div>
   );
+
+  useEffect(() => {
+    console.log("[TRACE] [MESSAGE_LIST_RENDER]", Date.now());
+  }, [messages]);
+
+  useLayoutEffect(() => {
+    console.log("[TRACE] [DOM_PAINTED]", Date.now());
+  }, [messages]);
+
+  const pendingFlowIdForRender = pendingFlowIdRef.current;
+  if (pendingFlowIdForRender) {
+    const now = Date.now();
+    console.log("[TRACE] [COMPONENT_RENDER]", pendingFlowIdForRender, now);
+    if (!componentRenderMapRef.current.has(pendingFlowIdForRender)) {
+      componentRenderMapRef.current.set(pendingFlowIdForRender, now);
+    }
+  }
 
   return (
     <section aria-labelledby="inbox-heading" className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-white">

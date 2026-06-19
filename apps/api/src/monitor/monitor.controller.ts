@@ -24,7 +24,15 @@ export class MonitorController {
 
   @Post("monitor/ui-rendered")
   async uiRendered(
-    @Body() payload: { flowId: string; duration: number; startTimestamp?: number; endTimestamp?: number }
+    @Body() payload: {
+      flowId: string;
+      duration: number;
+      startTimestamp?: number;
+      endTimestamp?: number;
+      sseReceived?: number;
+      stateUpdate?: number;
+      componentRender?: number;
+    }
   ) {
     if (payload.flowId) {
       // Record UI render start/end timestamps if available
@@ -33,6 +41,16 @@ export class MonitorController {
       
       await this.monitorService.recordEvent(payload.flowId, "UI_RENDER_START", start);
       await this.monitorService.recordEvent(payload.flowId, "UI_RENDER_END", end);
+
+      if (payload.sseReceived) {
+        await this.monitorService.recordEvent(payload.flowId, "SSE_RECEIVED", payload.sseReceived);
+      }
+      if (payload.stateUpdate) {
+        await this.monitorService.recordEvent(payload.flowId, "STATE_UPDATE", payload.stateUpdate);
+      }
+      if (payload.componentRender) {
+        await this.monitorService.recordEvent(payload.flowId, "COMPONENT_RENDER", payload.componentRender);
+      }
     }
     return { success: true };
   }

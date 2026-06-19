@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy } from "@nestjs/common";
 import { Observable } from "rxjs";
 import { RedisService } from "../redis/redis.service";
+import { MonitorService } from "../monitor/monitor.service";
 
 export interface TenantRealtimeEvent {
   type: string;
@@ -40,17 +41,26 @@ export class RealtimeService implements OnModuleDestroy {
     if (parsed.flowId) {
       const now = Date.now();
       console.log(`[TRACE] [REDIS_SUBSCRIBE_RECEIVE] flowId=${parsed.flowId} ts=${now} time=${new Date(now).toISOString()}`);
+      if (this.monitorService) {
+        void this.monitorService.recordEvent(parsed.flowId, "REDIS_SUBSCRIBE_RECEIVE", now);
+      }
     }
 
     subscribers.forEach((handler) => handler(parsed));
   };
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly monitorService?: MonitorService
+  ) {}
 
   async publishTenantEvent(tenantId: string, type: string, data: unknown, flowId?: string): Promise<void> {
     if (flowId) {
       const now = Date.now();
       console.log(`[TRACE] [REDIS_PUBLISH] flowId=${flowId} ts=${now} time=${new Date(now).toISOString()}`);
+      if (this.monitorService) {
+        await this.monitorService.recordEvent(flowId, "REDIS_PUBLISH", now);
+      }
     }
     await this.redisService.client.publish(
       tenantChannel(tenantId),

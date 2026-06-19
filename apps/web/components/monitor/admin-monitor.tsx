@@ -19,6 +19,8 @@ interface StageMetrics {
   redisPub: number;
   sseDelivery: number;
   uiRender: number;
+  stateUpdateDelay?: number;
+  reactRenderDelay?: number;
 }
 
 interface MonitorStats {
@@ -262,6 +264,36 @@ export default function AdminMonitor() {
                 />
               </div>
             </div>
+
+            {stageDurations.stateUpdateDelay !== undefined && (
+              <div>
+                <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                  <span>State Update Delay (Client)</span>
+                  <span className="font-mono text-slate-500">{stageDurations.stateUpdateDelay}ms</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div 
+                    className="h-full rounded-full bg-blue-500 transition-all duration-500" 
+                    style={{ width: `${Math.min(100, (stageDurations.stateUpdateDelay / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {stageDurations.reactRenderDelay !== undefined && (
+              <div>
+                <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                  <span>React Render Delay (Client)</span>
+                  <span className="font-mono text-slate-500">{stageDurations.reactRenderDelay}ms</span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                  <div 
+                    className="h-full rounded-full bg-teal-500 transition-all duration-500" 
+                    style={{ width: `${Math.min(100, (stageDurations.reactRenderDelay / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
