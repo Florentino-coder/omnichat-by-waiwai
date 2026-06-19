@@ -19,8 +19,10 @@ interface StageMetrics {
   redisPub: number;
   sseDelivery: number;
   uiRender: number;
+  browserReceiveDelay?: number;
   stateUpdateDelay?: number;
   reactRenderDelay?: number;
+  domPaintDelay?: number;
 }
 
 interface MonitorStats {
@@ -30,6 +32,15 @@ interface MonitorStats {
   errorRate: number;
   bottleneckDistribution: Record<string, number>;
   stageMetrics: StageMetrics;
+  p50BrowserReceive?: number;
+  p95BrowserReceive?: number;
+  p50StateUpdate?: number;
+  p95StateUpdate?: number;
+  p50ReactRender?: number;
+  p95ReactRender?: number;
+  p50DOMPaint?: number;
+  p95DOMPaint?: number;
+  avgE2EUserVisible?: number;
 }
 
 interface TimelineEvent {
@@ -123,7 +134,16 @@ export default function AdminMonitor() {
     );
   }
 
-  const stageDurations = stats?.stageMetrics || { dbSave: 0, redisPub: 0, sseDelivery: 0, uiRender: 0 };
+  const stageDurations = stats?.stageMetrics || {
+    dbSave: 0,
+    redisPub: 0,
+    sseDelivery: 0,
+    uiRender: 0,
+    browserReceiveDelay: 0,
+    stateUpdateDelay: 0,
+    reactRenderDelay: 0,
+    domPaintDelay: 0
+  };
 
   return (
     <div className="space-y-8 pb-12">
@@ -204,6 +224,41 @@ export default function AdminMonitor() {
         </Card>
       </div>
 
+      {/* Client Latency Percentiles */}
+      <div className="space-y-3">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Client Latency Percentiles (P50 / P95)</h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="flex flex-col justify-between p-5 bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.01)] rounded-2xl hover:shadow-[0_8px_30px_rgb(0,0,0,0.03)] transition-all">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Browser Receive</div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-bold text-slate-800 font-mono">P50: {stats?.p50BrowserReceive || 0}ms</span>
+              <span className="text-xs font-semibold text-slate-400 font-mono">P95: {stats?.p95BrowserReceive || 0}ms</span>
+            </div>
+          </Card>
+          <Card className="flex flex-col justify-between p-5 bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.01)] rounded-2xl hover:shadow-[0_8px_30px_rgb(0,0,0,0.03)] transition-all">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">State Update</div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-bold text-slate-800 font-mono">P50: {stats?.p50StateUpdate || 0}ms</span>
+              <span className="text-xs font-semibold text-slate-400 font-mono">P95: {stats?.p95StateUpdate || 0}ms</span>
+            </div>
+          </Card>
+          <Card className="flex flex-col justify-between p-5 bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.01)] rounded-2xl hover:shadow-[0_8px_30px_rgb(0,0,0,0.03)] transition-all">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">React Render</div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-bold text-slate-800 font-mono">P50: {stats?.p50ReactRender || 0}ms</span>
+              <span className="text-xs font-semibold text-slate-400 font-mono">P95: {stats?.p95ReactRender || 0}ms</span>
+            </div>
+          </Card>
+          <Card className="flex flex-col justify-between p-5 bg-white border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.01)] rounded-2xl hover:shadow-[0_8px_30px_rgb(0,0,0,0.03)] transition-all">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">DOM Paint</div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-bold text-slate-800 font-mono">P50: {stats?.p50DOMPaint || 0}ms</span>
+              <span className="text-xs font-semibold text-slate-400 font-mono">P95: {stats?.p95DOMPaint || 0}ms</span>
+            </div>
+          </Card>
+        </div>
+      </div>
+
       {/* Latency Breakdown & Bottleneck Distribution */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Latency Breakdown */}
@@ -213,87 +268,112 @@ export default function AdminMonitor() {
             Telemetry Latency Breakdown
           </h2>
           <div className="space-y-5">
-            <div>
-              <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
-                <span>Database Message Save</span>
-                <span className="font-mono text-slate-500">{stageDurations.dbSave}ms</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div 
-                  className="h-full rounded-full bg-indigo-500 transition-all duration-500" 
-                  style={{ width: `${Math.min(100, (stageDurations.dbSave / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
-                />
-              </div>
-            </div>
+            {(() => {
+              const totalBreakdown = 
+                stageDurations.dbSave +
+                stageDurations.redisPub +
+                stageDurations.sseDelivery +
+                (stageDurations.browserReceiveDelay || 0) +
+                (stageDurations.stateUpdateDelay || 0) +
+                (stageDurations.reactRenderDelay || 0) +
+                (stageDurations.domPaintDelay || 0);
+              const denom = Math.max(1, totalBreakdown);
 
-            <div>
-              <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
-                <span>Redis Event Publish</span>
-                <span className="font-mono text-slate-500">{stageDurations.redisPub}ms</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div 
-                  className="h-full rounded-full bg-emerald-500 transition-all duration-500" 
-                  style={{ width: `${Math.min(100, (stageDurations.redisPub / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
-                />
-              </div>
-            </div>
+              return (
+                <>
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                      <span>Database Message Save</span>
+                      <span className="font-mono text-slate-500">{stageDurations.dbSave}ms</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-indigo-500 transition-all duration-500" 
+                        style={{ width: `${Math.min(100, (stageDurations.dbSave / denom) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
 
-            <div>
-              <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
-                <span>SSE Stream Delivery (Network)</span>
-                <span className="font-mono text-slate-500">{stageDurations.sseDelivery}ms</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div 
-                  className="h-full rounded-full bg-amber-500 transition-all duration-500" 
-                  style={{ width: `${Math.min(100, (stageDurations.sseDelivery / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
-                />
-              </div>
-            </div>
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                      <span>Redis Event Publish</span>
+                      <span className="font-mono text-slate-500">{stageDurations.redisPub}ms</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-emerald-500 transition-all duration-500" 
+                        style={{ width: `${Math.min(100, (stageDurations.redisPub / denom) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
 
-            <div>
-              <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
-                <span>React UI Render (Client)</span>
-                <span className="font-mono text-slate-500">{stageDurations.uiRender}ms</span>
-              </div>
-              <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                <div 
-                  className="h-full rounded-full bg-rose-500 transition-all duration-500" 
-                  style={{ width: `${Math.min(100, (stageDurations.uiRender / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
-                />
-              </div>
-            </div>
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                      <span>SSE Stream Delivery (Network)</span>
+                      <span className="font-mono text-slate-500">{stageDurations.sseDelivery}ms</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-amber-500 transition-all duration-500" 
+                        style={{ width: `${Math.min(100, (stageDurations.sseDelivery / denom) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
 
-            {stageDurations.stateUpdateDelay !== undefined && (
-              <div>
-                <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
-                  <span>State Update Delay (Client)</span>
-                  <span className="font-mono text-slate-500">{stageDurations.stateUpdateDelay}ms</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                  <div 
-                    className="h-full rounded-full bg-blue-500 transition-all duration-500" 
-                    style={{ width: `${Math.min(100, (stageDurations.stateUpdateDelay / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                      <span>Browser Receive Delay</span>
+                      <span className="font-mono text-slate-500">{stageDurations.browserReceiveDelay || 0}ms</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-purple-500 transition-all duration-500" 
+                        style={{ width: `${Math.min(100, ((stageDurations.browserReceiveDelay || 0) / denom) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
 
-            {stageDurations.reactRenderDelay !== undefined && (
-              <div>
-                <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
-                  <span>React Render Delay (Client)</span>
-                  <span className="font-mono text-slate-500">{stageDurations.reactRenderDelay}ms</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
-                  <div 
-                    className="h-full rounded-full bg-teal-500 transition-all duration-500" 
-                    style={{ width: `${Math.min(100, (stageDurations.reactRenderDelay / Math.max(1, stats?.avgLatency || 1)) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                      <span>State Update Delay (Client)</span>
+                      <span className="font-mono text-slate-500">{stageDurations.stateUpdateDelay || 0}ms</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-blue-500 transition-all duration-500" 
+                        style={{ width: `${Math.min(100, ((stageDurations.stateUpdateDelay || 0) / denom) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                      <span>React Render Delay (Client)</span>
+                      <span className="font-mono text-slate-500">{stageDurations.reactRenderDelay || 0}ms</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-teal-500 transition-all duration-500" 
+                        style={{ width: `${Math.min(100, ((stageDurations.reactRenderDelay || 0) / denom) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700 mb-1">
+                      <span>DOM Paint Delay (Client)</span>
+                      <span className="font-mono text-slate-500">{stageDurations.domPaintDelay || 0}ms</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-pink-500 transition-all duration-500" 
+                        style={{ width: `${Math.min(100, ((stageDurations.domPaintDelay || 0) / denom) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </Card>
 

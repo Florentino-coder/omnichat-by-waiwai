@@ -72,4 +72,46 @@ export class StorageCleanupService {
       this.logger.error("Error cleaning up trash:", err);
     }
   }
+
+  // Daily 02:00 Bangkok (19:00 UTC)
+  @Cron("0 19 * * *")
+  async cleanupAvatars() {
+    this.logger.log("Starting daily cleanup of conversation avatars from R2...");
+    try {
+      const avatarFiles = await this.prisma.file.findMany({
+        where: {
+          fileName: {
+            startsWith: "avatar_"
+          },
+          deletedAt: null
+        }
+      });
+
+      this.logger.log(`Found ${avatarFiles.length} avatar files to delete.`);
+
+      for (const file of avatarFiles) {
+        try {
+          await this.storageService.deleteFile(file.tenantId, file.id);
+          // Hard delete from database
+          await this.prisma.file.delete({
+            where: { id: file.id }
+          });
+        } catch (err) {
+          this.logger.error(`Failed to delete avatar file ${file.id}: ${err instanceof Error ? err.message : err}`);
+        }
+
+        // Reset conversation pictureUrl to null
+        if (file.conversationId) {
+          await this.prisma.conversation.update({
+            where: { id: file.conversationId },
+            data: { pictureUrl: null }
+          });
+        }
+      }
+
+      this.logger.log("Conversation avatars cleanup completed.");
+    } catch (err) {
+      this.logger.error("Error during daily cleanup of conversation avatars:", err);
+    }
+  }
 }

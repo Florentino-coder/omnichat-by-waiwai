@@ -400,6 +400,7 @@ model Conversation {
   source              MessageSource        @default(LINE)
   externalThreadId    String
   displayName         String?
+  pictureUrl          String?
   nickname            String?
   status              String               @default("OPEN")
   priority            ConversationPriority @default(NORMAL)

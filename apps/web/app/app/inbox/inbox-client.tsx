@@ -33,6 +33,7 @@ export type InboxConversation = {
   workspaceId?: string;
   externalThreadId: string;
   displayName?: string | null;
+  pictureUrl?: string | null;
   nickname?: string | null;
   status?: string | null;
   priority?: ConversationPriority | null;
@@ -199,6 +200,29 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const stateUpdateMapRef = useRef(new Map<string, number>());
   const componentRenderMapRef = useRef(new Map<string, number>());
   const isLoadingOperations = false;
+  const sentTracesRef = useRef(new Map<string, Set<string>>());
+
+  const trace = useCallback((flowId: string, stage: string) => {
+    const timestamp = Date.now();
+    let sentStages = sentTracesRef.current.get(flowId);
+    if (!sentStages) {
+      sentStages = new Set();
+      sentTracesRef.current.set(flowId, sentStages);
+    }
+    if (sentStages.has(stage)) {
+      return;
+    }
+    sentStages.add(stage);
+
+    console.log(`[TRACE] [${stage}]`, flowId, timestamp);
+
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+    void fetch(`${apiBaseUrl}/api/v1/telemetry/client-trace`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flowId, stage, timestamp })
+    }).catch(() => {});
+  }, []);
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
@@ -209,7 +233,16 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     () => [...messages].reverse().find((message) => message.direction === "INBOUND") ?? null,
     [messages]
   );
-  const lineProfile = latestInboundMessage?.rawPayload?.lineProfile ?? null;
+  const lineProfile = useMemo(() => {
+    if (!selectedConversation) return null;
+    const rawProfile = latestInboundMessage?.rawPayload?.lineProfile;
+    return {
+      displayName: selectedConversation.displayName ?? rawProfile?.displayName ?? undefined,
+      pictureUrl: selectedConversation.pictureUrl ?? rawProfile?.pictureUrl ?? undefined,
+      statusMessage: rawProfile?.statusMessage ?? undefined,
+      language: rawProfile?.language ?? undefined
+    };
+  }, [selectedConversation, latestInboundMessage]);
   const lineSource = latestInboundMessage?.rawPayload?.source ?? null;
   const lineMessage = latestInboundMessage?.rawPayload?.message ?? null;
   const selectedTagIds = useMemo(
@@ -301,7 +334,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const pendingFlowId = pendingFlowIdRef.current;
         if (pendingFlowId) {
           const now = Date.now();
-          console.log("[TRACE] [STATE_UPDATE]", pendingFlowId, now);
+          trace(pendingFlowId, "STATE_UPDATE");
           stateUpdateMapRef.current.set(pendingFlowId, now);
         }
 
@@ -408,8 +441,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const flowId = event.flowId || event.data?.flowId;
         if (flowId) {
           const now = Date.now();
-          console.log("[TRACE] [BROWSER_RECEIVE]", flowId, now);
-          console.log("[TRACE] [SSE_HANDLER_START]", flowId, now);
+          trace(flowId, "BROWSER_RECEIVE");
+          trace(flowId, "SSE_HANDLER_START");
 
           // Store SSE receive timestamp
           const sseReceivedVal = now;
@@ -431,7 +464,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           event.type === "conversation.updated"
         ) {
           if (flowId) {
-            console.log("[TRACE] [STATE_UPDATE]", flowId, Date.now());
+            trace(flowId, "STATE_UPDATE");
           }
           void loadConversations({ quiet: true });
           const eventConversationId = event.data?.conversationId;
@@ -653,7 +686,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const pendingFlowId = pendingFlowIdRef.current;
         if (pendingFlowId) {
           const now = Date.now();
-          console.log("[TRACE] [STATE_UPDATE]", pendingFlowId, now);
+          trace(pendingFlowId, "STATE_UPDATE");
           stateUpdateMapRef.current.set(pendingFlowId, now);
         }
         setMessages(Array.isArray(data) ? data : []);
@@ -1009,6 +1042,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       id: conversation.id,
       customerName: customerLabel(conversation),
       customerInitial: customerInitial(customerLabel(conversation)),
+      customerAvatar: conversation.pictureUrl,
       preview: latestMessage
         ? `${latestMessage.direction === "OUTBOUND" ? (locale === "th" ? "คุณ: " : "You: ") : ""}${messageSummary(latestMessage)}`
         : t.noMessagesYet,
@@ -1124,15 +1158,24 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   );
 
   useEffect(() => {
+    const pendingFlowId = pendingFlowIdRef.current;
+    if (pendingFlowId) {
+      trace(pendingFlowId, "REACT_RENDER_END");
+    }
     console.log("[TRACE] [MESSAGE_LIST_RENDER]", Date.now());
-  }, [messages]);
+  }, [messages, conversations, trace]);
 
   useLayoutEffect(() => {
+    const pendingFlowId = pendingFlowIdRef.current;
+    if (pendingFlowId) {
+      trace(pendingFlowId, "DOM_PAINTED");
+    }
     console.log("[TRACE] [DOM_PAINTED]", Date.now());
-  }, [messages]);
+  }, [messages, trace]);
 
   const pendingFlowIdForRender = pendingFlowIdRef.current;
   if (pendingFlowIdForRender) {
+    trace(pendingFlowIdForRender, "REACT_RENDER_START");
     const now = Date.now();
     console.log("[TRACE] [COMPONENT_RENDER]", pendingFlowIdForRender, now);
     if (!componentRenderMapRef.current.has(pendingFlowIdForRender)) {

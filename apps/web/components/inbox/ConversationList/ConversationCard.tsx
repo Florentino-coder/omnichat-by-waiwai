@@ -5,6 +5,7 @@ export interface ConversationCardProps {
   id: string;
   customerName: string;
   customerInitial: string;
+  customerAvatar?: string | null;
   preview: string;
   time: string;
   channelTag: string;
@@ -19,6 +20,7 @@ export function ConversationCard({
   id,
   customerName,
   customerInitial,
+  customerAvatar,
   preview,
   time,
   channelTag,
@@ -40,14 +42,18 @@ export function ConversationCard({
       type="button"
     >
       <span
-        className="relative flex h-12 w-12 items-center justify-center rounded-full border text-lg font-medium"
+        className="relative flex h-12 w-12 items-center justify-center rounded-full border text-lg font-medium overflow-hidden shrink-0"
         style={{
           backgroundColor: config.bg,
           borderColor: config.border,
           color: config.avatarText
         }}
       >
-        {customerInitial}
+        {customerAvatar ? (
+          <img src={customerAvatar} alt="" className="h-full w-full object-cover" />
+        ) : (
+          customerInitial
+        )}
         {status !== "RESOLVED" ? (
           <span
             aria-hidden="true"

@@ -74,7 +74,7 @@ describe("MonitorService", () => {
     await service.recordEvent(flowId, "UI_RENDER_END", 2925);
 
     const detail = await service.getFlowDetail(flowId);
-    expect(detail?.bottleneck).toBe("SSE Delivery");
+    expect(detail?.bottleneck).toBe("Browser Receive Delay");
     expect(detail?.totalLatency).toBe(1925); // 2925 - 1000
     expect(detail?.status).toBe("warning"); // latency > 1000ms
   });

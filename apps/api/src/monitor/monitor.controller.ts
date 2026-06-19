@@ -22,6 +22,17 @@ export class MonitorController {
     return { success: true };
   }
 
+  @Post("telemetry/client-trace")
+  async clientTrace(
+    @Body() payload: { flowId: string; stage: string; timestamp: number }
+  ) {
+    if (payload.flowId && payload.stage) {
+      console.log(`[TRACE] [${payload.stage}] flowId=${payload.flowId} ts=${payload.timestamp} time=${new Date(payload.timestamp).toISOString()}`);
+      await this.monitorService.recordEvent(payload.flowId, payload.stage, payload.timestamp);
+    }
+    return { success: true };
+  }
+
   @Post("monitor/ui-rendered")
   async uiRendered(
     @Body() payload: {

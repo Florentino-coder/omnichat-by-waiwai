@@ -108,36 +108,36 @@ export class MonitorService {
     const webhookRecv = events.find(e => e.name === "WEBHOOK_RECEIVED")?.timestamp;
     const dbSaveStart = events.find(e => e.name === "DB_SAVE_START")?.timestamp;
     const dbSaveEnd = events.find(e => e.name === "DB_SAVE_END")?.timestamp;
-    const redisPubStart = events.find(e => e.name === "REDIS_PUBLISH_START")?.timestamp || events.find(e => e.name === "REDIS_PUBLISH")?.timestamp;
-    const redisPubEnd = events.find(e => e.name === "REDIS_PUBLISH_END")?.timestamp || events.find(e => e.name === "REDIS_SUBSCRIBE_RECEIVE")?.timestamp;
+    const redisPub = events.find(e => e.name === "REDIS_PUBLISH")?.timestamp || events.find(e => e.name === "REDIS_PUBLISH_START")?.timestamp;
     const sseSend = events.find(e => e.name === "SSE_SEND")?.timestamp;
-    const browserRecv = events.find(e => e.name === "BROWSER_RECEIVED")?.timestamp || events.find(e => e.name === "SSE_RECEIVED")?.timestamp;
-    const uiRenderStart = events.find(e => e.name === "UI_RENDER_START")?.timestamp || events.find(e => e.name === "STATE_UPDATE")?.timestamp;
-    const uiRenderEnd = events.find(e => e.name === "UI_RENDER_END")?.timestamp;
+    
+    // Client-side traces
+    const browserRecv = events.find(e => e.name === "BROWSER_RECEIVE")?.timestamp || events.find(e => e.name === "BROWSER_RECEIVED")?.timestamp || events.find(e => e.name === "SSE_RECEIVED")?.timestamp;
+    const stateUpdate = events.find(e => e.name === "STATE_UPDATE")?.timestamp || events.find(e => e.name === "UI_RENDER_START")?.timestamp;
+    const reactRenderEnd = events.find(e => e.name === "REACT_RENDER_END")?.timestamp || events.find(e => e.name === "UI_RENDER_END")?.timestamp;
+    const domPainted = events.find(e => e.name === "DOM_PAINTED")?.timestamp;
 
-    // Durations
+    // 7 main stages requested
     const dbSave = dbSaveStart && dbSaveEnd ? dbSaveEnd - dbSaveStart : 0;
-    const redisPub = redisPubStart && redisPubEnd ? redisPubEnd - redisPubStart : 0;
-    const sseDelivery = sseSend && browserRecv ? browserRecv - sseSend : 0;
-    const uiRender = uiRenderStart && uiRenderEnd ? uiRenderEnd - uiRenderStart : 0;
-    const dbToRedis = dbSaveEnd && redisPubStart ? redisPubStart - dbSaveEnd : 0;
+    const redisPublish = dbSaveEnd && redisPub ? redisPub - dbSaveEnd : 0;
+    const sseDelivery = redisPub && sseSend ? sseSend - redisPub : 0;
+    const browserReceiveDelay = sseSend && browserRecv ? browserRecv - sseSend : 0;
+    const stateUpdateDelay = browserRecv && stateUpdate ? stateUpdate - browserRecv : 0;
+    const reactRenderDelay = stateUpdate && reactRenderEnd ? reactRenderEnd - stateUpdate : 0;
+    const domPaintDelay = reactRenderEnd && domPainted ? domPainted - reactRenderEnd : 0;
 
-    // Granular frontend stages
-    const sseNetworkTransit = sseSend && browserRecv ? browserRecv - sseSend : 0;
-    const stateUpdateDelay = browserRecv && uiRenderStart ? uiRenderStart - browserRecv : 0;
-    const reactRenderDelay = uiRenderStart && uiRenderEnd ? uiRenderEnd - uiRenderStart : 0;
+    // Legacy/Fallback helper values for compatibility
+    const legacySseDelivery = sseSend && browserRecv ? browserRecv - sseSend : 0;
 
-    // Identify bottleneck
+    // Identify bottleneck using the requested stages
     const durations = [
-      { stage: "DB Save", val: dbSave },
-      { stage: "Redis Publish", val: redisPub },
-      { stage: "SSE Delivery", val: sseDelivery },
-      { stage: "UI Render", val: uiRender },
-      { stage: "Webhook to DB Save Start", val: (webhookRecv && dbSaveStart ? dbSaveStart - webhookRecv : 0) },
-      { stage: "DB Save to Redis Publish", val: dbToRedis },
-      { stage: "SSE Network Transit", val: sseNetworkTransit },
+      { stage: "Database Save", val: dbSave },
+      { stage: "Redis Publish", val: redisPublish },
+      { stage: "SSE Delivery", val: sseDelivery || legacySseDelivery },
+      { stage: "Browser Receive Delay", val: browserReceiveDelay },
       { stage: "State Update Delay", val: stateUpdateDelay },
-      { stage: "React Render Delay", val: reactRenderDelay }
+      { stage: "React Render Delay", val: reactRenderDelay },
+      { stage: "DOM Paint Delay", val: domPaintDelay }
     ];
 
     durations.sort((a, b) => b.val - a.val);
@@ -286,45 +286,95 @@ export class MonitorService {
     let totalStateUpdate = 0, countStateUpdate = 0;
     let totalReactRender = 0, countReactRender = 0;
 
+    const browserReceiveDelays: number[] = [];
+    const stateUpdateDelays: number[] = [];
+    const reactRenderDelays: number[] = [];
+    const domPaintDelays: number[] = [];
+    const e2eLatencies: number[] = [];
+
     for (const item of recent.slice(0, 50)) { // Sample recent 50 for performance
       const detail = await this.getFlowDetail(item.flowId);
       if (detail) {
         const events = detail.events;
+        const webhookRecv = events.find(e => e.name === "WEBHOOK_RECEIVED")?.timestamp;
         const dbSaveStart = events.find(e => e.name === "DB_SAVE_START")?.timestamp;
         const dbSaveEnd = events.find(e => e.name === "DB_SAVE_END")?.timestamp;
-        const redisPubStart = events.find(e => e.name === "REDIS_PUBLISH_START")?.timestamp || events.find(e => e.name === "REDIS_PUBLISH")?.timestamp;
-        const redisPubEnd = events.find(e => e.name === "REDIS_PUBLISH_END")?.timestamp || events.find(e => e.name === "REDIS_SUBSCRIBE_RECEIVE")?.timestamp;
+        const redisPub = events.find(e => e.name === "REDIS_PUBLISH")?.timestamp || events.find(e => e.name === "REDIS_PUBLISH_START")?.timestamp;
         const sseSend = events.find(e => e.name === "SSE_SEND")?.timestamp;
-        const browserRecv = events.find(e => e.name === "BROWSER_RECEIVED")?.timestamp || events.find(e => e.name === "SSE_RECEIVED")?.timestamp;
-        const uiRenderStart = events.find(e => e.name === "UI_RENDER_START")?.timestamp || events.find(e => e.name === "STATE_UPDATE")?.timestamp;
-        const uiRenderEnd = events.find(e => e.name === "UI_RENDER_END")?.timestamp;
+        
+        // Client-side traces
+        const browserRecv = events.find(e => e.name === "BROWSER_RECEIVE")?.timestamp || events.find(e => e.name === "BROWSER_RECEIVED")?.timestamp || events.find(e => e.name === "SSE_RECEIVED")?.timestamp;
+        const stateUpdate = events.find(e => e.name === "STATE_UPDATE")?.timestamp || events.find(e => e.name === "UI_RENDER_START")?.timestamp;
+        const reactRenderEnd = events.find(e => e.name === "REACT_RENDER_END")?.timestamp || events.find(e => e.name === "UI_RENDER_END")?.timestamp;
+        const domPainted = events.find(e => e.name === "DOM_PAINTED")?.timestamp;
 
         if (dbSaveStart && dbSaveEnd) {
           totalDbSave += (dbSaveEnd - dbSaveStart);
           countDbSave++;
         }
-        if (redisPubStart && redisPubEnd) {
-          totalRedisPub += (redisPubEnd - redisPubStart);
+        if (dbSaveEnd && redisPub) {
+          totalRedisPub += (redisPub - dbSaveEnd);
           countRedisPub++;
         }
-        if (sseSend && browserRecv) {
-          totalSseDelivery += (browserRecv - sseSend);
+        
+        const legacySseDelivery = sseSend && browserRecv ? browserRecv - sseSend : 0;
+        const sseDeliveryVal = redisPub && sseSend ? sseSend - redisPub : legacySseDelivery;
+        if (sseDeliveryVal > 0) {
+          totalSseDelivery += sseDeliveryVal;
           countSseDelivery++;
         }
-        if (uiRenderStart && uiRenderEnd) {
-          totalUiRender += (uiRenderEnd - uiRenderStart);
+
+        const uiRenderVal = stateUpdate && reactRenderEnd ? reactRenderEnd - stateUpdate : 0;
+        if (uiRenderVal > 0) {
+          totalUiRender += uiRenderVal;
           countUiRender++;
         }
-        if (browserRecv && uiRenderStart) {
-          totalStateUpdate += (uiRenderStart - browserRecv);
+
+        // Delays for percentiles
+        if (sseSend && browserRecv) {
+          browserReceiveDelays.push(browserRecv - sseSend);
+        }
+        if (browserRecv && stateUpdate) {
+          stateUpdateDelays.push(stateUpdate - browserRecv);
+          totalStateUpdate += (stateUpdate - browserRecv);
           countStateUpdate++;
         }
-        if (uiRenderStart && uiRenderEnd) {
-          totalReactRender += (uiRenderEnd - uiRenderStart);
+        if (stateUpdate && reactRenderEnd) {
+          reactRenderDelays.push(reactRenderEnd - stateUpdate);
+          totalReactRender += (reactRenderEnd - stateUpdate);
           countReactRender++;
+        }
+        if (reactRenderEnd && domPainted) {
+          domPaintDelays.push(domPainted - reactRenderEnd);
+        }
+        if (webhookRecv && domPainted) {
+          e2eLatencies.push(domPainted - webhookRecv);
         }
       }
     }
+
+    const getPercentile = (arr: number[], pct: number): number => {
+      if (arr.length === 0) return 0;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const idx = Math.min(sorted.length - 1, Math.ceil(sorted.length * (pct / 100)) - 1);
+      return sorted[idx] || 0;
+    };
+
+    const p50BrowserReceive = getPercentile(browserReceiveDelays, 50);
+    const p95BrowserReceive = getPercentile(browserReceiveDelays, 95);
+
+    const p50StateUpdate = getPercentile(stateUpdateDelays, 50);
+    const p95StateUpdate = getPercentile(stateUpdateDelays, 95);
+
+    const p50ReactRender = getPercentile(reactRenderDelays, 50);
+    const p95ReactRender = getPercentile(reactRenderDelays, 95);
+
+    const p50DOMPaint = getPercentile(domPaintDelays, 50);
+    const p95DOMPaint = getPercentile(domPaintDelays, 95);
+
+    const avgE2EUserVisible = e2eLatencies.length > 0
+      ? Math.round(e2eLatencies.reduce((a, b) => a + b, 0) / e2eLatencies.length)
+      : 0;
 
     return {
       avgLatency,
@@ -332,6 +382,15 @@ export class MonitorService {
       p99Latency,
       errorRate,
       bottleneckDistribution,
+      p50BrowserReceive,
+      p95BrowserReceive,
+      p50StateUpdate,
+      p95StateUpdate,
+      p50ReactRender,
+      p95ReactRender,
+      p50DOMPaint,
+      p95DOMPaint,
+      avgE2EUserVisible,
       stageMetrics: {
         dbSave: countDbSave > 0 ? Math.round(totalDbSave / countDbSave) : 0,
         redisPub: countRedisPub > 0 ? Math.round(totalRedisPub / countRedisPub) : 0,
