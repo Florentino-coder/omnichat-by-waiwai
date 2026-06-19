@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import {
   AuditAction,
   FileType,
@@ -163,12 +163,6 @@ export class LineWebhookService {
           lastMessageAt: eventTime
         }
       });
-
-      if (conversation.pictureUrl && this.isLineCdnUrl(conversation.pictureUrl)) {
-        this.processAndUploadAvatar(channel.tenantId, conversation.id, conversation.pictureUrl).catch(() => {});
-      } else if (existingConv && existingConv.pictureUrl && this.isLineCdnUrl(existingConv.pictureUrl)) {
-        this.processAndUploadAvatar(channel.tenantId, existingConv.id, existingConv.pictureUrl).catch(() => {});
-      }
 
       let mediaData: {
         mediaUrl?: string;
@@ -423,10 +417,6 @@ export class LineWebhookService {
       }
     });
 
-    if (conversation.pictureUrl && this.isLineCdnUrl(conversation.pictureUrl)) {
-      this.processAndUploadAvatar(channel.tenantId, conversation.id, conversation.pictureUrl).catch(() => {});
-    }
-
     await this.prisma.auditLog.create({
       data: {
         tenantId: channel.tenantId,
@@ -512,51 +502,6 @@ export class LineWebhookService {
         conversationId: message.conversationId,
         messageId: message.id
       });
-    }
-  }
-
-  private readonly logger = new Logger(LineWebhookService.name);
-
-  private isLineCdnUrl(url?: string | null): boolean {
-    if (!url) return false;
-    return url.includes("line-scdn.net") || url.includes("line-cdn.net");
-  }
-
-  private async processAndUploadAvatar(
-    tenantId: string,
-    conversationId: string,
-    pictureUrl: string
-  ): Promise<void> {
-    if (!this.storageService || !pictureUrl) return;
-    try {
-      const response = await fetch(pictureUrl);
-      if (!response.ok) return;
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const contentType = response.headers.get("content-type") || "image/jpeg";
-      const ext = contentType.split("/")[1] || "jpg";
-      const fileName = `avatar_${conversationId}.${ext}`;
-      
-      const uploadResult = await this.storageService.uploadFile(
-        tenantId,
-        conversationId,
-        FileType.IMAGE,
-        RetentionType.PERMANENT,
-        buffer,
-        fileName,
-        contentType
-      );
-
-      await this.prisma.conversation.update({
-        where: { id: conversationId },
-        data: { pictureUrl: uploadResult.publicUrl }
-      });
-
-      await this.realtimeService?.publishTenantEvent(tenantId, "conversation.updated", {
-        conversationId,
-        pictureUrl: uploadResult.publicUrl
-      });
-    } catch (err) {
-      this.logger.error(`Failed to process and upload avatar for conv ${conversationId}: ${err instanceof Error ? err.message : err}`);
     }
   }
 }
