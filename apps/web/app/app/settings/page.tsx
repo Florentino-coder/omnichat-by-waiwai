@@ -61,7 +61,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex overflow-x-auto scrollbar-none flex-nowrap gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm max-w-full sm:max-w-lg">
+        <div className="flex overflow-x-auto scrollbar-none flex-nowrap gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm w-full max-w-2xl">
           {(role === "OWNER" || role === "ADMIN") && (
             <button
               type="button"
