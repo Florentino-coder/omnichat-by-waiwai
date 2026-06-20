@@ -11,7 +11,7 @@ export class EmbeddingService {
 
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey) {
-      return this.embedWithGemini(texts, geminiKey);
+      return this.embedWithGemini(texts, geminiKey, "RETRIEVAL_DOCUMENT");
     }
 
     const openAiKey = process.env.OPENAI_API_KEY;
@@ -27,12 +27,31 @@ export class EmbeddingService {
   }
 
   async embedQuery(text: string): Promise<number[]> {
-    const [embedding] = await this.embedTexts([text]);
-    return embedding ?? [];
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey) {
+      const [embedding] = await this.embedWithGemini([text], geminiKey, "RETRIEVAL_QUERY");
+      return embedding ?? [];
+    }
+
+    const openAiKey = process.env.OPENAI_API_KEY;
+    if (openAiKey) {
+      const [embedding] = await this.embedWithOpenAI([text], openAiKey);
+      return embedding ?? [];
+    }
+
+    if (process.env.NODE_ENV === "test") {
+      return [];
+    }
+
+    throw new Error("No embedding provider configured (GEMINI_API_KEY or OPENAI_API_KEY)");
   }
 
-  private async embedWithGemini(texts: string[], apiKey: string): Promise<number[][]> {
-    const model = process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004";
+  private async embedWithGemini(
+    texts: string[],
+    apiKey: string,
+    taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY"
+  ): Promise<number[][]> {
+    const model = process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${apiKey}`;
 
     const response = await fetch(url, {
@@ -41,6 +60,7 @@ export class EmbeddingService {
       body: JSON.stringify({
         requests: texts.map((text) => ({
           model: `models/${model}`,
+          taskType,
           content: { parts: [{ text }] }
         }))
       })
