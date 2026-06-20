@@ -29,22 +29,14 @@ import { KnowledgeIngestProcessorService } from "./knowledge-ingest-processor.se
     KnowledgeIngestProcessorService,
     {
       provide: KNOWLEDGE_INGEST_QUEUE,
-      inject: [ConfigService, KnowledgeDocumentService, KnowledgeIngestProcessorService],
+      inject: [ConfigService, KnowledgeIngestProcessorService],
       useFactory: (
         configService: ConfigService,
-        knowledgeDocumentService: KnowledgeDocumentService,
-        _knowledgeIngestProcessorService: KnowledgeIngestProcessorService
+        knowledgeIngestProcessorService: KnowledgeIngestProcessorService
       ) => {
-        void _knowledgeIngestProcessorService;
         if (process.env.NODE_ENV === "test") {
           return createInlineKnowledgeIngestQueue({
-            ingestDocument: (data) =>
-              knowledgeDocumentService.runIngestJob(
-                data.tenantId,
-                data.userId,
-                data.documentId,
-                true
-              )
+            ingestDocument: (data) => knowledgeIngestProcessorService.ingestDocument(data)
           });
         }
 
@@ -59,13 +51,7 @@ import { KnowledgeIngestProcessorService } from "./knowledge-ingest-processor.se
         }
 
         return createInlineKnowledgeIngestQueue({
-          ingestDocument: (data) =>
-            knowledgeDocumentService.runIngestJob(
-              data.tenantId,
-              data.userId,
-              data.documentId,
-              true
-            )
+          ingestDocument: (data) => knowledgeIngestProcessorService.ingestDocument(data)
         });
       }
     },

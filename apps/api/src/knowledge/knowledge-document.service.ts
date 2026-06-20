@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
-  NotFoundException
+  NotFoundException,
+  forwardRef
 } from "@nestjs/common";
 import {
   AuditAction,
@@ -53,6 +55,7 @@ export class KnowledgeDocumentService {
     private readonly embeddingService: EmbeddingService,
     private readonly storageService: StorageService,
     private readonly textExtractionService: KnowledgeTextExtractionService,
+    @Inject(forwardRef(() => KnowledgeIngestQueueService))
     private readonly knowledgeIngestQueueService: KnowledgeIngestQueueService
   ) {}
 

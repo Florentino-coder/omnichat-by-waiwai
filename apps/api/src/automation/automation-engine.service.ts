@@ -1,7 +1,9 @@
 import {
+  Inject,
   Injectable,
   Logger,
-  NotFoundException
+  NotFoundException,
+  forwardRef
 } from "@nestjs/common";
 import {
   AuditAction,
@@ -21,6 +23,7 @@ export class AutomationEngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lineReplyService: LineReplyService,
+    @Inject(forwardRef(() => AutomationQueueService))
     private readonly automationQueueService: AutomationQueueService
   ) {}
 

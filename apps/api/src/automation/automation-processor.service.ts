@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit, forwardRef } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Worker } from "bullmq";
 import {
@@ -13,6 +13,7 @@ export class AutomationProcessorService implements OnModuleInit, OnModuleDestroy
   private worker?: Worker<AutomationJobData>;
 
   constructor(
+    @Inject(forwardRef(() => AutomationEngineService))
     private readonly automationEngineService: AutomationEngineService,
     private readonly configService?: ConfigService
   ) {}

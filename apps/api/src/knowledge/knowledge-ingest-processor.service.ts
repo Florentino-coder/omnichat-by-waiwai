@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit, forwardRef } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Worker } from "bullmq";
 import {
@@ -13,6 +13,7 @@ export class KnowledgeIngestProcessorService implements OnModuleInit, OnModuleDe
   private worker?: Worker<KnowledgeIngestJobData>;
 
   constructor(
+    @Inject(forwardRef(() => KnowledgeDocumentService))
     private readonly knowledgeDocumentService: KnowledgeDocumentService,
     private readonly configService?: ConfigService
   ) {}

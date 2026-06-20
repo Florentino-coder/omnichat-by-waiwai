@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, Logger, NotFoundException, forwardRef } from "@nestjs/common";
 import {
   AuditAction,
   FileType,
@@ -58,6 +58,7 @@ export class LineWebhookService {
     private readonly storageService?: StorageService,
     private readonly monitorService?: MonitorService,
     private readonly scenarioService?: ScenarioService,
+    @Inject(forwardRef(() => AutomationService))
     private readonly automationService?: AutomationService
   ) { }
 

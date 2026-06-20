@@ -20,6 +20,10 @@ services:
         sync: false
       - key: LINE_WEBHOOK_QUEUE_MODE
         value: inline
+      - key: KNOWLEDGE_INGEST_QUEUE_MODE
+        value: inline
+      - key: AUTOMATION_QUEUE_MODE
+        value: inline
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
