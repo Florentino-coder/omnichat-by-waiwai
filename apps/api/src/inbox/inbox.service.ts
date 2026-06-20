@@ -8,6 +8,7 @@ import {
   ConversationTag,
   ConversationTagLink,
   Message,
+  Prisma,
   Role,
   SavedReply,
   LineChannel,
@@ -1329,6 +1330,7 @@ export class InboxService {
     }));
 
     let suggestionText = "";
+    const llmStartedAt = Date.now();
     try {
       const rawSuggestion = await activeLlmClient.generateReply({
         systemPrompt: compiledPrompt,
@@ -1336,8 +1338,17 @@ export class InboxService {
       });
       suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
     } catch (llmError) {
+      const errorCode = this.extractLlmErrorCode(llmError);
+      await this.logAiSuggestFailure(tenantId, userId, {
+        conversationId,
+        actionType,
+        provider,
+        errorCode,
+        mode: "suggest"
+      });
       throw this.buildLlmHttpException(llmError);
     }
+    const latencyMs = Date.now() - llmStartedAt;
 
     // 7. Save suggestion if LLM succeeded (Addendum 2 requirement: DO NOT save row if LLM call failed)
     if (dto.previous_suggestion_id) {
@@ -1359,7 +1370,9 @@ export class InboxService {
         actionType,
         promptUsed: compiledPrompt,
         suggestionText,
-        status: "shown"
+        status: "shown",
+        provider,
+        latencyMs
       }
     });
 
@@ -1376,7 +1389,8 @@ export class InboxService {
           conversationId,
           actionType,
           provider,
-          aiAgentGender
+          aiAgentGender,
+          latencyMs
         }
       }
     });
@@ -1541,6 +1555,12 @@ export class InboxService {
       });
       suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
     } catch (llmError) {
+      const errorCode = this.extractLlmErrorCode(llmError);
+      await this.logAiSuggestFailure(tenantId, userId, {
+        provider,
+        errorCode,
+        mode: "test"
+      });
       throw this.buildLlmHttpException(llmError);
     }
 
@@ -1718,30 +1738,55 @@ export class InboxService {
     const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
     this.logger.error(`LLM Generation failed: ${errorMessage}`);
 
-    let code = "AI_GENERATION_FAILED";
-    let message = "AI generation failed. Please try again.";
-
-    if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY/i.test(errorMessage)) {
-      code = "AI_PROVIDER_NOT_CONFIGURED";
-      message = "AI provider API key is not configured on the server.";
-    } else if (/status 429|rate limit|quota/i.test(errorMessage)) {
-      code = "AI_PROVIDER_RATE_LIMITED";
-      message = "AI provider is temporarily busy. Please try again shortly.";
-    } else if (/timeout|ETIMEDOUT|ECONNRESET/i.test(errorMessage)) {
-      code = "AI_PROVIDER_TIMEOUT";
-      message = "AI provider took too long to respond. Please try again.";
-    }
+    const code = this.extractLlmErrorCode(llmError);
+    const messageByCode: Record<string, string> = {
+      AI_PROVIDER_NOT_CONFIGURED: "AI provider API key is not configured on the server.",
+      AI_PROVIDER_RATE_LIMITED: "AI provider is temporarily busy. Please try again shortly.",
+      AI_PROVIDER_TIMEOUT: "AI provider took too long to respond. Please try again.",
+      AI_GENERATION_FAILED: "AI generation failed. Please try again."
+    };
 
     return new HttpException(
       {
         success: false,
         error: {
           code,
-          message
+          message: messageByCode[code] ?? messageByCode.AI_GENERATION_FAILED
         }
       },
       HttpStatus.BAD_GATEWAY
     );
+  }
+
+  private extractLlmErrorCode(llmError: unknown): string {
+    const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
+
+    if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY/i.test(errorMessage)) {
+      return "AI_PROVIDER_NOT_CONFIGURED";
+    }
+    if (/status 429|rate limit|quota/i.test(errorMessage)) {
+      return "AI_PROVIDER_RATE_LIMITED";
+    }
+    if (/timeout|ETIMEDOUT|ECONNRESET/i.test(errorMessage)) {
+      return "AI_PROVIDER_TIMEOUT";
+    }
+    return "AI_GENERATION_FAILED";
+  }
+
+  private async logAiSuggestFailure(
+    tenantId: string,
+    userId: string,
+    metadata: Prisma.InputJsonValue
+  ): Promise<void> {
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.AI_SUGGEST_FAILED,
+        targetType: "AiSuggestion",
+        metadata
+      }
+    });
   }
 
   private async assertAiCreditAvailable(tenantId: string, userId: string): Promise<void> {

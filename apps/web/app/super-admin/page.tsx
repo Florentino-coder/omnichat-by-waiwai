@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Plus, Users, LogOut, ArrowRight, ShieldCheck, RefreshCw, Activity } from "lucide-react";
+import { Building2, Plus, Users, LogOut, ArrowRight, ShieldCheck, RefreshCw, Activity, Brain } from "lucide-react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../lib/api-client";
 
@@ -158,6 +158,13 @@ export default function SuperAdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/super-admin/ai")}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-violet-300 hover:text-white bg-violet-950/40 hover:bg-violet-900/40 border border-violet-900/50 hover:border-violet-700 rounded-xl transition-all"
+            >
+              <Brain size={16} />
+              AI Monitor
+            </button>
             <button
               onClick={() => router.push("/app/admin/monitor")}
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-300 hover:text-white bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/50 hover:border-indigo-700 rounded-xl transition-all"

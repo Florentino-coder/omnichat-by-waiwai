@@ -89,6 +89,7 @@ enum AuditAction {
   AI_SUGGEST_SENT
   AI_SUGGEST_EDITED
   AI_SUGGEST_REJECTED
+  AI_SUGGEST_FAILED
 }
 
 enum MessageSource {
@@ -704,10 +705,15 @@ model AiSuggestion {
   suggestionText String?      @map("suggestion_text")
   status         String       @default("shown")
   finalSentText  String?      @map("final_sent_text")
+  provider       String?
+  latencyMs      Int?         @map("latency_ms")
+  errorCode      String?      @map("error_code")
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@index([tenantId])
   @@index([conversationId])
+  @@index([createdAt])
+  @@index([provider])
   @@map("ai_suggestions")
 }
 
