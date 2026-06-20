@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, Logger } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, Logger, Inject, HttpException, HttpStatus } from "@nestjs/common";
 import {
   AuditAction,
   Conversation,
@@ -15,6 +15,9 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { ConversationStatus } from "./dto/update-conversation-status.dto";
+import { RedisService } from "../redis/redis.service";
+import { LLMClient } from "../common/llm/llm.interface";
+import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
 
 export type InboxConversation = Conversation & {
   lineChannel: {
@@ -88,7 +91,9 @@ export class InboxService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cryptoSecret: CryptoSecretService
+    private readonly cryptoSecret: CryptoSecretService,
+    private readonly redisService: RedisService,
+    @Inject("LLMClient") private readonly llmClient: LLMClient
   ) { }
 
   async listConversations(
@@ -1035,6 +1040,231 @@ export class InboxService {
     } catch (err) {
       this.logger.error("Error executing LINE markAsRead:", err);
     }
+  }
+
+  async aiSuggest(tenantId: string, conversationId: string, actionType: string) {
+    // 1. Rate limiting via Redis
+    const conversationLimitKey = `ai-suggest-limit:conversation:${conversationId}`;
+    const tenantLimitKey = `ai-suggest-limit:tenant:${tenantId}`;
+
+    const [convCount, tenantCount] = await Promise.all([
+      this.redisService.client.incr(conversationLimitKey),
+      this.redisService.client.incr(tenantLimitKey)
+    ]);
+
+    // Set EXPIRE if key is newly created
+    if (convCount === 1) {
+      await this.redisService.client.expire(conversationLimitKey, 60);
+    }
+    if (tenantCount === 1) {
+      await this.redisService.client.expire(tenantLimitKey, 60);
+    }
+
+    if (convCount > 10 || tenantCount > 60) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "RATE_LIMIT_EXCEEDED",
+            message: "Too many AI suggestions requested. Please wait before trying again."
+          }
+        },
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+
+    // 2. Fetch conversation with customer (ensure customer.deletedAt: null)
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId,
+        deletedAt: null
+      },
+      include: {
+        customer: true
+      }
+    });
+
+    if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
+    if (!conversation.customerId || !conversation.customer || conversation.customer.deletedAt !== null) {
+      throw new NotFoundException("Customer not found or has been deleted");
+    }
+
+    const customer = conversation.customer;
+
+    // 3. Fetch recent 10-15 messages
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversationId,
+        tenantId,
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" },
+      take: 15
+    });
+
+    // Order message history chronologically (asc)
+    const history = messages.reverse();
+
+    // Compile tags & notes for this customer
+    const customerConvs = await this.prisma.conversation.findMany({
+      where: {
+        customerId: customer.id,
+        tenantId,
+        deletedAt: null
+      },
+      include: {
+        tagLinks: {
+          where: { deletedAt: null },
+          include: { tag: true }
+        },
+        internalNotes: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: "desc" }
+        }
+      }
+    });
+
+    const tagsMap = new Set<string>();
+    for (const c of customerConvs) {
+      for (const link of c.tagLinks) {
+        if (link.tag && !link.tag.deletedAt) {
+          tagsMap.add(link.tag.name);
+        }
+      }
+    }
+    const tagsStr = Array.from(tagsMap).join(", ") || "ไม่มี";
+
+    // Notes must ignore soft deleted entries (already handled in where condition)
+    const notesList = customerConvs
+      .flatMap((c) => c.internalNotes.map((n) => n.body))
+      .filter((body) => body.trim().length > 0);
+    const notesStr = notesList.join("\n- ") ? `\n- ${notesList.join("\n- ")}` : "ไม่มี";
+
+    // 4. Mapped history text helper
+    const conversationHistoryText = history
+      .map((msg) => {
+        const sender = msg.direction === "INBOUND" ? (customer.displayName || "Customer") : "Agent";
+        return `${sender}: ${msg.text || "[Media/Attachment]"}`;
+      })
+      .join("\n");
+
+    // 5. Load prompt template
+    let template = await this.prisma.promptTemplate.findFirst({
+      where: {
+        tenantId,
+        name: "suggested_reply_default"
+      }
+    });
+
+    if (!template) {
+      template = await this.prisma.promptTemplate.findFirst({
+        where: {
+          tenantId: null,
+          name: "suggested_reply_default"
+        }
+      });
+    }
+
+    const systemPromptTemplate = template
+      ? template.systemPrompt
+      : `คุณเป็นผู้ช่วย Agent ร้านค้าที่กำลังตอบแชทลูกค้าผ่าน LINE OA
+
+ชื่อลูกค้า: {{customer_name}}
+แท็กลูกค้า: {{tags}}
+โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
+
+ประวัติการสนทนาล่าสุด:
+{{conversation_history}}
+
+คำสั่งสำหรับ action_type = {{action_type}}:
+- generate: ร่างคำตอบใหม่ สุภาพ กระชับ ตรงประเด็น
+- rewrite: เขียนใหม่ความหมายเดิมแต่สำนวนต่าง
+- shorter: ย่อข้อความล่าสุดที่ agent พิมพ์ให้สั้นลง
+- polite: ปรับให้สุภาพขึ้น
+- friendly: ปรับให้เป็นกันเองขึ้น
+
+ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
+
+    // 6. Build prompt by replacing placeholders
+    const compiledPrompt = systemPromptTemplate
+      .replace("{{customer_name}}", customer.displayName || "ลูกค้า")
+      .replace("{{tags}}", tagsStr)
+      .replace("{{notes}}", notesStr)
+      .replace("{{action_type}}", actionType)
+      .replace("{{conversation_history}}", conversationHistoryText);
+
+    const historyForLlm = history.map((msg) => ({
+      role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
+      text: msg.text || ""
+    }));
+
+    let suggestionText = "";
+    try {
+      suggestionText = await this.llmClient.generateReply({
+        systemPrompt: compiledPrompt,
+        conversationHistory: historyForLlm
+      });
+    } catch (llmError) {
+      this.logger.error(`LLM Generation failed: ${llmError instanceof Error ? llmError.message : llmError}`);
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "AI_GENERATION_FAILED",
+            message: "AI generation failed. Please try again."
+          }
+        },
+        HttpStatus.BAD_GATEWAY
+      );
+    }
+
+    // 7. Save suggestion if LLM succeeded (Addendum 2 requirement: DO NOT save row if LLM call failed)
+    const suggestion = await this.prisma.aiSuggestion.create({
+      data: {
+        tenantId,
+        conversationId,
+        actionType,
+        promptUsed: compiledPrompt,
+        suggestionText,
+        status: "shown"
+      }
+    });
+
+    return {
+      suggestion_id: suggestion.id,
+      suggestion_text: suggestionText
+    };
+  }
+
+  async updateAiSuggestion(tenantId: string, id: string, dto: UpdateAiSuggestionDto) {
+    const suggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        id,
+        tenantId
+      }
+    });
+
+    if (!suggestion) {
+      throw new NotFoundException("AI Suggestion not found");
+    }
+
+    const updated = await this.prisma.aiSuggestion.update({
+      where: { id: suggestion.id },
+      data: {
+        status: dto.status,
+        finalSentText: dto.final_sent_text
+      }
+    });
+
+    return {
+      success: true,
+      id: updated.id,
+      status: updated.status
+    };
   }
 }
 

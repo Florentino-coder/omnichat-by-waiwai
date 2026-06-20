@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, Pencil, StickyNote, Tags, UserPlus, X, ChevronDown, Zap, Smartphone, Globe, MessageSquare } from "lucide-react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { AssignDropdown } from "./AssignDropdown";
@@ -48,6 +48,9 @@ interface CustomerPanelProps {
   onSelectQuickReply?: (id: string) => void;
   onNoteDraftChange?: (value: string) => void;
   onCreateNote?: () => void;
+  phone?: string | null;
+  email?: string | null;
+  onSaveContactDetails?: (phone: string, email: string) => void;
 }
 
 export function CustomerPanel({
@@ -87,9 +90,20 @@ export function CustomerPanel({
   onToggleAutoQuickReply,
   onSelectQuickReply,
   onNoteDraftChange,
-  onCreateNote
+  onCreateNote,
+  phone,
+  email,
+  onSaveContactDetails
 }: CustomerPanelProps) {
   const [newTagName, setNewTagName] = useState("");
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState(phone || "");
+  const [emailDraft, setEmailDraft] = useState(email || "");
+
+  useEffect(() => {
+    setPhoneDraft(phone || "");
+    setEmailDraft(email || "");
+  }, [phone, email]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     assign: true,
     tags: true,
@@ -372,7 +386,7 @@ export function CustomerPanel({
           {renderSectionHeader("Contact", <Smartphone size={17} aria-hidden="true" />, "contact")}
           <div
             className={`transition-all duration-300 ease-in-out overflow-hidden ${
-              expanded.contact ? "max-h-[350px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+              expanded.contact ? "max-h-[500px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
             }`}
           >
             <dl className="space-y-4 text-sm">
@@ -430,6 +444,87 @@ export function CustomerPanel({
                   )}
                 </dd>
               </div>
+
+              {isEditingContact ? (
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <Label htmlFor="customer-phone" className="text-xs text-muted-foreground">เบอร์โทรศัพท์</Label>
+                    <Input
+                      id="customer-phone"
+                      type="text"
+                      value={phoneDraft}
+                      onChange={(e) => setPhoneDraft(e.target.value)}
+                      placeholder="เบอร์โทรศัพท์"
+                      className="mt-1 h-9 text-xs"
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="customer-email" className="text-xs text-muted-foreground">อีเมล</Label>
+                    <Input
+                      id="customer-email"
+                      type="email"
+                      value={emailDraft}
+                      onChange={(e) => setEmailDraft(e.target.value)}
+                      placeholder="อีเมล"
+                      className="mt-1 h-9 text-xs"
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        onSaveContactDetails?.(phoneDraft, emailDraft);
+                        setIsEditingContact(false);
+                      }}
+                      disabled={disabled}
+                    >
+                      บันทึก
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setPhoneDraft(phone || "");
+                        setEmailDraft(email || "");
+                        setIsEditingContact(false);
+                      }}
+                      disabled={disabled}
+                    >
+                      ยกเลิก
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <dt className="text-xs text-muted-foreground">เบอร์โทรศัพท์</dt>
+                      <dd className="mt-1 font-semibold">{phone || "-"}</dd>
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <dt className="text-xs text-muted-foreground">อีเมล</dt>
+                      <dd className="mt-1 font-semibold break-all">{email || "-"}</dd>
+                    </div>
+                    {!disabled ? (
+                      <button
+                        type="button"
+                        className="rounded-md border border-border p-1 text-muted-foreground hover:bg-secondary hover:text-foreground shrink-0 self-end"
+                        onClick={() => setIsEditingContact(true)}
+                        aria-label="Edit contact details"
+                      >
+                        <Pencil size={14} aria-hidden="true" />
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
               <Description label="Customer ID" value={sourceId} mono />
             </dl>
           </div>

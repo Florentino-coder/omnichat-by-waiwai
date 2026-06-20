@@ -138,6 +138,12 @@ export class LineWebhookService {
         lineProfile = await this.loadLineProfile(channel.encryptedChannelAccessToken, event);
       }
 
+      const customerId = await this.getOrCreateCustomerForLineChannel(
+        channel.tenantId,
+        externalThreadId,
+        lineProfile
+      );
+
       const eventTime = event.timestamp ? new Date(event.timestamp) : new Date();
       const conversation = await this.prisma.conversation.upsert({
         where: {
@@ -156,11 +162,13 @@ export class LineWebhookService {
           externalThreadId,
           displayName: lineProfile?.displayName,
           pictureUrl: lineProfile?.pictureUrl,
-          lastMessageAt: eventTime
+          lastMessageAt: eventTime,
+          customerId
         },
         update: {
           ...(lineProfile ? { displayName: lineProfile.displayName, pictureUrl: lineProfile.pictureUrl } : {}),
-          lastMessageAt: eventTime
+          lastMessageAt: eventTime,
+          customerId
         }
       });
 
@@ -389,6 +397,12 @@ export class LineWebhookService {
     const lineProfile = await this.loadLineProfile(channel.encryptedChannelAccessToken, event);
     const eventTime = event.timestamp ? new Date(event.timestamp) : new Date();
 
+    const customerId = await this.getOrCreateCustomerForLineChannel(
+      channel.tenantId,
+      externalThreadId,
+      lineProfile
+    );
+
     const conversation = await this.prisma.conversation.upsert({
       where: {
         tenantId_source_lineChannelId_externalThreadId: {
@@ -407,13 +421,15 @@ export class LineWebhookService {
         displayName: lineProfile?.displayName,
         pictureUrl: lineProfile?.pictureUrl,
         lastMessageAt: eventTime,
-        status: "OPEN"
+        status: "OPEN",
+        customerId
       },
       update: {
         displayName: lineProfile?.displayName,
         pictureUrl: lineProfile?.pictureUrl,
         lastMessageAt: eventTime,
-        deletedAt: null
+        deletedAt: null,
+        customerId
       }
     });
 
@@ -503,6 +519,61 @@ export class LineWebhookService {
         messageId: message.id
       });
     }
+  }
+
+  private async getOrCreateCustomerForLineChannel(
+    tenantId: string,
+    externalThreadId: string,
+    lineProfile?: LineProfile
+  ): Promise<string> {
+    const existingChannel = await this.prisma.customerChannel.findFirst({
+      where: {
+        tenantId,
+        channelType: "line",
+        channelUserId: externalThreadId
+      },
+      include: {
+        customer: true
+      }
+    });
+
+    if (existingChannel) {
+      if (existingChannel.customer && existingChannel.customer.deletedAt === null) {
+        if (lineProfile) {
+          await this.prisma.customer.update({
+            where: { id: existingChannel.customerId },
+            data: {
+              displayName: lineProfile.displayName,
+              avatarUrl: lineProfile.pictureUrl || undefined
+            }
+          });
+        }
+        return existingChannel.customerId;
+      } else {
+        // Customer was soft-deleted! We must delete the old CustomerChannel first
+        // to avoid unique constraint violations on @@unique([channelType, channelUserId])
+        await this.prisma.customerChannel.delete({
+          where: { id: existingChannel.id }
+        });
+      }
+    }
+
+    const customer = await this.prisma.customer.create({
+      data: {
+        tenantId,
+        displayName: lineProfile?.displayName || "LINE User",
+        avatarUrl: lineProfile?.pictureUrl || null,
+        channels: {
+          create: {
+            tenantId,
+            channelType: "line",
+            channelUserId: externalThreadId
+          }
+        }
+      }
+    });
+
+    return customer.id;
   }
 }
 

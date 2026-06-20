@@ -11,6 +11,8 @@ export interface RedisClient {
   sadd(key: string, member: string): Promise<unknown>;
   srem(key: string, member: string): Promise<unknown>;
   smembers(key: string): Promise<string[]>;
+  incr(key: string): Promise<number>;
+  expire(key: string, seconds: number): Promise<number>;
   publish(channel: string, message: string): Promise<unknown>;
   subscribe(channel: string): Promise<unknown>;
   unsubscribe(channel: string): Promise<unknown>;

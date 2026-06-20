@@ -49,6 +49,7 @@ export type InboxConversation = {
     lineChannelId: string;
   };
   messages: ConversationPreviewMessage[];
+  customerId?: string | null;
 };
 
 type AuthUser = {
@@ -183,6 +184,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [tags, setTags] = useState<ConversationTag[]>([]);
   const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
   const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
+  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+  const [customerEmail, setCustomerEmail] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileInboxTab>("chats");
   const [now, setNow] = useState(0);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -655,14 +658,19 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
   async function loadInboxOperations(conversationId: string): Promise<void> {
     const lineChannelId = selectedConversation?.lineChannel.id;
-    const [tagResult, replyResult, noteResult] = await Promise.allSettled([
+    const customerId = selectedConversation?.customerId;
+
+    const [tagResult, replyResult, noteResult, customerResult] = await Promise.allSettled([
       apiFetch<ConversationTag[]>("/api/v1/inbox/tags"),
       apiFetch<SavedReply[]>(
         lineChannelId
           ? `/api/v1/inbox/saved-replies?lineChannelId=${encodeURIComponent(lineChannelId)}`
           : "/api/v1/inbox/saved-replies"
       ),
-      apiFetch<ConversationInternalNote[]>(`/api/v1/inbox/conversations/${conversationId}/notes`)
+      apiFetch<ConversationInternalNote[]>(`/api/v1/inbox/conversations/${conversationId}/notes`),
+      customerId
+        ? apiFetch<{ id: string; phone?: string | null; email?: string | null }>(`/api/v1/customers/${customerId}`)
+        : Promise.resolve(null)
     ]);
 
     if (!isMountedRef.current || conversationsRef.current.every((item) => item.id !== conversationId)) {
@@ -676,6 +684,14 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
     if (noteResult.status === "fulfilled") {
       setInternalNotes(Array.isArray(noteResult.value) ? noteResult.value : []);
+    }
+    if (customerResult.status === "fulfilled" && customerResult.value) {
+      const cust = customerResult.value as { phone?: string | null; email?: string | null };
+      setCustomerPhone(cust?.phone ?? null);
+      setCustomerEmail(cust?.email ?? null);
+    } else {
+      setCustomerPhone(null);
+      setCustomerEmail(null);
     }
   }
 
@@ -758,6 +774,27 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       setError(readMessage(saveError, "Could not rename customer."));
     } finally {
       setIsSavingName(false);
+    }
+  }
+
+  async function saveContactDetails(phone: string, email: string): Promise<void> {
+    if (!selectedConversation?.customerId) {
+      return;
+    }
+    setError(null);
+    try {
+      const updated = await apiFetch<{ id: string; phone?: string | null; email?: string | null }>(
+        `/api/v1/customers/${selectedConversation.customerId}`,
+        {
+          body: JSON.stringify({ phone: phone.trim(), email: email.trim() }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        }
+      );
+      setCustomerPhone(updated.phone ?? null);
+      setCustomerEmail(updated.email ?? null);
+    } catch (saveError) {
+      setError(readMessage(saveError, "Could not update contact details."));
     }
   }
 
@@ -1114,6 +1151,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       }}
       onSaveCustomerName={saveCustomerName}
       isSavingName={isSavingName}
+      phone={customerPhone}
+      email={customerEmail}
+      onSaveContactDetails={saveContactDetails}
       assigneeValue={assigneeDraft}
       assigneeOptions={assigneeOptions}
       onAssigneeChange={setAssigneeDraft}

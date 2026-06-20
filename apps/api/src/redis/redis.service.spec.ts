@@ -17,7 +17,9 @@ const createRedisClient = () => ({
   unsubscribe: jest.fn(),
   on: jest.fn(),
   off: jest.fn(),
-  quit: jest.fn()
+  quit: jest.fn(),
+  incr: jest.fn(),
+  expire: jest.fn()
 });
 
 describe("RedisService", () => {

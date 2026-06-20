@@ -144,6 +144,10 @@ model Tenant {
   savedReplies              SavedReply[]
   files                     File[]
   broadcastJobs             BroadcastJob[]
+  customers                 Customer[]
+  customerChannels          CustomerChannel[]
+  aiSuggestions             AiSuggestion[]
+  promptTemplates           PromptTemplate[]
 
   @@index([slug])
   @@index([planId])
@@ -411,11 +415,14 @@ model Conversation {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   deletedAt           DateTime?
+  customerId          String?              @map("customer_id")
+  customer            Customer?            @relation(fields: [customerId], references: [id])
 
   messages      Message[]
   tagLinks      ConversationTagLink[]
   internalNotes ConversationInternalNote[]
   files         File[]
+  aiSuggestions AiSuggestion[]
 
   @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
@@ -632,4 +639,73 @@ model BroadcastJob {
   @@index([lineChannelId])
   @@index([status, scheduledAt])
   @@map("broadcast_jobs")
+}
+
+// ============================================================
+// CUSTOMER & CRM
+// ============================================================
+
+model Customer {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  displayName String?   @map("display_name")
+  avatarUrl   String?   @map("avatar_url")
+  phone       String?
+  email       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relations
+  conversations Conversation[]
+  channels      CustomerChannel[]
+
+  @@index([tenantId])
+  @@map("customers")
+}
+
+model CustomerChannel {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  customerId    String   @map("customer_id")
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  channelType   String   @map("channel_type")
+  channelUserId String   @map("channel_user_id")
+
+  @@unique([channelType, channelUserId])
+  @@index([tenantId])
+  @@index([customerId])
+  @@map("customer_channels")
+}
+
+model AiSuggestion {
+  id             String       @id @default(uuid())
+  tenantId       String       @map("tenant_id")
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+  conversationId String       @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  actionType     String       @default("generate") @map("action_type")
+  promptUsed     String?      @map("prompt_used")
+  suggestionText String?      @map("suggestion_text")
+  status         String       @default("shown")
+  finalSentText  String?      @map("final_sent_text")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@map("ai_suggestions")
+}
+
+model PromptTemplate {
+  id           String   @id @default(uuid())
+  tenantId     String?  @map("tenant_id")
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
+  name         String
+  systemPrompt String   @map("system_prompt")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, name])
+  @@map("prompt_templates")
 }

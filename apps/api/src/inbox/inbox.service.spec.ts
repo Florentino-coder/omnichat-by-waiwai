@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { InboxService } from "./inbox.service";
+import { AiSuggestionStatus } from "./dto/update-ai-suggestion.dto";
 
 type MockPrisma = {
   conversation: {
@@ -54,6 +55,17 @@ type MockPrisma = {
   };
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  customer: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  aiSuggestion: {
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  promptTemplate: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
   };
 };
 
@@ -101,6 +113,17 @@ const createPrisma = (): MockPrisma => ({
   },
   auditLog: {
     create: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  customer: {
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  aiSuggestion: {
+    create: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    update: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  promptTemplate: {
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
   }
 });
 
@@ -111,10 +134,23 @@ const mockCryptoSecretService = {
   encrypt: jest.fn().mockImplementation((val) => val)
 } as unknown as CryptoSecretService;
 
+const mockRedisService = {
+  client: {
+    incr: jest.fn().mockResolvedValue(1),
+    expire: jest.fn().mockResolvedValue(true)
+  }
+};
+
+const mockLlmClient = {
+  generateReply: jest.fn().mockResolvedValue("AI Suggested Answer")
+};
+
 const createService = (prisma: MockPrisma): InboxService =>
   new InboxService(
     prisma as unknown as PrismaService,
-    mockCryptoSecretService
+    mockCryptoSecretService,
+    mockRedisService as any,
+    mockLlmClient as any
   );
 
 type Stage3BInboxService = InboxService & {
@@ -815,6 +851,220 @@ describe("InboxService", () => {
           title: "Greeting"
         })
       })
+    });
+  });
+
+  describe("AI Suggest Reply", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockRedisService.client.incr.mockResolvedValue(1);
+      mockLlmClient.generateReply.mockResolvedValue("AI Suggested Answer");
+    });
+
+    it("should throw rate limit exception when conversation rate limit is exceeded", async () => {
+      const prisma = createPrisma();
+      mockRedisService.client.incr.mockResolvedValueOnce(11).mockResolvedValueOnce(1);
+      const service = createService(prisma);
+      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+        expect.objectContaining({
+          status: 429
+        })
+      );
+    });
+
+    it("should throw rate limit exception when tenant rate limit is exceeded", async () => {
+      const prisma = createPrisma();
+      mockRedisService.client.incr.mockResolvedValueOnce(1).mockResolvedValueOnce(61);
+      const service = createService(prisma);
+      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+        expect.objectContaining({
+          status: 429
+        })
+      );
+    });
+
+    it("should compile context, prompt template fallback, call LLM, and log suggestion on success", async () => {
+      const prisma = createPrisma();
+      
+      // Mock conversation findFirst
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        tenantId: "tenant-1",
+        customerId: "cust-1",
+        customer: {
+          id: "cust-1",
+          displayName: "Somsak",
+          deletedAt: null
+        }
+      });
+
+      // Mock recent messages
+      prisma.message.findMany.mockResolvedValue([
+        {
+          id: "msg-1",
+          direction: "INBOUND",
+          text: "สวัสดีครับ",
+          createdAt: new Date()
+        }
+      ]);
+
+      // Mock all conversations for this customer (tags and notes)
+      prisma.conversation.findMany.mockResolvedValue([
+        {
+          id: "conv-1",
+          tagLinks: [
+            {
+              tag: {
+                name: "Allergy Shrimp",
+                deletedAt: null
+              }
+            }
+          ],
+          internalNotes: [
+            {
+              body: "แพ้กุ้ง ห้ามแนะนำเมนูกุ้ง",
+              createdAt: new Date(),
+              deletedAt: null
+            }
+          ]
+        }
+      ]);
+
+      // Mock PromptTemplate findFirst (none for tenant, fallbacks to global)
+      prisma.promptTemplate.findFirst
+        .mockResolvedValueOnce(null) // tenant template not found
+        .mockResolvedValueOnce({
+          id: "global-temp",
+          tenantId: null,
+          name: "suggested_reply_default",
+          systemPrompt: "Name: {{customer_name}}, Tags: {{tags}}, Notes: {{notes}}, History: {{conversation_history}}"
+        });
+
+      // Mock AiSuggestion creation
+      prisma.aiSuggestion.create.mockResolvedValue({
+        id: "sug-1",
+        suggestionText: "AI Suggested Answer"
+      });
+
+      const service = createService(prisma);
+      const result = await service.aiSuggest("tenant-1", "conv-1", "generate");
+
+      expect(result).toEqual({
+        suggestion_id: "sug-1",
+        suggestion_text: "AI Suggested Answer"
+      });
+
+      expect(mockLlmClient.generateReply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          systemPrompt: expect.stringContaining("Name: Somsak"),
+          conversationHistory: [{ role: "customer", text: "สวัสดีครับ" }]
+        })
+      );
+
+      expect(prisma.aiSuggestion.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId: "tenant-1",
+          conversationId: "conv-1",
+          suggestionText: "AI Suggested Answer",
+          status: "shown"
+        })
+      });
+    });
+
+    it("should ignore soft-deleted customer notes and details in prompt creation", async () => {
+      const prisma = createPrisma();
+      
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        tenantId: "tenant-1",
+        customerId: "cust-1",
+        customer: {
+          id: "cust-1",
+          displayName: "Somsak",
+          deletedAt: new Date() // Soft deleted!
+        }
+      });
+
+      const service = createService(prisma);
+      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+        NotFoundException
+      );
+    });
+
+    it("should throw 502 Bad Gateway and not write suggestion to DB on LLM error", async () => {
+      const prisma = createPrisma();
+      
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        tenantId: "tenant-1",
+        customerId: "cust-1",
+        customer: {
+          id: "cust-1",
+          displayName: "Somsak",
+          deletedAt: null
+        }
+      });
+
+      prisma.message.findMany.mockResolvedValue([]);
+      prisma.conversation.findMany.mockResolvedValue([]);
+      prisma.promptTemplate.findFirst.mockResolvedValue({
+        systemPrompt: "Default Prompt"
+      });
+
+      mockLlmClient.generateReply.mockRejectedValue(new Error("Timeout/API Error"));
+
+      const service = createService(prisma);
+      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+        expect.objectContaining({
+          status: 502
+        })
+      );
+
+      expect(prisma.aiSuggestion.create).not.toHaveBeenCalled();
+    });
+
+    it("should update status and final sent text of a suggestion", async () => {
+      const prisma = createPrisma();
+      
+      prisma.aiSuggestion.findFirst.mockResolvedValue({
+        id: "sug-1",
+        tenantId: "tenant-1",
+        status: AiSuggestionStatus.SHOWN
+      });
+      prisma.aiSuggestion.update.mockResolvedValue({
+        id: "sug-1",
+        status: AiSuggestionStatus.SENT
+      });
+
+      const service = createService(prisma);
+      const result = await service.updateAiSuggestion("tenant-1", "sug-1", {
+        status: AiSuggestionStatus.SENT,
+        final_sent_text: "Final Answer"
+      });
+
+      expect(result).toEqual({
+        success: true,
+        id: "sug-1",
+        status: AiSuggestionStatus.SENT
+      });
+
+      expect(prisma.aiSuggestion.update).toHaveBeenCalledWith({
+        where: { id: "sug-1" },
+        data: {
+          status: AiSuggestionStatus.SENT,
+          finalSentText: "Final Answer"
+        }
+      });
+    });
+
+    it("should throw NotFoundException on update if suggestion does not match tenant", async () => {
+      const prisma = createPrisma();
+      prisma.aiSuggestion.findFirst.mockResolvedValue(null);
+
+      const service = createService(prisma);
+      await expect(
+        service.updateAiSuggestion("tenant-1", "sug-1", { status: AiSuggestionStatus.SENT })
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

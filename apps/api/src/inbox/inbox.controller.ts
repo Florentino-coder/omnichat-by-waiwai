@@ -261,6 +261,26 @@ export class InboxController {
     await this.inboxService.markAsRead(ctx.tenantId, ctx.sub, id);
     return { success: true };
   }
+
+  @Post("conversations/:id/ai-suggest")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async aiSuggest(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string,
+    @Body() dto: import("./dto/ai-suggest.dto").AiSuggestDto
+  ) {
+    return this.inboxService.aiSuggest(ctx.tenantId, id, dto.action_type);
+  }
+
+  @Patch("ai-suggestions/:id")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  async updateAiSuggestion(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string,
+    @Body() dto: import("./dto/update-ai-suggestion.dto").UpdateAiSuggestionDto
+  ) {
+    return this.inboxService.updateAiSuggestion(ctx.tenantId, id, dto);
+  }
 }
 
 function readPositiveInt(value: string | undefined): number | undefined {

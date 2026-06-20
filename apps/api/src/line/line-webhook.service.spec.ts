@@ -19,6 +19,13 @@ type MockPrisma = {
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  customerChannel: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  customer: {
+    create: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
 };
 
 const createPrisma = (): MockPrisma => ({
@@ -35,6 +42,13 @@ const createPrisma = (): MockPrisma => ({
   },
   auditLog: {
     create: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  customerChannel: {
+    findFirst: jest.fn().mockResolvedValue(null)
+  },
+  customer: {
+    create: jest.fn().mockResolvedValue({ id: "customer-1" }),
+    update: jest.fn().mockResolvedValue({ id: "customer-1" })
   }
 });
 

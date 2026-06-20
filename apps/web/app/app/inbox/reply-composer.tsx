@@ -48,6 +48,37 @@ export function ReplyComposer({
   const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  // AI Suggest Reply states
+  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
+  const [suggestionId, setSuggestionId] = useState<string | null>(null);
+  const [lastSuggestionText, setLastSuggestionText] = useState<string | null>(null);
+  const [rateLimitLock, setRateLimitLock] = useState(false);
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: number;
+    if (rateLimitLock && rateLimitCountdown > 0) {
+      timer = window.setInterval(() => {
+        setRateLimitCountdown((prev) => {
+          if (prev <= 1) {
+            setRateLimitLock(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) window.clearInterval(timer);
+    };
+  }, [rateLimitLock, rateLimitCountdown]);
+
+  // Reset suggestion when conversation changes
+  useEffect(() => {
+    setSuggestionId(null);
+    setLastSuggestionText(null);
+  }, [conversationId]);
+
   // Fetch all saved replies for autocomplete
   useEffect(() => {
     if (!conversationId) {
@@ -99,6 +130,81 @@ export function ReplyComposer({
     }
   }, [insertNonce, insertText]);
 
+  async function handleAiSuggest(actionType: string) {
+    if (!conversationId) return;
+    setIsGeneratingSuggestion(true);
+    setError(null);
+
+    const token = window.localStorage.getItem("omnichat.accessToken");
+
+    // If there was an active suggestion, mark it as rejected before getting a new one
+    if (suggestionId) {
+      await fetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ status: "rejected" })
+      }).catch(() => {});
+      setSuggestionId(null);
+      setLastSuggestionText(null);
+    }
+
+    try {
+      const response = await fetch(`/api/v1/inbox/conversations/${conversationId}/ai-suggest`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ action_type: actionType })
+      });
+
+      if (response.status === 429) {
+        setRateLimitLock(true);
+        setRateLimitCountdown(15);
+        setError("ใช้ AI บ่อยเกินไป รอสักครู่แล้วลองใหม่");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        if (errorData?.error?.code === "AI_GENERATION_FAILED" || response.status === 502) {
+          setError("สร้างคำตอบไม่สำเร็จ ลองใหม่อีกครั้ง");
+        } else {
+          setError("เกิดข้อผิดพลาดในการเรียก AI");
+        }
+        return;
+      }
+
+      const data = await response.json();
+      setText(data.suggestion_text || "");
+      setSuggestionId(data.suggestion_id);
+      setLastSuggestionText(data.suggestion_text || "");
+    } catch (err) {
+      setError("สร้างคำตอบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setIsGeneratingSuggestion(false);
+    }
+  }
+
+  async function handleDismissSuggestion() {
+    if (!suggestionId) return;
+    const token = window.localStorage.getItem("omnichat.accessToken");
+    await fetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ status: "rejected" })
+    }).catch(() => {});
+    setSuggestionId(null);
+    setLastSuggestionText(null);
+    setText("");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -109,12 +215,33 @@ export function ReplyComposer({
     setIsSending(true);
     setError(null);
 
+    const token = window.localStorage.getItem("omnichat.accessToken");
+
     try {
       await apiFetch<null>(`/api/v1/line/conversations/${conversationId}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(trimmedImageUrl ? { imageUrl: trimmedImageUrl } : { text: trimmedText })
       });
+
+      // Update suggestion analytics status on successful send
+      if (suggestionId) {
+        const isEdited = trimmedText !== lastSuggestionText;
+        await fetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            status: isEdited ? "edited" : "sent",
+            final_sent_text: trimmedText
+          })
+        }).catch(() => {});
+        setSuggestionId(null);
+        setLastSuggestionText(null);
+      }
+
       setText("");
       setImageUrl("");
       setPastedImagePreview(null);
@@ -213,9 +340,67 @@ export function ReplyComposer({
             LINE OA: {lineChannelName ?? "-"}
           </span>
         </div>
-        <span className="hidden shrink-0 sm:inline">{t.enterSends}</span>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            type="button"
+            className={[
+              "inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all duration-200 hover:from-violet-600 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 disabled:opacity-60 disabled:shadow-none",
+              rateLimitLock ? "cursor-not-allowed" : ""
+            ].join(" ")}
+            disabled={!conversationId || isSending || isGeneratingSuggestion || rateLimitLock}
+            onClick={() => handleAiSuggest("generate")}
+          >
+            <span>{isGeneratingSuggestion ? "⏳ กำลังคิด..." : rateLimitLock ? `⏳ รอ ${rateLimitCountdown} วินาที` : "✨ AI ร่างคำตอบ"}</span>
+          </button>
+          <span className="hidden shrink-0 sm:inline">{t.enterSends}</span>
+        </div>
       </div>
       <div className="flex flex-col gap-3 p-5">
+        {suggestionId && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-purple-50 p-3 border border-purple-100 text-xs font-semibold text-purple-700">
+            <span className="mr-1">🤖 ปรับแก้ข้อเสนอแนะ:</span>
+            <button
+              type="button"
+              className="rounded-lg bg-white px-2.5 py-1.5 border border-purple-200 hover:bg-purple-100 transition-colors"
+              onClick={() => handleAiSuggest("rewrite")}
+              disabled={isGeneratingSuggestion || rateLimitLock}
+            >
+              ✍️ เขียนใหม่
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-white px-2.5 py-1.5 border border-purple-200 hover:bg-purple-100 transition-colors"
+              onClick={() => handleAiSuggest("shorter")}
+              disabled={isGeneratingSuggestion || rateLimitLock}
+            >
+              ⚡ ย่อความ
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-white px-2.5 py-1.5 border border-purple-200 hover:bg-purple-100 transition-colors"
+              onClick={() => handleAiSuggest("polite")}
+              disabled={isGeneratingSuggestion || rateLimitLock}
+            >
+              🤝 สุภาพ
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-white px-2.5 py-1.5 border border-purple-200 hover:bg-purple-100 transition-colors"
+              onClick={() => handleAiSuggest("friendly")}
+              disabled={isGeneratingSuggestion || rateLimitLock}
+            >
+              😊 เป็นกันเอง
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-white px-2.5 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 transition-colors ml-auto"
+              onClick={handleDismissSuggestion}
+              disabled={isGeneratingSuggestion}
+            >
+              ❌ ปฏิเสธ
+            </button>
+          </div>
+        )}
         <label className="sr-only" htmlFor="reply-text">
           Reply text
         </label>

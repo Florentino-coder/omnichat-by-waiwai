@@ -175,6 +175,50 @@ async function main(): Promise<void> {
       },
     });
   }
+
+  // Seed default prompt template
+  const promptName = "suggested_reply_default";
+  const defaultPrompt = `คุณเป็นผู้ช่วย Agent ร้านค้าที่กำลังตอบแชทลูกค้าผ่าน LINE OA
+
+ชื่อลูกค้า: {{customer_name}}
+แท็กลูกค้า: {{tags}}
+โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
+
+ประวัติการสนทนาล่าสุด:
+{{conversation_history}}
+
+คำสั่งสำหรับ action_type = {{action_type}}:
+- generate: ร่างคำตอบใหม่ สุภาพ กระชับ ตรงประเด็น
+- rewrite: เขียนใหม่ความหมายเดิมแต่สำนวนต่าง
+- shorter: ย่อข้อความล่าสุดที่ agent พิมพ์ให้สั้นลง
+- polite: ปรับให้สุภาพขึ้น
+- friendly: ปรับให้เป็นกันเองขึ้น
+
+ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
+
+  const existingPrompt = await prisma.promptTemplate.findFirst({
+    where: {
+      tenantId: null,
+      name: promptName,
+    },
+  });
+
+  if (existingPrompt) {
+    await prisma.promptTemplate.update({
+      where: { id: existingPrompt.id },
+      data: {
+        systemPrompt: defaultPrompt,
+      },
+    });
+  } else {
+    await prisma.promptTemplate.create({
+      data: {
+        tenantId: null,
+        name: promptName,
+        systemPrompt: defaultPrompt,
+      },
+    });
+  }
 }
 
 export function buildExistingSeedOwnerUpdate(): {
