@@ -7,12 +7,18 @@ import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
+type AiSuggestionResponse = {
+  suggestion_id: string;
+  suggestion_text: string;
+};
+
 interface ReplyComposerProps {
   conversationId: string | null;
   insertText?: string;
   insertNonce?: number;
   lineChannelName?: string | null;
   enableAiSuggest?: boolean;
+  onSendStart?: (payload: { text: string; conversationId: string }) => void;
   onSent?: () => Promise<void> | void;
 }
 
@@ -25,14 +31,13 @@ type SavedReply = {
   hotkeyBinding?: string | null;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-
 export function ReplyComposer({
   conversationId,
   insertText,
   insertNonce,
   lineChannelName,
   enableAiSuggest = true,
+  onSendStart,
   onSent
 }: ReplyComposerProps) {
   const { locale } = useLanguage();
@@ -139,17 +144,12 @@ export function ReplyComposer({
     setIsGeneratingSuggestion(true);
     setError(null);
 
-    const token = window.localStorage.getItem("omnichat.accessToken");
     const isRefinement = actionType !== "generate";
 
-    // If there was an active suggestion, mark it as rejected before getting a new one (skip if it is refinement)
     if (suggestionId && !isRefinement) {
-      await fetch(`${API_BASE_URL}/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+      await apiFetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "rejected" })
       }).catch(() => {});
       setSuggestionId(null);
@@ -163,38 +163,33 @@ export function ReplyComposer({
         requestBody.previous_suggestion_id = suggestionId;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/v1/inbox/conversations/${conversationId}/ai-suggest`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (response.status === 429) {
-        setRateLimitLock(true);
-        setRateLimitCountdown(15);
-        setError("ใช้ AI บ่อยเกินไป รอสักครู่แล้วลองใหม่");
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        if (errorData?.error?.code === "AI_GENERATION_FAILED" || response.status === 502) {
-          setError("สร้างคำตอบไม่สำเร็จ ลองใหม่อีกครั้ง");
-        } else {
-          setError("เกิดข้อผิดพลาดในการเรียก AI");
+      const data = await apiFetch<AiSuggestionResponse>(
+        `/api/v1/inbox/conversations/${conversationId}/ai-suggest`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody)
         }
-        return;
-      }
+      );
 
-      const data = await response.json();
       setText(data.suggestion_text || "");
       setSuggestionId(data.suggestion_id);
       setLastSuggestionText(data.suggestion_text || "");
     } catch (err) {
-      setError("สร้างคำตอบไม่สำเร็จ ลองใหม่อีกครั้ง");
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("Too many AI suggestions") || message.includes("RATE_LIMIT")) {
+        setRateLimitLock(true);
+        setRateLimitCountdown(15);
+        setError("ใช้ AI บ่อยเกินไป รอสักครู่แล้วลองใหม่");
+      } else if (message.includes("disabled") || message.includes("AI_SUGGEST_DISABLED")) {
+        setError("ฟีเจอร์ AI ถูกปิดในการตั้งค่า");
+      } else if (message.includes("Customer not found")) {
+        setError("ไม่พบข้อมูลลูกค้า ต้องเชื่อม CRM ก่อนใช้ AI");
+      } else if (message.includes("AI generation failed") || message.includes("AI_GENERATION_FAILED")) {
+        setError("สร้างคำตอบไม่สำเร็จ ตรวจสอบ API key แล้วลองใหม่");
+      } else {
+        setError(message || "เกิดข้อผิดพลาดในการเรียก AI");
+      }
     } finally {
       setIsGeneratingSuggestion(false);
     }
@@ -202,13 +197,9 @@ export function ReplyComposer({
 
   async function handleDismissSuggestion() {
     if (!suggestionId) return;
-    const token = window.localStorage.getItem("omnichat.accessToken");
-    await fetch(`${API_BASE_URL}/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+    await apiFetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "rejected" })
     }).catch(() => {});
     setSuggestionId(null);
@@ -226,24 +217,20 @@ export function ReplyComposer({
     setIsSending(true);
     setError(null);
 
-    const token = window.localStorage.getItem("omnichat.accessToken");
-
     try {
+      onSendStart?.({ text: trimmedText || trimmedImageUrl, conversationId });
+
       await apiFetch<null>(`/api/v1/line/conversations/${conversationId}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(trimmedImageUrl ? { imageUrl: trimmedImageUrl } : { text: trimmedText })
       });
 
-      // Update suggestion analytics status on successful send
       if (suggestionId) {
         const isEdited = trimmedText !== lastSuggestionText;
-        await fetch(`${API_BASE_URL}/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+        await apiFetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status: isEdited ? "edited" : "sent",
             final_sent_text: trimmedText

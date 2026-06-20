@@ -1126,6 +1126,20 @@ export class InboxService {
     const settings = await this.prisma.tenantSettings.findUnique({
       where: { tenantId }
     });
+
+    if (settings?.enableAiSuggest === false) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "AI_SUGGEST_DISABLED",
+            message: "AI suggestions are disabled for this tenant."
+          }
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
     const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
 
     let activeLlmClient: LLMClient;

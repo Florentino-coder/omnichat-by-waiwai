@@ -7,6 +7,7 @@ import { LineReplyService } from "./line-reply.service";
 type MockPrisma = {
   conversation: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    update: jest.Mock<Promise<unknown>, [unknown]>;
   };
   lineChannel: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
@@ -21,7 +22,8 @@ type MockPrisma = {
 
 const createPrisma = (): MockPrisma => ({
   conversation: {
-    findFirst: jest.fn<Promise<unknown>, [unknown]>()
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    update: jest.fn<Promise<unknown>, [unknown]>()
   },
   lineChannel: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
@@ -55,6 +57,7 @@ describe("LineReplyService", () => {
       encryptedChannelAccessToken: "encrypted-token"
     });
     prisma.message.create.mockResolvedValue({ id: "message-2" });
+    prisma.conversation.update.mockResolvedValue({ id: "conversation-1" });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -93,6 +96,10 @@ describe("LineReplyService", () => {
         text: "สวัสดีครับ"
       })
     });
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conversation-1" },
+      data: { lastMessageAt: expect.any(Date) }
+    });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         tenantId: "tenant-1",
@@ -118,6 +125,7 @@ describe("LineReplyService", () => {
       encryptedChannelAccessToken: "encrypted-token"
     });
     prisma.message.create.mockResolvedValue({ id: "message-2" });
+    prisma.conversation.update.mockResolvedValue({ id: "conversation-1" });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -163,6 +171,7 @@ describe("LineReplyService", () => {
       encryptedChannelAccessToken: "encrypted-token"
     });
     prisma.message.create.mockResolvedValue({ id: "message-image-1" });
+    prisma.conversation.update.mockResolvedValue({ id: "conversation-1" });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,

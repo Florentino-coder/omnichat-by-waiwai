@@ -79,6 +79,7 @@ export class LineReplyService {
       throw new BadGatewayException(`LINE reply failed with status ${response.status}`);
     }
 
+    const sentAt = new Date();
     const message = await this.prisma.message.create({
       data: {
         tenantId,
@@ -88,8 +89,13 @@ export class LineReplyService {
         source: MessageSource.LINE,
         type: storedType,
         text: storedText,
-        sentAt: new Date()
+        sentAt
       }
+    });
+
+    await this.prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: sentAt }
     });
 
     await this.prisma.auditLog.create({

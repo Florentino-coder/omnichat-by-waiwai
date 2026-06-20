@@ -894,6 +894,21 @@ describe("InboxService", () => {
       mockLlmClient.generateReply.mockResolvedValue("AI Suggested Answer");
     });
 
+    it("should throw forbidden when AI suggestions are disabled for tenant", async () => {
+      const prisma = createPrisma();
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        tenantId: "tenant-1",
+        enableAiSuggest: false
+      });
+      const service = createService(prisma);
+      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
+        expect.objectContaining({
+          status: 403
+        })
+      );
+      expect(mockLlmClient.generateReply).not.toHaveBeenCalled();
+    });
+
     it("should throw rate limit exception when conversation rate limit is exceeded", async () => {
       const prisma = createPrisma();
       mockRedisService.client.incr.mockResolvedValueOnce(11).mockResolvedValueOnce(1);

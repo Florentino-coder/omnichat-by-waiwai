@@ -367,6 +367,86 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     []
   );
 
+  const loadMessages = useCallback(
+    async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
+      if (!options?.quiet) {
+        setIsLoadingMessages(true);
+      }
+      setError(null);
+      try {
+        const data = await apiFetch<InboxMessage[]>(`/api/v1/inbox/conversations/${conversationId}/messages`);
+        if (isMountedRef.current && selectedIdRef.current === conversationId) {
+          const pendingFlowId = pendingFlowIdRef.current;
+          if (pendingFlowId) {
+            const now = Date.now();
+            console.log("[TRACE] STATE_UPDATE", pendingFlowId, now);
+            trace(pendingFlowId, "STATE_UPDATE");
+            stateUpdateMapRef.current.set(pendingFlowId, now);
+          }
+          setMessages(Array.isArray(data) ? data : []);
+        }
+      } catch (loadError) {
+        if (isMountedRef.current && !options?.quiet) {
+          setError(readMessage(loadError, "Could not load messages."));
+        }
+      } finally {
+        if (isMountedRef.current && selectedIdRef.current === conversationId && !options?.quiet) {
+          setIsLoadingMessages(false);
+        }
+      }
+    },
+    [trace]
+  );
+
+  const refreshThread = useCallback(
+    async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
+      const quiet = options?.quiet ?? true;
+      await Promise.all([
+        loadConversations({ quiet }),
+        selectedIdRef.current === conversationId
+          ? loadMessages(conversationId, { quiet })
+          : Promise.resolve()
+      ]);
+    },
+    [loadConversations, loadMessages]
+  );
+
+  function addOptimisticOutboundMessage(conversationId: string, text: string): void {
+    const createdAt = new Date().toISOString();
+    const previewText = text.startsWith("http") ? `Image: ${text}` : text;
+    const optimisticMessage: InboxMessage = {
+      id: `optimistic-${Date.now()}`,
+      direction: "OUTBOUND",
+      type: "TEXT",
+      text: previewText,
+      createdAt
+    };
+    const preview: ConversationPreviewMessage = {
+      id: optimisticMessage.id,
+      direction: "OUTBOUND",
+      text: previewText,
+      createdAt
+    };
+
+    if (selectedIdRef.current === conversationId) {
+      setMessages((current) => [...current, optimisticMessage]);
+    }
+
+    setConversations((current) => {
+      const next = current.map((conversation) =>
+        conversation.id === conversationId
+          ? {
+              ...conversation,
+              lastMessageAt: createdAt,
+              messages: [preview, ...(conversation.messages ?? []).filter((item) => item.id !== preview.id)]
+            }
+          : conversation
+      );
+      conversationsRef.current = next;
+      return next;
+    });
+  }
+
   useEffect(() => {
     conversationsRef.current = conversations;
   }, [conversations]);
@@ -475,11 +555,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           if (flowId) {
             trace(flowId, "STATE_UPDATE");
           }
-          void loadConversations({ quiet: true });
           const eventConversationId = event.data?.conversationId;
-          const selectedConversationId = selectedIdRef.current;
-          if (eventConversationId && selectedConversationId === eventConversationId) {
-            void loadMessages(selectedConversationId, { quiet: true });
+          if (eventConversationId) {
+            void refreshThread(eventConversationId, { quiet: true });
+          } else {
+            void loadConversations({ quiet: true });
           }
         }
       })
@@ -509,7 +589,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         window.clearTimeout(reconnectTimeoutId);
       }
     };
-  }, [currentUser?.tenantId, loadConversations]);
+  }, [currentUser?.tenantId, loadConversations, refreshThread]);
 
   useEffect(() => {
     const pendingFlowId = pendingFlowIdRef.current;
@@ -616,9 +696,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       if (document.visibilityState === "visible") {
         void loadMessages(selectedId, { quiet: true });
       }
-    }, 30000);
+    }, 10000);
     return () => window.clearInterval(refreshTimer);
-  }, [selectedId]);
+  }, [selectedId, loadMessages]);
 
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
@@ -714,34 +794,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     } else {
       setCustomerPhone(null);
       setCustomerEmail(null);
-    }
-  }
-
-  async function loadMessages(conversationId: string, options?: { quiet?: boolean }): Promise<void> {
-    if (!options?.quiet) {
-      setIsLoadingMessages(true);
-    }
-    setError(null);
-    try {
-      const data = await apiFetch<InboxMessage[]>(`/api/v1/inbox/conversations/${conversationId}/messages`);
-      if (isMountedRef.current && selectedIdRef.current === conversationId) {
-        const pendingFlowId = pendingFlowIdRef.current;
-        if (pendingFlowId) {
-          const now = Date.now();
-          console.log("[TRACE] STATE_UPDATE", pendingFlowId, now);
-          trace(pendingFlowId, "STATE_UPDATE");
-          stateUpdateMapRef.current.set(pendingFlowId, now);
-        }
-        setMessages(Array.isArray(data) ? data : []);
-      }
-    } catch (loadError) {
-      if (isMountedRef.current && !options?.quiet) {
-        setError(readMessage(loadError, "Could not load messages."));
-      }
-    } finally {
-      if (isMountedRef.current && selectedIdRef.current === conversationId && !options?.quiet) {
-        setIsLoadingMessages(false);
-      }
     }
   }
 
@@ -1093,7 +1145,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         headers: { "Content-Type": "application/json" },
         method: "POST"
       });
-      await loadMessages(selectedConversation.id);
+      addOptimisticOutboundMessage(
+        selectedConversation.id,
+        reply.imageUrl ? reply.imageUrl : reply.body
+      );
+      await refreshThread(selectedConversation.id, { quiet: true });
     } catch (quickReplyError) {
       setError(readMessage(quickReplyError, "Could not send quick reply."));
     } finally {
@@ -1347,12 +1403,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                     insertText={composerInsertText}
                     lineChannelName={selectedConversation?.lineChannel.name ?? null}
                     enableAiSuggest={enableAiSuggest}
+                    onSendStart={({ text, conversationId }) => {
+                      addOptimisticOutboundMessage(conversationId, text);
+                    }}
                     onSent={async () => {
                       if (selectedConversation) {
-                        await Promise.all([
-                          loadMessages(selectedConversation.id, { quiet: true }),
-                          loadConversations({ quiet: true })
-                        ]);
+                        await refreshThread(selectedConversation.id, { quiet: true });
                       }
                     }}
                   />
