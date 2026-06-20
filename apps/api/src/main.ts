@@ -7,6 +7,7 @@ import { ResponseEnvelopeInterceptor } from "./common/http/response-envelope.int
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger("Bootstrap");
+  logger.log(`Bootstrapping API (NODE_ENV=${process.env.NODE_ENV ?? "unknown"})`);
   const app = await NestFactory.create(AppModule, { rawBody: true });
   app.enableCors({
     origin: true,

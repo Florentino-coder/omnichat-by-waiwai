@@ -1,6 +1,4 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
 
 const MAX_EXTRACTED_TEXT_LENGTH = 100_000;
 
@@ -26,6 +24,7 @@ export class KnowledgeTextExtractionService {
     let text = "";
 
     if (mimeType === "application/pdf") {
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       try {
         const parsed = await parser.getText();
@@ -36,6 +35,7 @@ export class KnowledgeTextExtractionService {
     } else if (
       mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     ) {
+      const mammoth = await import("mammoth");
       const parsed = await mammoth.extractRawText({ buffer });
       text = parsed.value ?? "";
     } else {

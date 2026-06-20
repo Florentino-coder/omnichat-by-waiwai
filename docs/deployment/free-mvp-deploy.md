@@ -67,7 +67,7 @@ The web app proxies `/api/v1/*` to `NEXT_PUBLIC_API_BASE_URL` through `apps/web/
 - Region: Singapore
 - Plan: Free
 - Build command: `npm ci && npm run api:deploy:build`
-- Start command: `npm run api:start`
+- Start command: `npm run api:start` (runs `prisma migrate deploy` then binds `0.0.0.0:$PORT`)
 - Health check path: `/api/v1/health`
 
 Required API environment variables:
