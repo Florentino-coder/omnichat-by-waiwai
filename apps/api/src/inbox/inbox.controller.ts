@@ -24,6 +24,7 @@ import { UpdateConversationPriorityDto } from "./dto/update-conversation-priorit
 import { UpdateConversationTagDto } from "./dto/update-conversation-tag.dto";
 import { UpdateConversationStatusDto } from "./dto/update-conversation-status.dto";
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
+import { UpdatePromptTemplateDto } from "./dto/update-prompt-template.dto";
 import { UpdateSavedReplyDto } from "./dto/update-saved-reply.dto";
 import { InboxConversation, InboxService, InboxSettings } from "./inbox.service";
 
@@ -248,7 +249,7 @@ export class InboxController {
     return this.inboxService.updateSettings(
       ctx.tenantId,
       ctx.sub,
-      dto.inProgressAlertMinutes
+      dto
     );
   }
 
@@ -269,7 +270,7 @@ export class InboxController {
     @Param("id") id: string,
     @Body() dto: import("./dto/ai-suggest.dto").AiSuggestDto
   ) {
-    return this.inboxService.aiSuggest(ctx.tenantId, id, dto.action_type);
+    return this.inboxService.aiSuggest(ctx.tenantId, id, dto);
   }
 
   @Patch("ai-suggestions/:id")
@@ -280,6 +281,26 @@ export class InboxController {
     @Body() dto: import("./dto/update-ai-suggestion.dto").UpdateAiSuggestionDto
   ) {
     return this.inboxService.updateAiSuggestion(ctx.tenantId, id, dto);
+  }
+
+  @Get("prompt-templates/suggested-reply")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async getPromptTemplate(@TenantCtx() ctx: JwtTenantPayload) {
+    return this.inboxService.getPromptTemplate(ctx.tenantId, "suggested_reply_default");
+  }
+
+  @Patch("prompt-templates/suggested-reply")
+  @Roles(Role.OWNER, Role.ADMIN)
+  async updatePromptTemplate(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Body() dto: UpdatePromptTemplateDto
+  ) {
+    return this.inboxService.updatePromptTemplate(
+      ctx.tenantId,
+      ctx.sub,
+      "suggested_reply_default",
+      dto.systemPrompt
+    );
   }
 }
 

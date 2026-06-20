@@ -23,6 +23,6 @@ import { ClaudeClient } from "./claude.client";
       inject: [GeminiClient, OpenAIClient, ClaudeClient]
     }
   ],
-  exports: ["LLMClient"]
+  exports: ["LLMClient", GeminiClient, OpenAIClient, ClaudeClient]
 })
 export class LlmModule {}

@@ -12,6 +12,7 @@ interface ReplyComposerProps {
   insertText?: string;
   insertNonce?: number;
   lineChannelName?: string | null;
+  enableAiSuggest?: boolean;
   onSent?: () => Promise<void> | void;
 }
 
@@ -24,11 +25,14 @@ type SavedReply = {
   hotkeyBinding?: string | null;
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+
 export function ReplyComposer({
   conversationId,
   insertText,
   insertNonce,
   lineChannelName,
+  enableAiSuggest = true,
   onSent
 }: ReplyComposerProps) {
   const { locale } = useLanguage();
@@ -136,10 +140,11 @@ export function ReplyComposer({
     setError(null);
 
     const token = window.localStorage.getItem("omnichat.accessToken");
+    const isRefinement = actionType !== "generate";
 
-    // If there was an active suggestion, mark it as rejected before getting a new one
-    if (suggestionId) {
-      await fetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+    // If there was an active suggestion, mark it as rejected before getting a new one (skip if it is refinement)
+    if (suggestionId && !isRefinement) {
+      await fetch(`${API_BASE_URL}/api/v1/inbox/ai-suggestions/${suggestionId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -152,13 +157,19 @@ export function ReplyComposer({
     }
 
     try {
-      const response = await fetch(`/api/v1/inbox/conversations/${conversationId}/ai-suggest`, {
+      const requestBody: Record<string, unknown> = { action_type: actionType };
+      if (isRefinement) {
+        requestBody.current_text = text;
+        requestBody.previous_suggestion_id = suggestionId;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/v1/inbox/conversations/${conversationId}/ai-suggest`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ action_type: actionType })
+        body: JSON.stringify(requestBody)
       });
 
       if (response.status === 429) {
@@ -192,7 +203,7 @@ export function ReplyComposer({
   async function handleDismissSuggestion() {
     if (!suggestionId) return;
     const token = window.localStorage.getItem("omnichat.accessToken");
-    await fetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+    await fetch(`${API_BASE_URL}/api/v1/inbox/ai-suggestions/${suggestionId}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -227,7 +238,7 @@ export function ReplyComposer({
       // Update suggestion analytics status on successful send
       if (suggestionId) {
         const isEdited = trimmedText !== lastSuggestionText;
-        await fetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
+        await fetch(`${API_BASE_URL}/api/v1/inbox/ai-suggestions/${suggestionId}`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -341,17 +352,19 @@ export function ReplyComposer({
           </span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <button
-            type="button"
-            className={[
-              "inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all duration-200 hover:from-violet-600 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 disabled:opacity-60 disabled:shadow-none",
-              rateLimitLock ? "cursor-not-allowed" : ""
-            ].join(" ")}
-            disabled={!conversationId || isSending || isGeneratingSuggestion || rateLimitLock}
-            onClick={() => handleAiSuggest("generate")}
-          >
-            <span>{isGeneratingSuggestion ? "⏳ กำลังคิด..." : rateLimitLock ? `⏳ รอ ${rateLimitCountdown} วินาที` : "✨ AI ร่างคำตอบ"}</span>
-          </button>
+          {enableAiSuggest && (
+            <button
+              type="button"
+              className={[
+                "inline-flex h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all duration-200 hover:from-violet-600 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 disabled:opacity-60 disabled:shadow-none",
+                rateLimitLock ? "cursor-not-allowed" : ""
+              ].join(" ")}
+              disabled={!conversationId || isSending || isGeneratingSuggestion || rateLimitLock}
+              onClick={() => handleAiSuggest("generate")}
+            >
+              <span>{isGeneratingSuggestion ? "⏳ กำลังคิด..." : rateLimitLock ? `⏳ รอ ${rateLimitCountdown} วินาที` : "✨ AI ร่างคำตอบ"}</span>
+            </button>
+          )}
           <span className="hidden shrink-0 sm:inline">{t.enterSends}</span>
         </div>
       </div>

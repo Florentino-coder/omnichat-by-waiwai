@@ -50,6 +50,7 @@ export type InboxConversation = {
   };
   messages: ConversationPreviewMessage[];
   customerId?: string | null;
+  customerDisplayName?: string | null;
 };
 
 type AuthUser = {
@@ -172,6 +173,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [inProgressAlertMinutes, setInProgressAlertMinutes] = useState(10);
   const [alertMinutesDraft, setAlertMinutesDraft] = useState("10");
   const [isSavingAlertMinutes, setIsSavingAlertMinutes] = useState(false);
+  const [enableAiSuggest, setEnableAiSuggest] = useState(true);
   const [assigneeDraft, setAssigneeDraft] = useState("");
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
   const [isSavingPriority, setIsSavingPriority] = useState(false);
@@ -583,6 +585,26 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }, [selectedConversation?.unreadInboundMessageCount, selectedId]);
 
   useEffect(() => {
+    let isCurrent = true;
+    async function loadSettings() {
+      try {
+        const data = await apiFetch<{ inProgressAlertMinutes: number; enableAiSuggest: boolean }>("/api/v1/inbox/settings");
+        if (isCurrent) {
+          setInProgressAlertMinutes(data.inProgressAlertMinutes ?? 10);
+          setAlertMinutesDraft(String(data.inProgressAlertMinutes ?? 10));
+          setEnableAiSuggest(data.enableAiSuggest !== false);
+        }
+      } catch (err) {
+        // Ignore settings load errors, keep defaults
+      }
+    }
+    void loadSettings();
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!selectedId) {
       setMessages([]);
       return;
@@ -754,21 +776,39 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     setIsSavingName(true);
     setError(null);
     try {
-      const updated = await apiFetch<{ id: string; nickname?: string | null }>(
-        `/api/v1/inbox/conversations/${selectedConversation.id}/customer-name`,
-        {
-          body: JSON.stringify({ nickname: cleanName }),
-          headers: { "Content-Type": "application/json" },
-          method: "PATCH"
-        }
-      );
-      setConversations((current) =>
-        current.map((conversation) =>
-          conversation.id === selectedConversation.id
-            ? { ...conversation, nickname: updated.nickname ?? cleanName }
-            : conversation
-        )
-      );
+      if (selectedConversation.customerId) {
+        const updated = await apiFetch<{ id: string; displayName?: string | null }>(
+          `/api/v1/customers/${selectedConversation.customerId}`,
+          {
+            body: JSON.stringify({ displayName: cleanName }),
+            headers: { "Content-Type": "application/json" },
+            method: "PATCH"
+          }
+        );
+        setConversations((current) =>
+          current.map((conversation) =>
+            conversation.id === selectedConversation.id
+              ? { ...conversation, customerDisplayName: updated.displayName ?? cleanName }
+              : conversation
+          )
+        );
+      } else {
+        const updated = await apiFetch<{ id: string; nickname?: string | null }>(
+          `/api/v1/inbox/conversations/${selectedConversation.id}/customer-name`,
+          {
+            body: JSON.stringify({ nickname: cleanName }),
+            headers: { "Content-Type": "application/json" },
+            method: "PATCH"
+          }
+        );
+        setConversations((current) =>
+          current.map((conversation) =>
+            conversation.id === selectedConversation.id
+              ? { ...conversation, nickname: updated.nickname ?? cleanName }
+              : conversation
+          )
+        );
+      }
       setIsEditingName(false);
     } catch (saveError) {
       setError(readMessage(saveError, "Could not rename customer."));
@@ -1306,6 +1346,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                     insertNonce={composerInsertNonce}
                     insertText={composerInsertText}
                     lineChannelName={selectedConversation?.lineChannel.name ?? null}
+                    enableAiSuggest={enableAiSuggest}
                     onSent={async () => {
                       if (selectedConversation) {
                         await Promise.all([
@@ -1579,7 +1620,12 @@ function readMessage(error: unknown, fallback: string): string {
 }
 
 function customerLabel(conversation: InboxConversation): string {
-  return conversation.nickname ?? conversation.displayName ?? conversation.externalThreadId;
+  return (
+    conversation.customerDisplayName ??
+    conversation.nickname ??
+    conversation.displayName ??
+    conversation.externalThreadId
+  );
 }
 
 function customerInitial(value: string): string {

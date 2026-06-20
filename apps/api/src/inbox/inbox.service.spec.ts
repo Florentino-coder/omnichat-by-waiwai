@@ -63,6 +63,7 @@ type MockPrisma = {
     create: jest.Mock<Promise<unknown>, [unknown]>;
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
+    updateMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
   promptTemplate: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
@@ -120,7 +121,8 @@ const createPrisma = (): MockPrisma => ({
   aiSuggestion: {
     create: jest.fn<Promise<unknown>, [unknown]>(),
     findFirst: jest.fn<Promise<unknown>, [unknown]>(),
-    update: jest.fn<Promise<unknown>, [unknown]>()
+    update: jest.fn<Promise<unknown>, [unknown]>(),
+    updateMany: jest.fn<Promise<unknown>, [unknown]>()
   },
   promptTemplate: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
@@ -150,6 +152,8 @@ const createService = (prisma: MockPrisma): InboxService =>
     prisma as unknown as PrismaService,
     mockCryptoSecretService,
     mockRedisService as any,
+    mockLlmClient as any,
+    mockLlmClient as any,
     mockLlmClient as any
   );
 
@@ -224,7 +228,8 @@ describe("InboxService", () => {
         id: "conversation-1",
         tenantId: "tenant-1",
         displayName: "Customer A",
-        unreadInboundMessageCount: 1
+        unreadInboundMessageCount: 1,
+        customerDisplayName: null
       }
     ]);
 
@@ -270,6 +275,11 @@ describe("InboxService", () => {
           where: { deletedAt: null },
           include: {
             tag: true
+          }
+        },
+        customer: {
+          select: {
+            displayName: true
           }
         }
       },
@@ -400,20 +410,43 @@ describe("InboxService", () => {
 
   it("reads and updates the tenant inbox alert setting with audit log", async () => {
     const prisma = createPrisma();
-    prisma.tenantSettings.findUnique.mockResolvedValue({ inProgressAlertMinutes: 15 });
-    prisma.tenantSettings.upsert.mockResolvedValue({ inProgressAlertMinutes: 5 });
+    prisma.tenantSettings.findUnique.mockResolvedValue({
+      inProgressAlertMinutes: 15,
+      enableAiSuggest: true,
+      aiProvider: "gemini"
+    });
+    prisma.tenantSettings.upsert.mockResolvedValue({
+      inProgressAlertMinutes: 5,
+      enableAiSuggest: true,
+      aiProvider: "gemini"
+    });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
     await expect(createService(prisma).getSettings("tenant-1")).resolves.toEqual({
-      inProgressAlertMinutes: 15
+      inProgressAlertMinutes: 15,
+      enableAiSuggest: true,
+      aiProvider: "gemini"
     });
-    await createService(prisma).updateSettings("tenant-1", "user-1", 5);
+    await createService(prisma).updateSettings("tenant-1", "user-1", { inProgressAlertMinutes: 5 });
 
     expect(prisma.tenantSettings.upsert).toHaveBeenCalledWith({
       where: { tenantId: "tenant-1" },
-      create: { tenantId: "tenant-1", inProgressAlertMinutes: 5 },
-      update: { inProgressAlertMinutes: 5 },
-      select: { inProgressAlertMinutes: true }
+      create: {
+        tenantId: "tenant-1",
+        inProgressAlertMinutes: 5,
+        enableAiSuggest: true,
+        aiProvider: "gemini"
+      },
+      update: {
+        inProgressAlertMinutes: 5,
+        enableAiSuggest: undefined,
+        aiProvider: undefined
+      },
+      select: {
+        inProgressAlertMinutes: true,
+        enableAiSuggest: true,
+        aiProvider: true
+      }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -865,7 +898,7 @@ describe("InboxService", () => {
       const prisma = createPrisma();
       mockRedisService.client.incr.mockResolvedValueOnce(11).mockResolvedValueOnce(1);
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
           status: 429
         })
@@ -876,7 +909,7 @@ describe("InboxService", () => {
       const prisma = createPrisma();
       mockRedisService.client.incr.mockResolvedValueOnce(1).mockResolvedValueOnce(61);
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
           status: 429
         })
@@ -947,7 +980,7 @@ describe("InboxService", () => {
       });
 
       const service = createService(prisma);
-      const result = await service.aiSuggest("tenant-1", "conv-1", "generate");
+      const result = await service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any });
 
       expect(result).toEqual({
         suggestion_id: "sug-1",
@@ -986,7 +1019,7 @@ describe("InboxService", () => {
       });
 
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         NotFoundException
       );
     });
@@ -1014,7 +1047,7 @@ describe("InboxService", () => {
       mockLlmClient.generateReply.mockRejectedValue(new Error("Timeout/API Error"));
 
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", "generate")).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
           status: 502
         })
@@ -1065,6 +1098,56 @@ describe("InboxService", () => {
       await expect(
         service.updateAiSuggestion("tenant-1", "sug-1", { status: AiSuggestionStatus.SENT })
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should mark previous suggestion as superseded when refinement is requested", async () => {
+      const prisma = createPrisma();
+      
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        tenantId: "tenant-1",
+        customerId: "cust-1",
+        customer: {
+          id: "cust-1",
+          displayName: "Somsak",
+          deletedAt: null
+        }
+      });
+      prisma.message.findMany.mockResolvedValue([]);
+      prisma.conversation.findMany.mockResolvedValue([]);
+      prisma.promptTemplate.findFirst.mockResolvedValue({
+        systemPrompt: "Default Prompt {{current_draft}}"
+      });
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        aiProvider: "openai"
+      });
+      prisma.aiSuggestion.create.mockResolvedValue({
+        id: "sug-2",
+        suggestionText: "Shorter answer"
+      });
+      mockLlmClient.generateReply.mockResolvedValueOnce("Shorter answer");
+
+      const service = createService(prisma);
+      const result = await service.aiSuggest("tenant-1", "conv-1", {
+        action_type: "shorter" as any,
+        current_text: "Old long text draft",
+        previous_suggestion_id: "sug-1"
+      });
+
+      expect(result).toEqual({
+        suggestion_id: "sug-2",
+        suggestion_text: "Shorter answer"
+      });
+
+      expect(prisma.aiSuggestion.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "sug-1",
+          tenantId: "tenant-1"
+        },
+        data: {
+          status: "superseded"
+        }
+      });
     });
   });
 });

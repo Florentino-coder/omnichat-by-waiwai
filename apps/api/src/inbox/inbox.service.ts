@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, Logger, Inject, HttpException, HttpStatus } from "@nestjs/common";
+import { ForbiddenException, Injectable, NotFoundException, Logger, HttpException, HttpStatus } from "@nestjs/common";
 import {
   AuditAction,
   Conversation,
@@ -10,14 +10,20 @@ import {
   Role,
   SavedReply,
   LineChannel,
-  WorkspaceMember
+  WorkspaceMember,
+  PromptTemplate
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { ConversationStatus } from "./dto/update-conversation-status.dto";
 import { RedisService } from "../redis/redis.service";
 import { LLMClient } from "../common/llm/llm.interface";
+import { GeminiClient } from "../common/llm/gemini.client";
+import { OpenAIClient } from "../common/llm/openai.client";
+import { ClaudeClient } from "../common/llm/claude.client";
 import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
+import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
+import { AiSuggestDto } from "./dto/ai-suggest.dto";
 
 export type InboxConversation = Conversation & {
   lineChannel: {
@@ -36,16 +42,22 @@ export type InboxConversation = Conversation & {
     sentAt: Date | null;
   }[];
   unreadInboundMessageCount: number;
+  customerDisplayName?: string | null;
 };
 
 type InboxConversationRow = Omit<InboxConversation, "unreadInboundMessageCount"> & {
   _count?: {
     messages?: number;
   };
+  customer?: {
+    displayName: string | null;
+  } | null;
 };
 
 export type InboxSettings = {
   inProgressAlertMinutes: number;
+  enableAiSuggest: boolean;
+  aiProvider: string;
 };
 
 export type ListConversationsOptions = {
@@ -93,7 +105,9 @@ export class InboxService {
     private readonly prisma: PrismaService,
     private readonly cryptoSecret: CryptoSecretService,
     private readonly redisService: RedisService,
-    @Inject("LLMClient") private readonly llmClient: LLMClient
+    private readonly geminiClient: GeminiClient,
+    private readonly openaiClient: OpenAIClient,
+    private readonly claudeClient: ClaudeClient
   ) { }
 
   async listConversations(
@@ -146,6 +160,11 @@ export class InboxService {
           include: {
             tag: true
           }
+        },
+        customer: {
+          select: {
+            displayName: true
+          }
         }
       },
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
@@ -153,9 +172,10 @@ export class InboxService {
       take: limit
     });
 
-    return (conversations as InboxConversationRow[]).map(({ _count, ...conversation }) => ({
+    return (conversations as InboxConversationRow[]).map(({ _count, customer, ...conversation }) => ({
       ...conversation,
-      unreadInboundMessageCount: _count?.messages ?? 0
+      unreadInboundMessageCount: _count?.messages ?? 0,
+      customerDisplayName: customer?.displayName ?? null
     }));
   }
 
@@ -811,24 +831,43 @@ export class InboxService {
   async getSettings(tenantId: string): Promise<InboxSettings> {
     const settings = await this.prisma.tenantSettings.findUnique({
       where: { tenantId },
-      select: { inProgressAlertMinutes: true }
+      select: {
+        inProgressAlertMinutes: true,
+        enableAiSuggest: true,
+        aiProvider: true
+      }
     });
 
     return {
-      inProgressAlertMinutes: settings?.inProgressAlertMinutes ?? 10
+      inProgressAlertMinutes: settings?.inProgressAlertMinutes ?? 10,
+      enableAiSuggest: settings?.enableAiSuggest ?? true,
+      aiProvider: settings?.aiProvider ?? "gemini"
     };
   }
 
   async updateSettings(
     tenantId: string,
     userId: string,
-    inProgressAlertMinutes: number
+    dto: UpdateInboxSettingsDto
   ): Promise<InboxSettings> {
     const settings = await this.prisma.tenantSettings.upsert({
       where: { tenantId },
-      create: { tenantId, inProgressAlertMinutes },
-      update: { inProgressAlertMinutes },
-      select: { inProgressAlertMinutes: true }
+      create: {
+        tenantId,
+        inProgressAlertMinutes: dto.inProgressAlertMinutes ?? 10,
+        enableAiSuggest: dto.enableAiSuggest ?? true,
+        aiProvider: dto.aiProvider ?? "gemini"
+      },
+      update: {
+        inProgressAlertMinutes: dto.inProgressAlertMinutes,
+        enableAiSuggest: dto.enableAiSuggest,
+        aiProvider: dto.aiProvider
+      },
+      select: {
+        inProgressAlertMinutes: true,
+        enableAiSuggest: true,
+        aiProvider: true
+      }
     });
 
     await this.prisma.auditLog.create({
@@ -838,7 +877,11 @@ export class InboxService {
         action: AuditAction.INBOX_SETTINGS_UPDATED,
         targetType: "TenantSettings",
         targetId: tenantId,
-        metadata: { inProgressAlertMinutes }
+        metadata: {
+          inProgressAlertMinutes: dto.inProgressAlertMinutes,
+          enableAiSuggest: dto.enableAiSuggest,
+          aiProvider: dto.aiProvider
+        }
       }
     });
 
@@ -1042,7 +1085,13 @@ export class InboxService {
     }
   }
 
-  async aiSuggest(tenantId: string, conversationId: string, actionType: string) {
+  async aiSuggest(
+    tenantId: string,
+    conversationId: string,
+    dto: AiSuggestDto
+  ) {
+    const actionType = dto.action_type;
+
     // 1. Rate limiting via Redis
     const conversationLimitKey = `ai-suggest-limit:conversation:${conversationId}`;
     const tenantLimitKey = `ai-suggest-limit:tenant:${tenantId}`;
@@ -1071,6 +1120,21 @@ export class InboxService {
         },
         HttpStatus.TOO_MANY_REQUESTS
       );
+    }
+
+    // 1.5 Fetch tenant settings to get active AI provider
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId }
+    });
+    const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
+
+    let activeLlmClient: LLMClient;
+    if (provider === "openai") {
+      activeLlmClient = this.openaiClient;
+    } else if (provider === "claude") {
+      activeLlmClient = this.claudeClient;
+    } else {
+      activeLlmClient = this.geminiClient;
     }
 
     // 2. Fetch conversation with customer (ensure customer.deletedAt: null)
@@ -1180,12 +1244,15 @@ export class InboxService {
 ประวัติการสนทนาล่าสุด:
 {{conversation_history}}
 
+ข้อความร่างล่าสุดของ Agent:
+{{current_draft}}
+
 คำสั่งสำหรับ action_type = {{action_type}}:
 - generate: ร่างคำตอบใหม่ สุภาพ กระชับ ตรงประเด็น
-- rewrite: เขียนใหม่ความหมายเดิมแต่สำนวนต่าง
-- shorter: ย่อข้อความล่าสุดที่ agent พิมพ์ให้สั้นลง
-- polite: ปรับให้สุภาพขึ้น
-- friendly: ปรับให้เป็นกันเองขึ้น
+- rewrite: เขียนใหม่ข้อความร่างล่าสุดของ Agent ให้ความหมายเดิมแต่สำนวนต่างออกไป
+- shorter: ย่อข้อความร่างล่าสุดของ Agent ให้สั้นลงและกระชับขึ้น
+- polite: ปรับข้อความร่างล่าสุดของ Agent ให้สุภาพขึ้น
+- friendly: ปรับข้อความร่างล่าสุดของ Agent ให้เป็นกันเองขึ้น
 
 ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
 
@@ -1195,7 +1262,8 @@ export class InboxService {
       .replace("{{tags}}", tagsStr)
       .replace("{{notes}}", notesStr)
       .replace("{{action_type}}", actionType)
-      .replace("{{conversation_history}}", conversationHistoryText);
+      .replace("{{conversation_history}}", conversationHistoryText)
+      .replace("{{current_draft}}", dto.current_text || "ไม่มี");
 
     const historyForLlm = history.map((msg) => ({
       role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
@@ -1204,7 +1272,7 @@ export class InboxService {
 
     let suggestionText = "";
     try {
-      suggestionText = await this.llmClient.generateReply({
+      suggestionText = await activeLlmClient.generateReply({
         systemPrompt: compiledPrompt,
         conversationHistory: historyForLlm
       });
@@ -1223,6 +1291,18 @@ export class InboxService {
     }
 
     // 7. Save suggestion if LLM succeeded (Addendum 2 requirement: DO NOT save row if LLM call failed)
+    if (dto.previous_suggestion_id) {
+      await this.prisma.aiSuggestion.updateMany({
+        where: {
+          id: dto.previous_suggestion_id,
+          tenantId
+        },
+        data: {
+          status: "superseded"
+        }
+      });
+    }
+
     const suggestion = await this.prisma.aiSuggestion.create({
       data: {
         tenantId,
@@ -1265,6 +1345,61 @@ export class InboxService {
       id: updated.id,
       status: updated.status
     };
+  }
+
+  async getPromptTemplate(tenantId: string, name: string): Promise<PromptTemplate> {
+    let template = await this.prisma.promptTemplate.findFirst({
+      where: { tenantId, name }
+    });
+
+    if (!template) {
+      template = await this.prisma.promptTemplate.findFirst({
+        where: { tenantId: null, name }
+      });
+    }
+
+    if (!template) {
+      throw new NotFoundException(`Prompt template ${name} not found`);
+    }
+
+    return template;
+  }
+
+  async updatePromptTemplate(
+    tenantId: string,
+    userId: string,
+    name: string,
+    systemPrompt: string
+  ): Promise<PromptTemplate> {
+    const template = await this.prisma.promptTemplate.upsert({
+      where: {
+        tenantId_name: {
+          tenantId,
+          name
+        }
+      },
+      create: {
+        tenantId,
+        name,
+        systemPrompt
+      },
+      update: {
+        systemPrompt
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.INBOX_SETTINGS_UPDATED,
+        targetType: "PromptTemplate",
+        targetId: template.id,
+        metadata: { name, systemPrompt }
+      }
+    });
+
+    return template;
   }
 }
 

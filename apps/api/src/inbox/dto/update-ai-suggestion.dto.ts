@@ -4,7 +4,8 @@ export enum AiSuggestionStatus {
   SHOWN = "shown",
   EDITED = "edited",
   SENT = "sent",
-  REJECTED = "rejected"
+  REJECTED = "rejected",
+  SUPERSEDED = "superseded"
 }
 
 export class UpdateAiSuggestionDto {

@@ -177,6 +177,8 @@ model TenantSettings {
   enableTwoFa            Boolean  @default(false)
   maxAgents              Int      @default(10)
   inProgressAlertMinutes Int      @default(10)
+  enableAiSuggest        Boolean  @default(true)   @map("enable_ai_suggest")
+  aiProvider             String   @default("gemini") @map("ai_provider")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
