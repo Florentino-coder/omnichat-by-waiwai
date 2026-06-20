@@ -87,7 +87,165 @@ export const messages = {
     changePassword: "เปลี่ยนรหัสผ่าน",
     outbound: "ส่งออก",
     inbound: "นำเข้า",
-    noMessagesYet: "ยังไม่มีข้อความ"
+    noMessagesYet: "ยังไม่มีข้อความ",
+
+    // Settings — shared
+    settingsSubtitle:
+      "ตั้งค่า LINE OA ทีมงาน คำตอบด่วน Knowledge AI Scenarios และ Automation",
+    allChannels: "ทุกช่องทาง",
+    channelScope: "ขอบเขตช่องทาง",
+    nameLabel: "ชื่อ",
+    priorityLabel: "ลำดับความสำคัญ (เลขน้อย = รันก่อน)",
+    enabled: "เปิดใช้งาน",
+    disabled: "ปิดใช้งาน",
+    loading: "กำลังโหลด...",
+    saving: "กำลังบันทึก...",
+    edit: "แก้ไข",
+    delete: "ลบ",
+    noChange: "ไม่เปลี่ยน",
+    lineChannelOptional: "ช่อง LINE (ไม่บังคับ)",
+    selectAgent: "เลือกแอดมิน",
+    noAutoAssign: "ไม่มอบหมายอัตโนมัติ",
+
+    // Settings tabs
+    knowledgeTab: "Knowledge",
+    scenariosTab: "Scenarios",
+    automationTab: "Automation",
+    aiAssistantTab: "AI Assistant",
+
+    // Knowledge
+    knowledgeTitle: "Knowledge Base",
+    knowledgeSubtitle:
+      "FAQ (ค้นหาด้วย keyword) + เอกสาร RAG (semantic) ป้อนบริบทให้ AI ตอบ",
+    faqArticlesTab: "FAQ Articles",
+    ragDocumentsTab: "RAG Documents",
+    knowledgeContextHint:
+      "บทความ Knowledge ป้อนให้ AI ผ่าน {{knowledge_context}}",
+    knowledgeArticlesExtraHint:
+      "เพิ่มข้อมูลสินค้า นโยบาย FAQ — AI เลือกบทความที่ match จากข้อความลูกค้า",
+    allChannelsGlobal: "ทุกช่องทาง + ทั้งระบบ",
+    searchKnowledgePlaceholder: "ค้นหาชื่อหรือเนื้อหา...",
+    newKnowledgeArticle: "บทความ Knowledge ใหม่",
+    addKnowledgeArticle: "เพิ่มบทความ",
+    editKnowledgeArticle: "แก้ไขบทความ Knowledge",
+    saveArticle: "บันทึกบทความ",
+    articleCount: "บทความ",
+    loadArticlesError: "โหลดบทความ Knowledge ไม่สำเร็จ",
+    saveArticleError: "บันทึกบทความไม่สำเร็จ",
+    deleteArticleError: "ลบบทความไม่สำเร็จ",
+    deleteArticleConfirm: "ลบบทความนี้?",
+    categoryLabel: "หมวดหมู่",
+    keywordsLabel: "คำค้น (คั่นด้วยจุลภาค)",
+    contentLabel: "เนื้อหา",
+    inactiveLabel: "ปิดใช้งาน",
+    noKnowledgeArticles: "ยังไม่มีบทความ Knowledge",
+    addKnowledgeHint: "เพิ่มข้อมูลสินค้า/FAQ เพื่อให้ AI ตอบจากข้อมูลของคุณ",
+    categoryPlaceholder: "จัดส่ง, ราคา, FAQ...",
+    ragDocumentsTitle: "เอกสาร RAG (Phase D)",
+    ragDocumentsHint:
+      "วาง SOP/นโยบายยาวๆ → แบ่ง chunk + embed → ค้นหา semantic รวมกับ FAQ ใน prompt AI",
+    addDocumentTitle: "เพิ่มเอกสาร (วางข้อความ)",
+    docTitleLabel: "ชื่อเอกสาร",
+    docTextLabel: "ข้อความเอกสาร (อย่างน้อย 20 ตัวอักษร)",
+    docTextPlaceholder: "วาง SOP / นโยบาย / ข้อกำหนดที่ต้องการให้ AI ค้นหาแบบ semantic",
+    uploadAndIndex: "อัปโหลดและ index",
+    indexing: "กำลัง index...",
+    documentCount: "เอกสาร",
+    noDocumentsYet: "ยังไม่มีเอกสาร",
+    statusReady: "พร้อมใช้",
+    statusFailed: "ล้มเหลว",
+    statusIndexing: "กำลัง index",
+    reindex: "Re-index",
+    deleteDocumentConfirm: "ลบเอกสารและ chunks ทั้งหมด?",
+    loadDocumentsError: "โหลดเอกสารไม่สำเร็จ",
+    saveDocumentError: "index เอกสารไม่สำเร็จ",
+    reindexError: "re-index ไม่สำเร็จ",
+    deleteDocumentError: "ลบเอกสารไม่สำเร็จ",
+    onlyAgentCanAddDocs: "เฉพาะ Owner/Admin/Agent เพิ่มเอกสารได้",
+
+    // Scenarios
+    scenariosTitle: "AI Scenarios",
+    scenariosSubtitle:
+      "กฎ intent กำหนดโทน AI และ auto-tag / assign ได้",
+    scenarioEngineTitle: "Scenario Engine (กฎแบบ Zaapi)",
+    scenarioEngineHint:
+      "จับคู่ข้อความลูกค้าด้วย keyword/แท็ก → ใส่คำสั่งใน AI prompt → auto-tag, assign หรือ escalate ได้",
+    scenarioPlaceholderHint:
+      "เลข priority น้อยกว่าชนะก่อน ใส่ {{scenario_instructions}} ใน AI prompt template",
+    newScenario: "Scenario ใหม่",
+    editScenario: "แก้ไข scenario",
+    createScenario: "สร้าง scenario",
+    updateScenario: "อัปเดต scenario",
+    triggerKeywords: "Trigger keywords (คั่นด้วยจุลภาค)",
+    triggerTags: "Trigger tags (คั่นด้วยจุลภาค)",
+    activeFromHour: "ใช้งานตั้งแต่ชั่วโมง (0-23)",
+    activeUntilHour: "ใช้งานถึงชั่วโมง (0-23)",
+    aiInstructionsWhenMatched: "คำสั่ง AI เมื่อ match",
+    autoAddTag: "เพิ่มแท็กอัตโนมัติ (ไม่บังคับ)",
+    autoAssignMember: "มอบหมายสมาชิกอัตโนมัติ (ไม่บังคับ)",
+    setPriorityOptional: "ตั้ง priority (ไม่บังคับ)",
+    escalateIfNoPriority: "Escalate เป็น HIGH ถ้าไม่ได้ตั้ง priority",
+    scenarioCount: "Scenarios",
+    noScenariosYet: "ยังไม่มี scenario",
+    loadScenariosError: "โหลด scenarios ไม่สำเร็จ",
+    saveScenarioError: "บันทึก scenario ไม่สำเร็จ",
+    deleteScenarioConfirm: "ลบ scenario นี้?",
+    deleteScenarioError: "ลบ scenario ไม่สำเร็จ",
+    onlyOwnerAdminScenarios: "เฉพาะ Owner/Admin สร้าง/แก้ scenario ได้",
+    priorityBadge: "priority",
+    keywordsBadge: "keywords",
+    tagsBadge: "tags",
+
+    // Automation
+    automationTitle: "Automation",
+    automationSubtitle:
+      "Trigger → chain action สำหรับตอบนอกเวลา แท็ก มอบหมาย และอื่นๆ",
+    automationRulesTitle: "กฎ Automation",
+    automationRulesHint:
+      " chain action เมื่อมีข้อความ แท็กเปลี่ยน หรือนอกเวลาทำการ รันตามลำดับผ่าน queue",
+    loadingRules: "กำลังโหลดกฎ...",
+    newAutomationRule: "กฎ automation ใหม่",
+    editAutomationRule: "แก้ไขกฎ",
+    createRule: "สร้างกฎ",
+    updateRule: "อัปเดตกฎ",
+    triggerLabel: "Trigger",
+    keywordsCommaEmptyAny: "Keywords (คั่นด้วยจุลภาค, ว่าง = ทุกข้อความ)",
+    tagNamesComma: "ชื่อแท็ก (คั่นด้วยจุลภาค)",
+    statusLabel: "สถานะ",
+    businessHoursStart: "เวลาเปิด (0-23)",
+    businessHoursEnd: "เวลาปิด (0-23)",
+    stepsRunInOrder: "ขั้นตอน (รันตามลำดับ)",
+    addStep: "เพิ่มขั้นตอน",
+    stepN: "ขั้นตอน",
+    removeStep: "ลบขั้นตอน",
+    replyTextPlaceholder: "ข้อความตอบลูกค้า",
+    selectSavedReply: "เลือกคำตอบด่วน",
+    tagNamePlaceholder: "ชื่อแท็ก",
+    delaySecondsPlaceholder: "หน่วงเวลา (วินาที)",
+    loadAutomationError: "โหลดกฎ automation ไม่สำเร็จ",
+    saveAutomationError: "บันทึกกฎไม่สำเร็จ",
+    deleteAutomationConfirm: "ลบกฎ automation นี้?",
+    deleteAutomationError: "ลบกฎไม่สำเร็จ",
+    triggerSummary: "Trigger",
+    stepsSummary: "Steps",
+    autoTriggerMessageReceived: "ได้รับข้อความ",
+    autoTriggerConversationCreated: "แชทใหม่",
+    autoTriggerTagAdded: "มีแท็กเพิ่ม",
+    autoTriggerStatusChanged: "สถานะเปลี่ยน",
+    autoTriggerOffHours: "นอกเวลาทำการ",
+    autoStepSendText: "ส่งข้อความตอบ",
+    autoStepSendSavedReply: "ส่งคำตอบด่วน",
+    autoStepAddTag: "เพิ่มแท็ก",
+    autoStepAssignAgent: "มอบหมายแอดมิน",
+    autoStepSetPriority: "ตั้ง priority",
+    autoStepWait: "รอ (หน่วงเวลา)",
+    autoStepClose: "ปิดแชท",
+    autoStepEscalate: "ยกระดับ (priority สูง)",
+
+    // AI Assistant settings
+    aiAssistantTitle: "ตั้งค่า AI Assistant",
+    aiAssistantSubtitle:
+      "เลือก LLM เปิด/ปิดฟีเจอร์ ตั้ง SLA และแก้ system prompt template"
   },
   en: {
     inboxTitle: "Inbox",
@@ -173,10 +331,212 @@ export const messages = {
     changePassword: "Change Password",
     outbound: "Outbound",
     inbound: "Inbound",
-    noMessagesYet: "No messages yet."
+    noMessagesYet: "No messages yet.",
+
+    // Settings — shared
+    settingsSubtitle:
+      "Configure LINE OA, team, quick replies, Knowledge, AI Scenarios, and Automation.",
+    allChannels: "All channels",
+    channelScope: "Channel scope",
+    nameLabel: "Name",
+    priorityLabel: "Priority (lower runs first)",
+    enabled: "Enabled",
+    disabled: "Disabled",
+    loading: "Loading...",
+    saving: "Saving...",
+    edit: "Edit",
+    delete: "Delete",
+    noChange: "No change",
+    lineChannelOptional: "LINE channel (optional)",
+    selectAgent: "Select agent",
+    noAutoAssign: "No auto-assign",
+
+    // Settings tabs
+    knowledgeTab: "Knowledge",
+    scenariosTab: "Scenarios",
+    automationTab: "Automation",
+    aiAssistantTab: "AI Assistant",
+
+    // Knowledge
+    knowledgeTitle: "Knowledge Base",
+    knowledgeSubtitle:
+      "FAQ articles (keyword) + RAG documents (semantic) feed AI reply context.",
+    faqArticlesTab: "FAQ Articles",
+    ragDocumentsTab: "RAG Documents",
+    knowledgeContextHint:
+      "Knowledge articles feed AI replies through {{knowledge_context}}.",
+    knowledgeArticlesExtraHint:
+      "Add product info, policies, and FAQs. AI picks top matches from customer messages.",
+    allChannelsGlobal: "All channels + global",
+    searchKnowledgePlaceholder: "Search title or content...",
+    newKnowledgeArticle: "New Knowledge Article",
+    addKnowledgeArticle: "Add Article",
+    editKnowledgeArticle: "Edit Knowledge Article",
+    saveArticle: "Save Article",
+    articleCount: "article(s)",
+    loadArticlesError: "Could not load knowledge articles.",
+    saveArticleError: "Could not save knowledge article.",
+    deleteArticleError: "Could not delete knowledge article.",
+    deleteArticleConfirm: "Delete this article?",
+    categoryLabel: "Category",
+    keywordsLabel: "Keywords (comma-separated)",
+    contentLabel: "Content",
+    inactiveLabel: "Inactive",
+    noKnowledgeArticles: "No knowledge articles yet.",
+    addKnowledgeHint: "Add product info or FAQs so AI can answer with your data.",
+    categoryPlaceholder: "Shipping, Pricing, FAQ...",
+    ragDocumentsTitle: "RAG Documents (Phase D)",
+    ragDocumentsHint:
+      "Paste long policy/SOP text → chunk + embed → semantic search merges with FAQ in AI prompt.",
+    addDocumentTitle: "Add document (paste text)",
+    docTitleLabel: "Title",
+    docTextLabel: "Document text (min 20 chars)",
+    docTextPlaceholder: "Paste SOP, policy, or rules for semantic AI retrieval",
+    uploadAndIndex: "Upload & index",
+    indexing: "Indexing...",
+    documentCount: "Documents",
+    noDocumentsYet: "No documents yet.",
+    statusReady: "ready",
+    statusFailed: "failed",
+    statusIndexing: "indexing",
+    reindex: "Re-index",
+    deleteDocumentConfirm: "Delete this document and all chunks?",
+    loadDocumentsError: "Failed to load knowledge documents",
+    saveDocumentError: "Failed to index knowledge document",
+    reindexError: "Failed to re-index document",
+    deleteDocumentError: "Failed to delete document",
+    onlyAgentCanAddDocs: "Only Owner/Admin/Agent can add documents.",
+
+    // Scenarios
+    scenariosTitle: "AI Scenarios",
+    scenariosSubtitle:
+      "Intent rules that shape AI replies and optional auto-tag or assign actions.",
+    scenarioEngineTitle: "Scenario Engine (Zaapi-style rules)",
+    scenarioEngineHint:
+      "Match customer messages by keywords/tags → inject instructions into AI prompt → optional auto-tag, assign, or escalate.",
+    scenarioPlaceholderHint:
+      "Lower priority number wins first. Use {{scenario_instructions}} in AI prompt template.",
+    newScenario: "New scenario",
+    editScenario: "Edit scenario",
+    createScenario: "Create scenario",
+    updateScenario: "Update scenario",
+    triggerKeywords: "Trigger keywords (comma-separated)",
+    triggerTags: "Trigger tags (comma-separated)",
+    activeFromHour: "Active from hour (0-23)",
+    activeUntilHour: "Active until hour (0-23)",
+    aiInstructionsWhenMatched: "AI instructions when matched",
+    autoAddTag: "Auto-add tag (optional)",
+    autoAssignMember: "Auto-assign member (optional)",
+    setPriorityOptional: "Set priority (optional)",
+    escalateIfNoPriority: "Escalate to HIGH priority if no priority set",
+    scenarioCount: "Scenarios",
+    noScenariosYet: "No scenarios yet.",
+    loadScenariosError: "Failed to load AI scenarios",
+    saveScenarioError: "Failed to save AI scenario",
+    deleteScenarioConfirm: "Delete this scenario?",
+    deleteScenarioError: "Failed to delete AI scenario",
+    onlyOwnerAdminScenarios: "Only Owner/Admin can create or edit scenarios.",
+    priorityBadge: "priority",
+    keywordsBadge: "keywords",
+    tagsBadge: "tags",
+
+    // Automation
+    automationTitle: "Automation",
+    automationSubtitle:
+      "Trigger → action chains for off-hours replies, tagging, assignment, and more.",
+    automationRulesTitle: "Automation Rules",
+    automationRulesHint:
+      "Chain actions when messages arrive, tags change, or outside business hours. Steps run in order via background queue.",
+    loadingRules: "Loading rules...",
+    newAutomationRule: "New automation rule",
+    editAutomationRule: "Edit rule",
+    createRule: "Create rule",
+    updateRule: "Update rule",
+    triggerLabel: "Trigger",
+    keywordsCommaEmptyAny: "Keywords (comma-separated, empty = any message)",
+    tagNamesComma: "Tag names (comma-separated)",
+    statusLabel: "Status",
+    businessHoursStart: "Business hours start (0-23)",
+    businessHoursEnd: "Business hours end (0-23)",
+    stepsRunInOrder: "Steps (run in order)",
+    addStep: "Add step",
+    stepN: "Step",
+    removeStep: "Remove step",
+    replyTextPlaceholder: "Reply text to customer",
+    selectSavedReply: "Select saved reply",
+    tagNamePlaceholder: "Tag name",
+    delaySecondsPlaceholder: "Delay seconds",
+    loadAutomationError: "Failed to load automation rules",
+    saveAutomationError: "Failed to save automation rule",
+    deleteAutomationConfirm: "Delete this automation rule?",
+    deleteAutomationError: "Failed to delete automation rule",
+    triggerSummary: "Trigger",
+    stepsSummary: "Steps",
+    autoTriggerMessageReceived: "Message received",
+    autoTriggerConversationCreated: "New conversation",
+    autoTriggerTagAdded: "Tag added",
+    autoTriggerStatusChanged: "Status changed",
+    autoTriggerOffHours: "Off-hours message",
+    autoStepSendText: "Send text reply",
+    autoStepSendSavedReply: "Send saved reply",
+    autoStepAddTag: "Add tag",
+    autoStepAssignAgent: "Assign agent",
+    autoStepSetPriority: "Set priority",
+    autoStepWait: "Wait (delay)",
+    autoStepClose: "Close conversation",
+    autoStepEscalate: "Escalate (high priority)",
+
+    // AI Assistant settings
+    aiAssistantTitle: "AI Assistant Settings",
+    aiAssistantSubtitle:
+      "Configure LLM engines, feature toggles, SLA response times, and system prompt templates."
   }
 } as const;
 
 export function getMessages(locale: Locale = defaultLocale) {
   return messages[locale] ?? messages.th;
+}
+
+export type Messages = ReturnType<typeof getMessages>;
+
+type AutomationTriggerValue =
+  | "MESSAGE_RECEIVED"
+  | "CONVERSATION_CREATED"
+  | "TAG_ADDED"
+  | "STATUS_CHANGED"
+  | "OFF_HOURS";
+
+type AutomationStepValue =
+  | "SEND_TEXT_REPLY"
+  | "SEND_SAVED_REPLY"
+  | "ADD_TAG"
+  | "ASSIGN_AGENT"
+  | "SET_PRIORITY"
+  | "WAIT"
+  | "CLOSE_CONVERSATION"
+  | "ESCALATE";
+
+export function getAutomationTriggerOptions(locale: Locale = defaultLocale) {
+  const t = getMessages(locale);
+  return [
+    { value: "MESSAGE_RECEIVED" as const, label: t.autoTriggerMessageReceived },
+    { value: "CONVERSATION_CREATED" as const, label: t.autoTriggerConversationCreated },
+    { value: "TAG_ADDED" as const, label: t.autoTriggerTagAdded },
+    { value: "STATUS_CHANGED" as const, label: t.autoTriggerStatusChanged },
+    { value: "OFF_HOURS" as const, label: t.autoTriggerOffHours }
+  ] satisfies { value: AutomationTriggerValue; label: string }[];
+}
+
+export function getAutomationStepOptions(locale: Locale = defaultLocale) {
+  const t = getMessages(locale);
+  return [
+    { value: "SEND_TEXT_REPLY" as const, label: t.autoStepSendText },
+    { value: "SEND_SAVED_REPLY" as const, label: t.autoStepSendSavedReply },
+    { value: "ADD_TAG" as const, label: t.autoStepAddTag },
+    { value: "ASSIGN_AGENT" as const, label: t.autoStepAssignAgent },
+    { value: "SET_PRIORITY" as const, label: t.autoStepSetPriority },
+    { value: "WAIT" as const, label: t.autoStepWait },
+    { value: "CLOSE_CONVERSATION" as const, label: t.autoStepClose },
+    { value: "ESCALATE" as const, label: t.autoStepEscalate }
+  ] satisfies { value: AutomationStepValue; label: string }[];
 }

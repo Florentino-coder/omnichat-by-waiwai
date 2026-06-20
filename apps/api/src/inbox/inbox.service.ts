@@ -13,7 +13,8 @@ import {
   SavedReply,
   LineChannel,
   WorkspaceMember,
-  PromptTemplate
+  PromptTemplate,
+  AutomationTriggerType
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
@@ -25,6 +26,7 @@ import { OpenAIClient } from "../common/llm/openai.client";
 import { ClaudeClient } from "../common/llm/claude.client";
 import { KnowledgeService } from "../knowledge/knowledge.service";
 import { ScenarioService } from "../scenario/scenario.service";
+import { AutomationService } from "../automation/automation.service";
 import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { AiSuggestDto } from "./dto/ai-suggest.dto";
@@ -147,7 +149,8 @@ export class InboxService {
     private readonly openaiClient: OpenAIClient,
     private readonly claudeClient: ClaudeClient,
     private readonly knowledgeService: KnowledgeService,
-    private readonly scenarioService: ScenarioService
+    private readonly scenarioService: ScenarioService,
+    private readonly automationService: AutomationService
   ) { }
 
   async listConversations(
@@ -329,6 +332,20 @@ export class InboxService {
         }
       }
     });
+
+    await this.automationService
+      .dispatchEvent(
+        tenantId,
+        conversation.id,
+        AutomationTriggerType.STATUS_CHANGED,
+        { status }
+      )
+      .catch((error: unknown) => {
+        this.logger.error(
+          "Failed to dispatch STATUS_CHANGED automation",
+          error instanceof Error ? error.stack : error
+        );
+      });
 
     return updatedConversation;
   }
@@ -544,6 +561,20 @@ export class InboxService {
         }
       }
     });
+
+    await this.automationService
+      .dispatchEvent(
+        tenantId,
+        conversation.id,
+        AutomationTriggerType.TAG_ADDED,
+        { addedTagName: tag.name }
+      )
+      .catch((error: unknown) => {
+        this.logger.error(
+          "Failed to dispatch TAG_ADDED automation",
+          error instanceof Error ? error.stack : error
+        );
+      });
 
     return link;
   }

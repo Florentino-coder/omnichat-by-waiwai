@@ -186,6 +186,10 @@ const mockScenarioService = {
   applyScenarioActions: jest.fn().mockResolvedValue(undefined)
 };
 
+const mockAutomationService = {
+  dispatchEvent: jest.fn().mockResolvedValue(undefined)
+};
+
 const createService = (prisma: MockPrisma): InboxService =>
   new InboxService(
     prisma as unknown as PrismaService,
@@ -195,7 +199,8 @@ const createService = (prisma: MockPrisma): InboxService =>
     mockLlmClient as any,
     mockLlmClient as any,
     mockKnowledgeService as any,
-    mockScenarioService as any
+    mockScenarioService as any,
+    mockAutomationService as any
   );
 
 type Stage3BInboxService = InboxService & {

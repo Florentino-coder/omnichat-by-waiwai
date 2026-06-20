@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "
 import { GitBranch, Pencil, Trash2, X } from "lucide-react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
+import { useLanguage } from "../../lib/language-context";
+import { getMessages } from "../../lib/i18n";
 
 type LineChannel = {
   id: string;
@@ -108,6 +110,8 @@ function toForm(scenario: AiScenario): FormState {
 }
 
 export function ScenarioManager() {
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
   const [role, setRole] = useState<string>("AGENT");
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [channels, setChannels] = useState<LineChannel[]>([]);
@@ -180,7 +184,7 @@ export function ScenarioManager() {
       const data = await apiFetch<AiScenario[]>(path);
       setScenarios(Array.isArray(data) ? data : []);
     } catch (loadError) {
-      setError(readMessage(loadError, "Failed to load AI scenarios"));
+      setError(readMessage(loadError, t.loadScenariosError));
       setScenarios([]);
     } finally {
       setIsLoading(false);
@@ -246,7 +250,7 @@ export function ScenarioManager() {
       resetForm();
       await loadScenarios(selectedChannelId);
     } catch (saveError) {
-      setError(readMessage(saveError, "Failed to save AI scenario"));
+      setError(readMessage(saveError, t.saveScenarioError));
     } finally {
       setIsSaving(false);
     }
@@ -256,7 +260,7 @@ export function ScenarioManager() {
     if (!canDelete) {
       return;
     }
-    if (!window.confirm("Delete this scenario?")) {
+    if (!window.confirm(t.deleteScenarioConfirm)) {
       return;
     }
 
@@ -268,7 +272,7 @@ export function ScenarioManager() {
       }
       await loadScenarios(selectedChannelId);
     } catch (deleteError) {
-      setError(readMessage(deleteError, "Failed to delete AI scenario"));
+      setError(readMessage(deleteError, t.deleteScenarioError));
     }
   }
 
@@ -289,17 +293,9 @@ export function ScenarioManager() {
         <div className="flex items-start gap-2">
           <GitBranch size={16} className="mt-0.5 shrink-0" />
           <div className="space-y-1">
-            <p className="font-semibold">Scenario Engine (Zaapi-style rules)</p>
-            <p className="text-[#5B54A8]">
-              Match customer messages by keywords/tags → inject instructions into AI prompt → optional auto-tag, assign, or escalate.
-            </p>
-            <p className="text-[#5B54A8]">
-              Lower priority number wins first. Use placeholder{" "}
-              <code className="rounded border border-[#DEDDE6] bg-white px-1 font-mono text-xs">
-                {"{{scenario_instructions}}"}
-              </code>{" "}
-              in AI prompt template.
-            </p>
+            <p className="font-semibold">{t.scenarioEngineTitle}</p>
+            <p className="text-[#5B54A8]">{t.scenarioEngineHint}</p>
+            <p className="text-[#5B54A8]">{t.scenarioPlaceholderHint}</p>
           </div>
         </div>
       </div>
@@ -312,7 +308,7 @@ export function ScenarioManager() {
 
       <div className="flex flex-wrap items-center gap-3">
         <Label htmlFor="scenario-channel-filter" className="text-sm font-medium text-[#16182B]">
-          Channel scope
+          {t.channelScope}
         </Label>
         <select
           id="scenario-channel-filter"
@@ -320,7 +316,7 @@ export function ScenarioManager() {
           onChange={(event) => setSelectedChannelId(event.target.value)}
           className="rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm"
         >
-          <option value="all">All channels</option>
+          <option value="all">{t.allChannels}</option>
           {channels.map((channel) => (
             <option key={channel.id} value={channel.id}>
               {channel.name}
@@ -333,23 +329,23 @@ export function ScenarioManager() {
         <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-[#DEDDE6] p-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-[#16182B]">
-              {editingId ? "Edit scenario" : "New scenario"}
+              {editingId ? t.editScenario : t.newScenario}
             </h3>
             {editingId ? (
               <Button type="button" variant="ghost" size="sm" onClick={resetForm}>
                 <X size={14} className="mr-1" />
-                Cancel
+                {t.cancelEdit}
               </Button>
             ) : null}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t.nameLabel}</Label>
               <Input id="name" name="name" value={form.name} onChange={updateFormField} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="priority">Priority (lower = first)</Label>
+              <Label htmlFor="priority">{t.priorityLabel}</Label>
               <Input
                 id="priority"
                 name="priority"
@@ -365,7 +361,7 @@ export function ScenarioManager() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="triggerKeywords">Trigger keywords (comma-separated)</Label>
+              <Label htmlFor="triggerKeywords">{t.triggerKeywords}</Label>
               <Input
                 id="triggerKeywords"
                 name="triggerKeywords"
@@ -375,7 +371,7 @@ export function ScenarioManager() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="triggerTagNames">Trigger tags (comma-separated)</Label>
+              <Label htmlFor="triggerTagNames">{t.triggerTags}</Label>
               <Input
                 id="triggerTagNames"
                 name="triggerTagNames"
@@ -388,7 +384,7 @@ export function ScenarioManager() {
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="lineChannelId">LINE channel (optional)</Label>
+              <Label htmlFor="lineChannelId">{t.lineChannelOptional}</Label>
               <select
                 id="lineChannelId"
                 name="lineChannelId"
@@ -396,7 +392,7 @@ export function ScenarioManager() {
                 onChange={updateFormField}
                 className="w-full rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm"
               >
-                <option value="">All channels</option>
+                <option value="">{t.allChannels}</option>
                 {channels.map((channel) => (
                   <option key={channel.id} value={channel.id}>
                     {channel.name}
@@ -405,7 +401,7 @@ export function ScenarioManager() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="activeHourStart">Active from hour (0-23)</Label>
+              <Label htmlFor="activeHourStart">{t.activeFromHour}</Label>
               <Input
                 id="activeHourStart"
                 name="activeHourStart"
@@ -418,7 +414,7 @@ export function ScenarioManager() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="activeHourEnd">Active until hour (0-23)</Label>
+              <Label htmlFor="activeHourEnd">{t.activeUntilHour}</Label>
               <Input
                 id="activeHourEnd"
                 name="activeHourEnd"
@@ -433,7 +429,7 @@ export function ScenarioManager() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="instructions">AI instructions when matched</Label>
+            <Label htmlFor="instructions">{t.aiInstructionsWhenMatched}</Label>
             <textarea
               id="instructions"
               name="instructions"
@@ -448,7 +444,7 @@ export function ScenarioManager() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="actionAddTagName">Auto-add tag (optional)</Label>
+              <Label htmlFor="actionAddTagName">{t.autoAddTag}</Label>
               <Input
                 id="actionAddTagName"
                 name="actionAddTagName"
@@ -458,7 +454,7 @@ export function ScenarioManager() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="actionAssignMemberId">Auto-assign member (optional)</Label>
+              <Label htmlFor="actionAssignMemberId">{t.autoAssignMember}</Label>
               <select
                 id="actionAssignMemberId"
                 name="actionAssignMemberId"
@@ -466,7 +462,7 @@ export function ScenarioManager() {
                 onChange={updateFormField}
                 className="w-full rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm"
               >
-                <option value="">No auto-assign</option>
+                <option value="">{t.noAutoAssign}</option>
                 {members.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.user.displayName || member.user.email} ({member.role})
@@ -478,7 +474,7 @@ export function ScenarioManager() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="actionSetPriority">Set priority (optional)</Label>
+              <Label htmlFor="actionSetPriority">{t.setPriorityOptional}</Label>
               <select
                 id="actionSetPriority"
                 name="actionSetPriority"
@@ -486,7 +482,7 @@ export function ScenarioManager() {
                 onChange={updateFormField}
                 className="w-full rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm"
               >
-                <option value="">No change</option>
+                <option value="">{t.noChange}</option>
                 <option value="LOW">LOW</option>
                 <option value="NORMAL">NORMAL</option>
                 <option value="HIGH">HIGH</option>
@@ -500,7 +496,7 @@ export function ScenarioManager() {
                 checked={form.actionEscalate}
                 onChange={updateFormField}
               />
-              Escalate to HIGH priority if no priority set
+              {t.escalateIfNoPriority}
             </label>
           </div>
 
@@ -511,23 +507,25 @@ export function ScenarioManager() {
               checked={form.isEnabled}
               onChange={updateFormField}
             />
-            Enabled
+            {t.enabled}
           </label>
 
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? "Saving..." : editingId ? "Update scenario" : "Create scenario"}
+            {isSaving ? t.saving : editingId ? t.updateScenario : t.createScenario}
           </Button>
         </form>
       ) : (
-        <p className="text-sm text-[#767A8C]">Only Owner/Admin can create or edit scenarios.</p>
+        <p className="text-sm text-[#767A8C]">{t.onlyOwnerAdminScenarios}</p>
       )}
 
       <div className="space-y-3">
-        <h3 className="font-semibold text-[#16182B]">Scenarios ({sortedScenarios.length})</h3>
+        <h3 className="font-semibold text-[#16182B]">
+          {t.scenarioCount} ({sortedScenarios.length})
+        </h3>
         {isLoading ? (
-          <p className="text-sm text-[#767A8C]">Loading...</p>
+          <p className="text-sm text-[#767A8C]">{t.loading}</p>
         ) : sortedScenarios.length === 0 ? (
-          <p className="text-sm text-[#767A8C]">No scenarios yet.</p>
+          <p className="text-sm text-[#767A8C]">{t.noScenariosYet}</p>
         ) : (
           sortedScenarios.map((scenario) => (
             <div
@@ -539,21 +537,21 @@ export function ScenarioManager() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h4 className="font-semibold text-[#16182B]">{scenario.name}</h4>
                     <span className="rounded-full bg-[#ECEBFF] px-2 py-0.5 text-xs font-medium text-[#4636D7]">
-                      priority {scenario.priority}
+                      {t.priorityBadge} {scenario.priority}
                     </span>
                     {!scenario.isEnabled ? (
                       <span className="rounded-full bg-[#F6F5FA] px-2 py-0.5 text-xs text-[#767A8C]">
-                        disabled
+                        {t.disabled}
                       </span>
                     ) : null}
                   </div>
                   <p className="text-sm text-[#767A8C] line-clamp-2">{scenario.instructions}</p>
                   <div className="flex flex-wrap gap-2 text-xs text-[#767A8C]">
                     {scenario.triggerKeywords.length > 0 ? (
-                      <span>keywords: {scenario.triggerKeywords.join(", ")}</span>
+                      <span>{t.keywordsBadge}: {scenario.triggerKeywords.join(", ")}</span>
                     ) : null}
                     {scenario.triggerTagNames.length > 0 ? (
-                      <span>tags: {scenario.triggerTagNames.join(", ")}</span>
+                      <span>{t.tagsBadge}: {scenario.triggerTagNames.join(", ")}</span>
                     ) : null}
                     {scenario.actionAddTagName ? (
                       <span>+tag {scenario.actionAddTagName}</span>

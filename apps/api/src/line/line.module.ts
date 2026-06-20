@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthModule } from "../auth/auth.module";
 import { PrismaModule } from "../prisma/prisma.module";
@@ -23,9 +23,18 @@ import { LineBroadcastService } from "./line-broadcast.service";
 import { LineBroadcastScheduler } from "./line-broadcast.scheduler";
 import { MonitorModule } from "../monitor/monitor.module";
 import { ScenarioModule } from "../scenario/scenario.module";
+import { AutomationModule } from "../automation/automation.module";
 
 @Module({
-  imports: [AuthModule, PrismaModule, RealtimeModule, StorageModule, MonitorModule, ScenarioModule],
+  imports: [
+    AuthModule,
+    PrismaModule,
+    RealtimeModule,
+    StorageModule,
+    MonitorModule,
+    ScenarioModule,
+    forwardRef(() => AutomationModule)
+  ],
   controllers: [LineChannelsController, LineWebhookController],
   providers: [
     LineChannelsService,
@@ -53,6 +62,7 @@ import { ScenarioModule } from "../scenario/scenario.module";
     },
     LineWebhookQueueService,
     LineWebhookProcessorService
-  ]
+  ],
+  exports: [LineReplyService]
 })
 export class LineModule {}

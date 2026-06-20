@@ -21,6 +21,7 @@ import { MonitorModule } from "./monitor/monitor.module";
 import { CustomersModule } from "./customers/customers.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { ScenarioModule } from "./scenario/scenario.module";
+import { AutomationModule } from "./automation/automation.module";
 import { LlmModule } from "./common/llm/llm.module";
 
 @Module({
@@ -49,6 +50,7 @@ import { LlmModule } from "./common/llm/llm.module";
     CustomersModule,
     KnowledgeModule,
     ScenarioModule,
+    AutomationModule,
     LlmModule
   ]
 })

@@ -94,11 +94,50 @@ enum AuditAction {
   KNOWLEDGE_ARTICLE_CREATED
   KNOWLEDGE_ARTICLE_UPDATED
   KNOWLEDGE_ARTICLE_DELETED
+  KNOWLEDGE_DOCUMENT_CREATED
+  KNOWLEDGE_DOCUMENT_DELETED
+  KNOWLEDGE_DOCUMENT_INGESTED
+  KNOWLEDGE_DOCUMENT_INGEST_FAILED
   // AI Scenarios
   AI_SCENARIO_CREATED
   AI_SCENARIO_UPDATED
   AI_SCENARIO_DELETED
   AI_SCENARIO_MATCHED
+  // Automation
+  AUTOMATION_RULE_CREATED
+  AUTOMATION_RULE_UPDATED
+  AUTOMATION_RULE_DELETED
+  AUTOMATION_RUN_STARTED
+  AUTOMATION_STEP_EXECUTED
+  AUTOMATION_RUN_COMPLETED
+  AUTOMATION_RUN_FAILED
+}
+
+enum AutomationTriggerType {
+  MESSAGE_RECEIVED
+  CONVERSATION_CREATED
+  TAG_ADDED
+  STATUS_CHANGED
+  OFF_HOURS
+}
+
+enum AutomationRunStatus {
+  PENDING
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+}
+
+enum KnowledgeDocumentStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+enum KnowledgeDocumentSource {
+  TEXT
+  FILE
 }
 
 enum MessageSource {
@@ -169,7 +208,11 @@ model Tenant {
   aiSuggestions             AiSuggestion[]
   promptTemplates           PromptTemplate[]
   knowledgeArticles         KnowledgeArticle[]
+  knowledgeDocuments        KnowledgeDocument[]
+  knowledgeChunks           KnowledgeChunk[]
   aiScenarios               AiScenario[]
+  automationRules           AutomationRule[]
+  automationRuns            AutomationRun[]
 
   @@index([slug])
   @@index([planId])
@@ -411,7 +454,9 @@ model LineChannel {
   savedReplies       SavedReply[]
   broadcastJobs      BroadcastJob[]
   knowledgeArticles  KnowledgeArticle[]
+  knowledgeDocuments KnowledgeDocument[]
   aiScenarios        AiScenario[]
+  automationRules    AutomationRule[]
 
   @@unique([tenantId, lineChannelId])
   @@index([tenantId])
@@ -450,6 +495,7 @@ model Conversation {
   internalNotes ConversationInternalNote[]
   files         File[]
   aiSuggestions AiSuggestion[]
+  automationRuns AutomationRun[]
 
   @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
@@ -563,6 +609,48 @@ model KnowledgeArticle {
   @@map("knowledge_articles")
 }
 
+model KnowledgeDocument {
+  id            String                  @id @default(uuid())
+  tenantId      String
+  tenant        Tenant                  @relation(fields: [tenantId], references: [id])
+  lineChannelId String?
+  lineChannel   LineChannel?            @relation(fields: [lineChannelId], references: [id], onDelete: SetNull)
+  title         String
+  sourceType    KnowledgeDocumentSource @default(TEXT)
+  mimeType      String?
+  storageKey    String?
+  rawText       String
+  status        KnowledgeDocumentStatus @default(PENDING)
+  errorMessage  String?
+  chunkCount    Int                     @default(0)
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  deletedAt     DateTime?
+  chunks        KnowledgeChunk[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, lineChannelId])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id         String            @id @default(uuid())
+  tenantId   String
+  tenant     Tenant            @relation(fields: [tenantId], references: [id])
+  documentId String
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex Int
+  content    String
+  embedding  Json?
+  createdAt  DateTime          @default(now())
+
+  @@unique([documentId, chunkIndex])
+  @@index([tenantId])
+  @@index([documentId])
+  @@map("knowledge_chunks")
+}
+
 model AiScenario {
   id                   String                @id @default(uuid())
   tenantId             String
@@ -589,6 +677,59 @@ model AiScenario {
   @@index([tenantId, isEnabled])
   @@index([tenantId, lineChannelId])
   @@map("ai_scenarios")
+}
+
+model AutomationRule {
+  id                String                 @id @default(uuid())
+  tenantId          String
+  tenant            Tenant                 @relation(fields: [tenantId], references: [id])
+  lineChannelId     String?
+  lineChannel       LineChannel?           @relation(fields: [lineChannelId], references: [id], onDelete: SetNull)
+  name              String
+  priority          Int                    @default(100)
+  isEnabled         Boolean                @default(true)
+  triggerType       AutomationTriggerType
+  triggerKeywords   String[]               @default([])
+  triggerTagNames   String[]               @default([])
+  triggerStatus     String?
+  offHourStart      Int?
+  offHourEnd        Int?
+  steps             Json
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  deletedAt         DateTime?
+
+  runs AutomationRun[]
+
+  @@index([tenantId])
+  @@index([tenantId, isEnabled])
+  @@index([tenantId, triggerType])
+  @@index([tenantId, lineChannelId])
+  @@map("automation_rules")
+}
+
+model AutomationRun {
+  id               String              @id @default(uuid())
+  tenantId         String
+  tenant           Tenant              @relation(fields: [tenantId], references: [id])
+  ruleId           String
+  rule             AutomationRule      @relation(fields: [ruleId], references: [id])
+  conversationId   String
+  conversation     Conversation        @relation(fields: [conversationId], references: [id])
+  status           AutomationRunStatus @default(PENDING)
+  currentStepIndex Int                 @default(0)
+  context          Json?
+  errorMessage     String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, conversationId])
+  @@index([tenantId, ruleId])
+  @@index([status])
+  @@map("automation_runs")
 }
 
 model Message {

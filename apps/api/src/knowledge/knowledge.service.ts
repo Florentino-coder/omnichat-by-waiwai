@@ -7,10 +7,7 @@ import { AuditAction, KnowledgeArticle, Role } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateKnowledgeArticleDto } from "./dto/create-knowledge-article.dto";
 import { UpdateKnowledgeArticleDto } from "./dto/update-knowledge-article.dto";
-import {
-  formatKnowledgeContext,
-  rankKnowledgeArticles
-} from "./knowledge-search.util";
+import { KnowledgeDocumentService } from "./knowledge-document.service";
 
 export type ListKnowledgeArticlesOptions = {
   lineChannelId?: string;
@@ -21,7 +18,10 @@ export type ListKnowledgeArticlesOptions = {
 
 @Injectable()
 export class KnowledgeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly knowledgeDocumentService: KnowledgeDocumentService
+  ) {}
 
   listArticles(
     tenantId: string,
@@ -224,14 +224,12 @@ export class KnowledgeService {
     lineChannelId?: string | null,
     limit = 5
   ): Promise<string> {
-    const articles = await this.listArticles(tenantId, {
-      lineChannelId: lineChannelId ?? undefined,
-      activeOnly: true,
-      limit: 100
-    });
-
-    const ranked = rankKnowledgeArticles(articles, queryText, limit);
-    return formatKnowledgeContext(ranked);
+    return this.knowledgeDocumentService.buildHybridKnowledgeContext(
+      tenantId,
+      queryText,
+      lineChannelId,
+      limit
+    );
   }
 
   private normalizeKeywords(keywords: string[] | undefined): string[] {

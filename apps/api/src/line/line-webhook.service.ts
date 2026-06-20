@@ -13,6 +13,8 @@ import { RealtimeService } from "../realtime/realtime.service";
 import { StorageService } from "../storage/storage.service";
 import { MonitorService } from "../monitor/monitor.service";
 import { ScenarioService } from "../scenario/scenario.service";
+import { AutomationService } from "../automation/automation.service";
+import { AutomationTriggerType } from "@prisma/client";
 
 type LineWebhookPayload = {
   events?: LineWebhookEvent[];
@@ -55,7 +57,8 @@ export class LineWebhookService {
     private readonly realtimeService?: RealtimeService,
     private readonly storageService?: StorageService,
     private readonly monitorService?: MonitorService,
-    private readonly scenarioService?: ScenarioService
+    private readonly scenarioService?: ScenarioService,
+    private readonly automationService?: AutomationService
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
@@ -149,6 +152,17 @@ export class LineWebhookService {
       );
 
       const eventTime = event.timestamp ? new Date(event.timestamp) : new Date();
+      const existingConversation = await this.prisma.conversation.findFirst({
+        where: {
+          tenantId: channel.tenantId,
+          source: MessageSource.LINE,
+          lineChannelId: channel.id,
+          externalThreadId,
+          deletedAt: null
+        }
+      });
+      const isNewConversation = !existingConversation;
+
       const conversation = await this.prisma.conversation.upsert({
         where: {
           tenantId_source_lineChannelId_externalThreadId: {
@@ -322,6 +336,60 @@ export class LineWebhookService {
               error instanceof Error ? error.stack : error
             );
           });
+      }
+
+      if (this.automationService) {
+        if (isNewConversation) {
+          await this.automationService
+            .dispatchEvent(
+              channel.tenantId,
+              conversation.id,
+              AutomationTriggerType.CONVERSATION_CREATED,
+              { lineChannelId: channel.id }
+            )
+            .catch((error: unknown) => {
+              this.logger.error(
+                "Failed to dispatch CONVERSATION_CREATED automation",
+                error instanceof Error ? error.stack : error
+              );
+            });
+        }
+
+        if (messageType === MessageType.TEXT && lineMessage.text?.trim()) {
+          await this.automationService
+            .dispatchEvent(
+              channel.tenantId,
+              conversation.id,
+              AutomationTriggerType.MESSAGE_RECEIVED,
+              {
+                lineChannelId: channel.id,
+                messageText: lineMessage.text
+              }
+            )
+            .catch((error: unknown) => {
+              this.logger.error(
+                "Failed to dispatch MESSAGE_RECEIVED automation",
+                error instanceof Error ? error.stack : error
+              );
+            });
+
+          await this.automationService
+            .dispatchEvent(
+              channel.tenantId,
+              conversation.id,
+              AutomationTriggerType.OFF_HOURS,
+              {
+                lineChannelId: channel.id,
+                messageText: lineMessage.text
+              }
+            )
+            .catch((error: unknown) => {
+              this.logger.error(
+                "Failed to dispatch OFF_HOURS automation",
+                error instanceof Error ? error.stack : error
+              );
+            });
+        }
       }
 
       if (flowId && this.monitorService) {

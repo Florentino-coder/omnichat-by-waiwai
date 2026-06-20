@@ -3,17 +3,18 @@
 import { useEffect, useState } from "react";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
-import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch } from "lucide-react";
+import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch, Workflow } from "lucide-react";
 import { LineChannelForm } from "./line-channel-form";
 import { QuickReplyManager } from "./quick-reply-manager";
-import { KnowledgeManager } from "./knowledge-manager";
+import { KnowledgeSettingsPanel } from "./knowledge-settings-panel";
 import { ScenarioManager } from "./scenario-manager";
+import { AutomationManager } from "./automation-manager";
 import { ProfileEditor } from "./profile-editor";
 import { AiSettings } from "./ai-settings";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
-type SettingsTab = "channels" | "replies" | "knowledge" | "scenarios" | "team" | "profile" | "ai";
+type SettingsTab = "channels" | "replies" | "knowledge" | "scenarios" | "automation" | "team" | "profile" | "ai";
 
 export default function SettingsPage() {
   const { locale } = useLanguage();
@@ -58,17 +59,17 @@ export default function SettingsPage() {
             </div>
           </div>
           <p className="text-sm text-[#767A8C]">
-            Configure LINE OA channels, team collaboration, and quick replies for your organization.
+            {t.settingsSubtitle}
           </p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex overflow-x-auto scrollbar-none flex-nowrap gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm w-full max-w-2xl">
+        <div className="flex w-full flex-wrap gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm">
           {(role === "OWNER" || role === "ADMIN") && (
             <button
               type="button"
               onClick={() => setActiveTab("channels")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeTab === "channels"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -82,7 +83,7 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("replies")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeTab === "replies"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -96,35 +97,49 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("knowledge")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeTab === "knowledge"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
               }`}
             >
               <BookOpen size={16} />
-              Knowledge
+              {t.knowledgeTab}
             </button>
           )}
           {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
             <button
               type="button"
               onClick={() => setActiveTab("scenarios")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeTab === "scenarios"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
               }`}
             >
               <GitBranch size={16} />
-              Scenarios
+              {t.scenariosTab}
+            </button>
+          )}
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("automation")}
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+                activeTab === "automation"
+                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+              }`}
+            >
+              <Workflow size={16} />
+              {t.automationTab}
             </button>
           )}
           {(role === "OWNER" || role === "ADMIN") && (
             <button
               type="button"
               onClick={() => setActiveTab("team")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeTab === "team"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -138,21 +153,21 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={() => setActiveTab("ai")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeTab === "ai"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
               }`}
             >
               <Sparkles size={16} />
-              AI Assistant
+              {t.aiAssistantTab}
             </button>
           )}
           {role && (
             <button
               type="button"
               onClick={() => setActiveTab("profile")}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
                 activeTab === "profile"
                   ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
                   : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
@@ -198,12 +213,10 @@ export default function SettingsPage() {
             <div className={`${activeTab === "knowledge" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
               <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
                 <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
-                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">Knowledge Base</h2>
-                  <p className="text-sm text-[#767A8C]">
-                    Store product info, policies, and FAQs. AI uses these articles when drafting replies.
-                  </p>
+                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">{t.knowledgeTitle}</h2>
+                  <p className="text-sm text-[#767A8C]">{t.knowledgeSubtitle}</p>
                 </div>
-                <KnowledgeManager />
+                <KnowledgeSettingsPanel />
               </Card>
             </div>
           )}
@@ -212,12 +225,22 @@ export default function SettingsPage() {
             <div className={`${activeTab === "scenarios" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
               <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
                 <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
-                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">AI Scenarios</h2>
-                  <p className="text-sm text-[#767A8C]">
-                    Intent rules that shape AI replies and optional auto-tag or assign actions.
-                  </p>
+                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">{t.scenariosTitle}</h2>
+                  <p className="text-sm text-[#767A8C]">{t.scenariosSubtitle}</p>
                 </div>
                 <ScenarioManager />
+              </Card>
+            </div>
+          )}
+
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+            <div className={`${activeTab === "automation" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+              <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+                <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
+                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">{t.automationTitle}</h2>
+                  <p className="text-sm text-[#767A8C]">{t.automationSubtitle}</p>
+                </div>
+                <AutomationManager />
               </Card>
             </div>
           )}
@@ -251,10 +274,8 @@ export default function SettingsPage() {
             <div className={`${activeTab === "ai" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
               <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
                 <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
-                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">AI Assistant Settings</h2>
-                  <p className="text-sm text-[#767A8C]">
-                    Configure LLM engines, set feature toggles, adjust SLA response times, and edit system prompt templates.
-                  </p>
+                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">{t.aiAssistantTitle}</h2>
+                  <p className="text-sm text-[#767A8C]">{t.aiAssistantSubtitle}</p>
                 </div>
                 <AiSettings />
               </Card>

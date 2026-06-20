@@ -20,11 +20,24 @@ const ACCESS_TOKEN_KEY = "omnichat.accessToken";
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const token = window.localStorage.getItem(ACCESS_TOKEN_KEY);
+  const headers: Record<string, string> = {
+    ...(options.headers ?? {})
+  };
+
+  if (
+    options.body &&
+    typeof options.body === "string" &&
+    !headers["Content-Type"] &&
+    !headers["content-type"]
+  ) {
+    headers["Content-Type"] = "application/json";
+  }
+
   let response = await fetch(path, {
     ...options,
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers
+      ...headers
     }
   });
 
@@ -117,7 +130,12 @@ function isEnvelope<T>(body: ApiEnvelope<T> | T | null): body is ApiEnvelope<T> 
 
 function readErrorMessage<T>(body: ApiEnvelope<T> | T | null): string | null {
   if (isEnvelope<T>(body) && !body.success) {
-    return body.error?.message ?? null;
+    const message = body.error?.message ?? null;
+    const details = (body.error as { details?: unknown } | undefined)?.details;
+    if (Array.isArray(details) && details.length > 0) {
+      return details.map(String).join("; ");
+    }
+    return message;
   }
   return null;
 }

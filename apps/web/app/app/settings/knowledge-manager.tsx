@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "
 import { BookOpen, Pencil, Plus, Trash2, X } from "lucide-react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
+import { useLanguage } from "../../lib/language-context";
+import { getMessages } from "../../lib/i18n";
 
 type LineChannel = {
   id: string;
@@ -47,6 +49,8 @@ function readMessage(error: unknown, fallback: string): string {
 }
 
 export function KnowledgeManager() {
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
   const [role, setRole] = useState<string>("AGENT");
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>("all");
@@ -103,7 +107,7 @@ export function KnowledgeManager() {
       const data = await apiFetch<KnowledgeArticle[]>(path);
       setArticles(Array.isArray(data) ? data : []);
     } catch (loadError) {
-      setError(readMessage(loadError, "Could not load knowledge articles."));
+      setError(readMessage(loadError, t.loadArticlesError));
       setArticles([]);
     } finally {
       setIsLoading(false);
@@ -195,7 +199,7 @@ export function KnowledgeManager() {
       cancelEdit();
       await loadArticles(selectedChannelId, search);
     } catch (saveError) {
-      setError(readMessage(saveError, "Could not save knowledge article."));
+      setError(readMessage(saveError, t.saveArticleError));
     } finally {
       setIsSaving(false);
     }
@@ -222,7 +226,7 @@ export function KnowledgeManager() {
       }
       await loadArticles(selectedChannelId, search);
     } catch (deleteError) {
-      setError(readMessage(deleteError, "Could not delete knowledge article."));
+      setError(readMessage(deleteError, t.deleteArticleError));
     } finally {
       setIsSaving(false);
     }
@@ -234,15 +238,15 @@ export function KnowledgeManager() {
         <div className="flex items-start gap-2">
           <BookOpen size={16} className="mt-0.5 text-[#4636D7]" />
           <p>
-            Knowledge articles feed AI replies through <code className="font-mono text-[#4636D7]">{"{{knowledge_context}}"}</code>.
-            Add product info, policies, and FAQs. AI picks top matches from customer messages.
+            {t.knowledgeContextHint}{" "}
+            {t.knowledgeArticlesExtraHint}
           </p>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
         <Input
-          placeholder="Search title or content..."
+          placeholder={t.searchKnowledgePlaceholder}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -251,7 +255,7 @@ export function KnowledgeManager() {
           value={selectedChannelId}
           onChange={(event) => setSelectedChannelId(event.target.value)}
         >
-          <option value="all">All channels + global</option>
+          <option value="all">{t.allChannelsGlobal}</option>
           {channels.map((channel) => (
             <option key={channel.id} value={channel.id}>
               {channel.name}
@@ -273,7 +277,7 @@ export function KnowledgeManager() {
         >
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-heading text-base font-semibold text-[#16182B]">
-              {editingId === "new" ? "New Knowledge Article" : "Edit Knowledge Article"}
+              {editingId === "new" ? t.newKnowledgeArticle : t.editKnowledgeArticle}
             </h3>
             <button
               type="button"
@@ -286,14 +290,14 @@ export function KnowledgeManager() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="kb-title">Title</Label>
+              <Label htmlFor="kb-title">{t.nameLabel}</Label>
               <Input id="kb-title" value={form.title} onChange={updateField("title")} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="kb-category">Category</Label>
+              <Label htmlFor="kb-category">{t.categoryLabel}</Label>
               <Input
                 id="kb-category"
-                placeholder="Shipping, Pricing, FAQ..."
+                placeholder={t.categoryPlaceholder}
                 value={form.category}
                 onChange={updateField("category")}
               />
@@ -301,7 +305,7 @@ export function KnowledgeManager() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="kb-keywords">Keywords (comma separated)</Label>
+            <Label htmlFor="kb-keywords">{t.keywordsLabel}</Label>
             <Input
               id="kb-keywords"
               placeholder="delivery, shipping, จัดส่ง"
@@ -311,7 +315,7 @@ export function KnowledgeManager() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="kb-content">Content</Label>
+            <Label htmlFor="kb-content">{t.contentLabel}</Label>
             <textarea
               id="kb-content"
               className="min-h-[160px] w-full rounded-xl border border-[#DEDDE6] bg-white px-3 py-2 text-sm text-[#16182B] outline-none focus:border-[#4636D7]"
@@ -350,10 +354,10 @@ export function KnowledgeManager() {
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={cancelEdit}>
-              Cancel
+              {t.cancelEdit}
             </Button>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save Article"}
+              {isSaving ? t.saving : t.saveArticle}
             </Button>
           </div>
         </form>
@@ -361,12 +365,12 @@ export function KnowledgeManager() {
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-[#767A8C]">
-          {isLoading ? "Loading..." : `${filteredArticles.length} article(s)`}
+          {isLoading ? t.loading : `${filteredArticles.length} ${t.articleCount}`}
         </p>
         {canEdit && !editingId ? (
           <Button type="button" onClick={startCreate}>
             <Plus size={16} />
-            Add Article
+            {t.addKnowledgeArticle}
           </Button>
         ) : null}
       </div>
@@ -385,7 +389,7 @@ export function KnowledgeManager() {
                   </h4>
                   {!article.isActive ? (
                     <span className="rounded-full bg-[#F3F3F6] px-2 py-0.5 text-xs font-medium text-[#767A8C]">
-                      Inactive
+                      {t.inactiveLabel}
                     </span>
                   ) : null}
                   {article.category ? (
@@ -407,12 +411,12 @@ export function KnowledgeManager() {
                 <div className="flex shrink-0 gap-2">
                   <Button type="button" variant="secondary" onClick={() => startEdit(article)}>
                     <Pencil size={14} />
-                    Edit
+                    {t.edit}
                   </Button>
                   {canDelete ? (
                     <Button type="button" variant="danger" onClick={() => void deleteArticle(article)}>
                       <Trash2 size={14} />
-                      Delete
+                      {t.delete}
                     </Button>
                   ) : null}
                 </div>
@@ -423,7 +427,7 @@ export function KnowledgeManager() {
 
         {!isLoading && filteredArticles.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-[#DEDDE6] bg-white px-6 py-10 text-center text-sm text-[#767A8C]">
-            No knowledge articles yet. Add product info or FAQs so AI can answer with your data.
+            {t.noKnowledgeArticles} {t.addKnowledgeHint}
           </div>
         ) : null}
       </div>
