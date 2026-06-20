@@ -16,7 +16,7 @@ describe("EmbeddingService", () => {
     process.env.GEMINI_API_KEY = "test-key";
     delete process.env.GEMINI_EMBEDDING_MODEL;
 
-    const fetchMock = jest.fn<Promise<Response>, [string, RequestInit?]>(async (_url, init) => ({
+    const fetchMock = jest.fn<Promise<Response>, [string, RequestInit?]>(async (_url, _init) => ({
       ok: true,
       json: async () => ({
         embeddings: [{ values: [0.1, 0.2] }]
