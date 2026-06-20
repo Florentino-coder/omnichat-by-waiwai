@@ -26,7 +26,14 @@ import { UpdateConversationStatusDto } from "./dto/update-conversation-status.dt
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { UpdatePromptTemplateDto } from "./dto/update-prompt-template.dto";
 import { UpdateSavedReplyDto } from "./dto/update-saved-reply.dto";
-import { InboxConversation, InboxService, InboxSettings } from "./inbox.service";
+import {
+  AiTestResult,
+  AiUsageSnapshot,
+  InboxConversation,
+  InboxService,
+  InboxSettings
+} from "./inbox.service";
+import { AiTestDto } from "./dto/ai-test.dto";
 
 @Controller("inbox")
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
@@ -281,6 +288,21 @@ export class InboxController {
     @Body() dto: import("./dto/update-ai-suggestion.dto").UpdateAiSuggestionDto
   ) {
     return this.inboxService.updateAiSuggestion(ctx.tenantId, ctx.sub, id, dto);
+  }
+
+  @Get("ai-usage")
+  @Roles(Role.OWNER, Role.ADMIN)
+  getAiUsage(@TenantCtx() ctx: JwtTenantPayload): Promise<AiUsageSnapshot> {
+    return this.inboxService.getAiUsage(ctx.tenantId);
+  }
+
+  @Post("ai-test")
+  @Roles(Role.OWNER, Role.ADMIN)
+  aiTest(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Body() dto: AiTestDto
+  ): Promise<AiTestResult> {
+    return this.inboxService.aiTest(ctx.tenantId, ctx.sub, dto);
   }
 
   @Get("prompt-templates/suggested-reply")

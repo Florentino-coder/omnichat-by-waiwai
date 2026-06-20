@@ -25,6 +25,7 @@ import { ClaudeClient } from "../common/llm/claude.client";
 import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { AiSuggestDto } from "./dto/ai-suggest.dto";
+import { AiTestDto } from "./dto/ai-test.dto";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import {
   AI_SUGGEST_USAGE_METRIC,
@@ -67,6 +68,28 @@ export type InboxSettings = {
   enableAiSuggest: boolean;
   aiProvider: string;
   aiAgentGender: AiAgentGender;
+};
+
+export type AiUsageSnapshot = {
+  used: number;
+  limit: number;
+  remaining: number;
+  periodStart: string;
+  periodEnd: string;
+  percentage: number;
+  planId: string;
+  provider: string;
+  providerLabel: string;
+  modelName: string;
+  creditsAvailable: boolean;
+};
+
+export type AiTestResult = {
+  suggestion_text: string;
+  provider: string;
+  provider_label: string;
+  model_name: string;
+  latency_ms: number;
 };
 
 export type ListConversationsOptions = {
@@ -1161,14 +1184,7 @@ export class InboxService {
 
     const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
 
-    let activeLlmClient: LLMClient;
-    if (provider === "openai") {
-      activeLlmClient = this.openaiClient;
-    } else if (provider === "claude") {
-      activeLlmClient = this.claudeClient;
-    } else {
-      activeLlmClient = this.geminiClient;
-    }
+    const activeLlmClient = this.resolveLlmClient(provider);
 
     // 2. Fetch conversation with customer (ensure customer.deletedAt: null)
     const conversation = await this.prisma.conversation.findFirst({
@@ -1320,33 +1336,7 @@ export class InboxService {
       });
       suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
     } catch (llmError) {
-      const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
-      this.logger.error(`LLM Generation failed: ${errorMessage}`);
-
-      let code = "AI_GENERATION_FAILED";
-      let message = "AI generation failed. Please try again.";
-
-      if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY/i.test(errorMessage)) {
-        code = "AI_PROVIDER_NOT_CONFIGURED";
-        message = "AI provider API key is not configured on the server.";
-      } else if (/status 429|rate limit|quota/i.test(errorMessage)) {
-        code = "AI_PROVIDER_RATE_LIMITED";
-        message = "AI provider is temporarily busy. Please try again shortly.";
-      } else if (/timeout|ETIMEDOUT|ECONNRESET/i.test(errorMessage)) {
-        code = "AI_PROVIDER_TIMEOUT";
-        message = "AI provider took too long to respond. Please try again.";
-      }
-
-      throw new HttpException(
-        {
-          success: false,
-          error: {
-            code,
-            message
-          }
-        },
-        HttpStatus.BAD_GATEWAY
-      );
+      throw this.buildLlmHttpException(llmError);
     }
 
     // 7. Save suggestion if LLM succeeded (Addendum 2 requirement: DO NOT save row if LLM call failed)
@@ -1394,6 +1384,190 @@ export class InboxService {
     return {
       suggestion_id: suggestion.id,
       suggestion_text: suggestionText
+    };
+  }
+
+  async getAiUsage(tenantId: string): Promise<AiUsageSnapshot> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { planId: true }
+    });
+
+    if (!tenant) {
+      throw new NotFoundException("Tenant not found");
+    }
+
+    const limits = await this.prisma.planLimit.findUnique({
+      where: { planId: tenant.planId }
+    });
+    const limit = limits?.maxAiCreditsPerMonth ?? 0;
+
+    const { periodStart, periodEnd } = getCurrentMonthUsagePeriod();
+    const counter = await this.prisma.usageCounter.findUnique({
+      where: {
+        tenantId_metric_periodStart: {
+          tenantId,
+          metric: AI_SUGGEST_USAGE_METRIC,
+          periodStart
+        }
+      }
+    });
+
+    const used = Number(counter?.value ?? 0n);
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId },
+      select: { aiProvider: true }
+    });
+    const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
+
+    return {
+      used,
+      limit,
+      remaining: Math.max(0, limit - used),
+      periodStart: periodStart.toISOString(),
+      periodEnd: periodEnd.toISOString(),
+      percentage: limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0,
+      planId: tenant.planId,
+      provider,
+      providerLabel: this.getProviderLabel(provider),
+      modelName: this.getModelNameForProvider(provider),
+      creditsAvailable: limit > 0 && used < limit
+    };
+  }
+
+  async aiTest(tenantId: string, userId: string, dto: AiTestDto): Promise<AiTestResult> {
+    const testLimitKey = `ai-test-limit:tenant:${tenantId}`;
+    const testCount = await this.redisService.client.incr(testLimitKey);
+    if (testCount === 1) {
+      await this.redisService.client.expire(testLimitKey, 60);
+    }
+    if (testCount > 10) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "RATE_LIMIT_EXCEEDED",
+            message: "Too many AI test requests. Please wait before trying again."
+          }
+        },
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId }
+    });
+
+    if (settings?.enableAiSuggest === false) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "AI_SUGGEST_DISABLED",
+            message: "AI suggestions are disabled for this tenant."
+          }
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    const aiAgentGender = settings?.aiAgentGender ?? AiAgentGender.FEMALE;
+    await this.assertAiCreditAvailable(tenantId, userId);
+
+    const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
+    const activeLlmClient = this.resolveLlmClient(provider);
+    const sampleMessage = dto.sample_message?.trim() || "สวัสดีครับ มีสินค้าอะไรบ้างคะ";
+    const agentGenderInstruction = buildAgentGenderInstruction(aiAgentGender);
+
+    let template = await this.prisma.promptTemplate.findFirst({
+      where: {
+        tenantId,
+        name: "suggested_reply_default"
+      }
+    });
+
+    if (!template) {
+      template = await this.prisma.promptTemplate.findFirst({
+        where: {
+          tenantId: null,
+          name: "suggested_reply_default"
+        }
+      });
+    }
+
+    const systemPromptTemplate = template
+      ? template.systemPrompt
+      : `คุณเป็นผู้ช่วย Agent ร้านค้าที่กำลังตอบแชทลูกค้าผ่าน LINE OA
+
+{{agent_gender_instruction}}
+
+ชื่อลูกค้า: {{customer_name}}
+แท็กลูกค้า: {{tags}}
+โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
+
+ประวัติการสนทนาล่าสุด:
+{{conversation_history}}
+
+ข้อความร่างล่าสุดของ Agent:
+{{current_draft}}
+
+คำสั่งสำหรับ action_type = {{action_type}}:
+- generate: ร่างคำตอบใหม่ สุภาพ กระชับ ตรงประเด็น
+
+ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
+
+    const conversationHistoryText = `ลูกค้าทดสอบ: ${sampleMessage}`;
+    const compiledPromptBase = systemPromptTemplate
+      .replace("{{agent_gender_instruction}}", agentGenderInstruction)
+      .replace("{{customer_name}}", "ลูกค้าทดสอบ")
+      .replace("{{tags}}", "ทดสอบ")
+      .replace("{{notes}}", "ไม่มี")
+      .replace("{{action_type}}", "generate")
+      .replace("{{conversation_history}}", conversationHistoryText)
+      .replace("{{current_draft}}", "ไม่มี");
+
+    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+      ? compiledPromptBase
+      : `${agentGenderInstruction}\n\n${compiledPromptBase}`;
+
+    const historyForLlm = [{ role: "customer" as const, text: sampleMessage }];
+    const startedAt = Date.now();
+
+    let suggestionText = "";
+    try {
+      const rawSuggestion = await activeLlmClient.generateReply({
+        systemPrompt: compiledPrompt,
+        conversationHistory: historyForLlm
+      });
+      suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
+    } catch (llmError) {
+      throw this.buildLlmHttpException(llmError);
+    }
+
+    const latencyMs = Date.now() - startedAt;
+
+    await this.incrementAiCreditUsage(tenantId);
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.AI_SUGGEST_GENERATED,
+        targetType: "AiSuggestion",
+        metadata: {
+          mode: "test",
+          provider,
+          aiAgentGender,
+          latencyMs
+        }
+      }
+    });
+
+    return {
+      suggestion_text: suggestionText,
+      provider,
+      provider_label: this.getProviderLabel(provider),
+      model_name: this.getModelNameForProvider(provider),
+      latency_ms: latencyMs
     };
   }
 
@@ -1505,6 +1679,69 @@ export class InboxService {
     });
 
     return template;
+  }
+
+  private resolveLlmClient(provider: string): LLMClient {
+    const normalized = provider.toLowerCase();
+    if (normalized === "openai") {
+      return this.openaiClient;
+    }
+    if (normalized === "claude") {
+      return this.claudeClient;
+    }
+    return this.geminiClient;
+  }
+
+  private getProviderLabel(provider: string): string {
+    const normalized = provider.toLowerCase();
+    if (normalized === "openai") {
+      return "OpenAI GPT";
+    }
+    if (normalized === "claude") {
+      return "Anthropic Claude";
+    }
+    return "Google Gemini";
+  }
+
+  private getModelNameForProvider(provider: string): string {
+    const normalized = provider.toLowerCase();
+    if (normalized === "openai") {
+      return process.env.OPENAI_MODEL || "gpt-4o-mini";
+    }
+    if (normalized === "claude") {
+      return process.env.CLAUDE_MODEL || "claude-3-5-haiku-20241022";
+    }
+    return process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  }
+
+  private buildLlmHttpException(llmError: unknown): HttpException {
+    const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
+    this.logger.error(`LLM Generation failed: ${errorMessage}`);
+
+    let code = "AI_GENERATION_FAILED";
+    let message = "AI generation failed. Please try again.";
+
+    if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY/i.test(errorMessage)) {
+      code = "AI_PROVIDER_NOT_CONFIGURED";
+      message = "AI provider API key is not configured on the server.";
+    } else if (/status 429|rate limit|quota/i.test(errorMessage)) {
+      code = "AI_PROVIDER_RATE_LIMITED";
+      message = "AI provider is temporarily busy. Please try again shortly.";
+    } else if (/timeout|ETIMEDOUT|ECONNRESET/i.test(errorMessage)) {
+      code = "AI_PROVIDER_TIMEOUT";
+      message = "AI provider took too long to respond. Please try again.";
+    }
+
+    return new HttpException(
+      {
+        success: false,
+        error: {
+          code,
+          message
+        }
+      },
+      HttpStatus.BAD_GATEWAY
+    );
   }
 
   private async assertAiCreditAvailable(tenantId: string, userId: string): Promise<void> {

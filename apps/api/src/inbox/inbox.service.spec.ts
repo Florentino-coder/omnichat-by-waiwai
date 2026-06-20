@@ -1274,4 +1274,98 @@ describe("InboxService", () => {
       });
     });
   });
+
+  describe("AI Usage & Test", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockRedisService.client.incr.mockResolvedValue(1);
+      mockLlmClient.generateReply.mockResolvedValue("สวัสดีค่ะ ยินดีให้บริการนะคะ");
+    });
+
+    it("should return AI usage snapshot for tenant", async () => {
+      const prisma = createPrisma();
+      prisma.tenant.findUnique.mockResolvedValue({ planId: "pro" });
+      prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 500 });
+      prisma.usageCounter.findUnique.mockResolvedValue({ value: 120n });
+      prisma.tenantSettings.findUnique.mockResolvedValue({ aiProvider: "gemini" });
+
+      const service = createService(prisma);
+      const result = await service.getAiUsage("tenant-1");
+
+      expect(result.used).toBe(120);
+      expect(result.limit).toBe(500);
+      expect(result.remaining).toBe(380);
+      expect(result.percentage).toBe(24);
+      expect(result.provider).toBe("gemini");
+      expect(result.providerLabel).toBe("Google Gemini");
+      expect(result.creditsAvailable).toBe(true);
+      expect(result.periodStart).toEqual(expect.any(String));
+      expect(result.periodEnd).toEqual(expect.any(String));
+    });
+
+    it("should run AI test with sample message and consume credit", async () => {
+      const prisma = createPrisma();
+      mockAiCreditsAvailable(prisma);
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableAiSuggest: true,
+        aiProvider: "gemini",
+        aiAgentGender: "FEMALE"
+      });
+      prisma.promptTemplate.findFirst.mockResolvedValue({
+        systemPrompt: "{{agent_gender_instruction}} {{conversation_history}}"
+      });
+      prisma.auditLog.create.mockResolvedValue({ id: "audit-test" });
+
+      const service = createService(prisma);
+      const result = await service.aiTest("tenant-1", "user-1", {
+        sample_message: "มีโปรโมชั่นอะไรบ้างคะ"
+      });
+
+      expect(result.suggestion_text).toBe("สวัสดีค่ะ ยินดีให้บริการนะคะ");
+      expect(result.provider).toBe("gemini");
+      expect(result.provider_label).toBe("Google Gemini");
+      expect(result.latency_ms).toEqual(expect.any(Number));
+      expect(mockLlmClient.generateReply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationHistory: [{ role: "customer", text: "มีโปรโมชั่นอะไรบ้างคะ" }]
+        })
+      );
+      expect(prisma.usageCounter.upsert).toHaveBeenCalled();
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: AuditAction.AI_SUGGEST_GENERATED,
+          metadata: expect.objectContaining({ mode: "test" })
+        })
+      });
+    });
+
+    it("should throw rate limit when AI test exceeds tenant limit", async () => {
+      const prisma = createPrisma();
+      mockRedisService.client.incr.mockResolvedValue(11);
+
+      const service = createService(prisma);
+      await expect(
+        service.aiTest("tenant-1", "user-1", { sample_message: "ทดสอบ" })
+      ).rejects.toThrow(
+        expect.objectContaining({
+          status: 429
+        })
+      );
+      expect(mockLlmClient.generateReply).not.toHaveBeenCalled();
+    });
+
+    it("should throw forbidden when AI test is run while suggestions are disabled", async () => {
+      const prisma = createPrisma();
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableAiSuggest: false
+      });
+
+      const service = createService(prisma);
+      await expect(service.aiTest("tenant-1", "user-1", {})).rejects.toThrow(
+        expect.objectContaining({
+          status: 403
+        })
+      );
+    });
+  });
 });
