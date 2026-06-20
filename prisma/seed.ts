@@ -180,12 +180,17 @@ async function main(): Promise<void> {
   const promptName = "suggested_reply_default";
   const defaultPrompt = `คุณเป็นผู้ช่วย Agent ร้านค้าที่กำลังตอบแชทลูกค้าผ่าน LINE OA
 
+{{agent_gender_instruction}}
+
 ชื่อลูกค้า: {{customer_name}}
 แท็กลูกค้า: {{tags}}
 โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
 
 ประวัติการสนทนาล่าสุด:
 {{conversation_history}}
+
+ข้อความร่างล่าสุดของ Agent:
+{{current_draft}}
 
 คำสั่งสำหรับ action_type = {{action_type}}:
 - generate: ร่างคำตอบใหม่ สุภาพ กระชับ ตรงประเด็น

@@ -270,7 +270,7 @@ export class InboxController {
     @Param("id") id: string,
     @Body() dto: import("./dto/ai-suggest.dto").AiSuggestDto
   ) {
-    return this.inboxService.aiSuggest(ctx.tenantId, id, dto);
+    return this.inboxService.aiSuggest(ctx.tenantId, ctx.sub, id, dto);
   }
 
   @Patch("ai-suggestions/:id")
@@ -280,7 +280,7 @@ export class InboxController {
     @Param("id") id: string,
     @Body() dto: import("./dto/update-ai-suggestion.dto").UpdateAiSuggestionDto
   ) {
-    return this.inboxService.updateAiSuggestion(ctx.tenantId, id, dto);
+    return this.inboxService.updateAiSuggestion(ctx.tenantId, ctx.sub, id, dto);
   }
 
   @Get("prompt-templates/suggested-reply")

@@ -1,4 +1,5 @@
 import { IsBoolean, IsEnum, IsInt, IsOptional, Max, Min } from "class-validator";
+import { AiAgentGender } from "@prisma/client";
 
 export class UpdateInboxSettingsDto {
   @IsInt()
@@ -14,4 +15,8 @@ export class UpdateInboxSettingsDto {
   @IsEnum(["gemini", "openai", "claude"])
   @IsOptional()
   aiProvider?: string;
+
+  @IsEnum(AiAgentGender)
+  @IsOptional()
+  aiAgentGender?: AiAgentGender;
 }

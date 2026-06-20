@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException, Logger, HttpException, HttpStatus } from "@nestjs/common";
 import {
   AuditAction,
+  AiAgentGender,
   Conversation,
   ConversationInternalNote,
   ConversationPriority,
@@ -24,6 +25,13 @@ import { ClaudeClient } from "../common/llm/claude.client";
 import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { AiSuggestDto } from "./dto/ai-suggest.dto";
+import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
+import {
+  AI_SUGGEST_USAGE_METRIC,
+  buildAgentGenderInstruction,
+  getCurrentMonthUsagePeriod,
+  normalizeThaiPoliteParticles
+} from "./thai-speech.util";
 
 export type InboxConversation = Conversation & {
   lineChannel: {
@@ -58,6 +66,7 @@ export type InboxSettings = {
   inProgressAlertMinutes: number;
   enableAiSuggest: boolean;
   aiProvider: string;
+  aiAgentGender: AiAgentGender;
 };
 
 export type ListConversationsOptions = {
@@ -834,14 +843,16 @@ export class InboxService {
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
-        aiProvider: true
+        aiProvider: true,
+        aiAgentGender: true
       }
     });
 
     return {
       inProgressAlertMinutes: settings?.inProgressAlertMinutes ?? 10,
       enableAiSuggest: settings?.enableAiSuggest ?? true,
-      aiProvider: settings?.aiProvider ?? "gemini"
+      aiProvider: settings?.aiProvider ?? "gemini",
+      aiAgentGender: settings?.aiAgentGender ?? AiAgentGender.FEMALE
     };
   }
 
@@ -856,17 +867,20 @@ export class InboxService {
         tenantId,
         inProgressAlertMinutes: dto.inProgressAlertMinutes ?? 10,
         enableAiSuggest: dto.enableAiSuggest ?? true,
-        aiProvider: dto.aiProvider ?? "gemini"
+        aiProvider: dto.aiProvider ?? "gemini",
+        aiAgentGender: dto.aiAgentGender ?? AiAgentGender.FEMALE
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
         enableAiSuggest: dto.enableAiSuggest,
-        aiProvider: dto.aiProvider
+        aiProvider: dto.aiProvider,
+        aiAgentGender: dto.aiAgentGender
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
-        aiProvider: true
+        aiProvider: true,
+        aiAgentGender: true
       }
     });
 
@@ -880,7 +894,8 @@ export class InboxService {
         metadata: {
           inProgressAlertMinutes: dto.inProgressAlertMinutes,
           enableAiSuggest: dto.enableAiSuggest,
-          aiProvider: dto.aiProvider
+          aiProvider: dto.aiProvider,
+          aiAgentGender: dto.aiAgentGender
         }
       }
     });
@@ -1087,6 +1102,7 @@ export class InboxService {
 
   async aiSuggest(
     tenantId: string,
+    userId: string,
     conversationId: string,
     dto: AiSuggestDto
   ) {
@@ -1139,6 +1155,9 @@ export class InboxService {
         HttpStatus.FORBIDDEN
       );
     }
+
+    const aiAgentGender = settings?.aiAgentGender ?? AiAgentGender.FEMALE;
+    await this.assertAiCreditAvailable(tenantId, userId);
 
     const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
 
@@ -1251,6 +1270,8 @@ export class InboxService {
       ? template.systemPrompt
       : `คุณเป็นผู้ช่วย Agent ร้านค้าที่กำลังตอบแชทลูกค้าผ่าน LINE OA
 
+{{agent_gender_instruction}}
+
 ชื่อลูกค้า: {{customer_name}}
 แท็กลูกค้า: {{tags}}
 โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
@@ -1270,14 +1291,21 @@ export class InboxService {
 
 ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
 
+    const agentGenderInstruction = buildAgentGenderInstruction(aiAgentGender);
+
     // 6. Build prompt by replacing placeholders
-    const compiledPrompt = systemPromptTemplate
+    const compiledPromptBase = systemPromptTemplate
+      .replace("{{agent_gender_instruction}}", agentGenderInstruction)
       .replace("{{customer_name}}", customer.displayName || "ลูกค้า")
       .replace("{{tags}}", tagsStr)
       .replace("{{notes}}", notesStr)
       .replace("{{action_type}}", actionType)
       .replace("{{conversation_history}}", conversationHistoryText)
       .replace("{{current_draft}}", dto.current_text || "ไม่มี");
+
+    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+      ? compiledPromptBase
+      : `${agentGenderInstruction}\n\n${compiledPromptBase}`;
 
     const historyForLlm = history.map((msg) => ({
       role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
@@ -1286,18 +1314,35 @@ export class InboxService {
 
     let suggestionText = "";
     try {
-      suggestionText = await activeLlmClient.generateReply({
+      const rawSuggestion = await activeLlmClient.generateReply({
         systemPrompt: compiledPrompt,
         conversationHistory: historyForLlm
       });
+      suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
     } catch (llmError) {
-      this.logger.error(`LLM Generation failed: ${llmError instanceof Error ? llmError.message : llmError}`);
+      const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
+      this.logger.error(`LLM Generation failed: ${errorMessage}`);
+
+      let code = "AI_GENERATION_FAILED";
+      let message = "AI generation failed. Please try again.";
+
+      if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY/i.test(errorMessage)) {
+        code = "AI_PROVIDER_NOT_CONFIGURED";
+        message = "AI provider API key is not configured on the server.";
+      } else if (/status 429|rate limit|quota/i.test(errorMessage)) {
+        code = "AI_PROVIDER_RATE_LIMITED";
+        message = "AI provider is temporarily busy. Please try again shortly.";
+      } else if (/timeout|ETIMEDOUT|ECONNRESET/i.test(errorMessage)) {
+        code = "AI_PROVIDER_TIMEOUT";
+        message = "AI provider took too long to respond. Please try again.";
+      }
+
       throw new HttpException(
         {
           success: false,
           error: {
-            code: "AI_GENERATION_FAILED",
-            message: "AI generation failed. Please try again."
+            code,
+            message
           }
         },
         HttpStatus.BAD_GATEWAY
@@ -1328,13 +1373,36 @@ export class InboxService {
       }
     });
 
+    await this.incrementAiCreditUsage(tenantId);
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.AI_SUGGEST_GENERATED,
+        targetType: "AiSuggestion",
+        targetId: suggestion.id,
+        metadata: {
+          conversationId,
+          actionType,
+          provider,
+          aiAgentGender
+        }
+      }
+    });
+
     return {
       suggestion_id: suggestion.id,
       suggestion_text: suggestionText
     };
   }
 
-  async updateAiSuggestion(tenantId: string, id: string, dto: UpdateAiSuggestionDto) {
+  async updateAiSuggestion(
+    tenantId: string,
+    userId: string,
+    id: string,
+    dto: UpdateAiSuggestionDto
+  ) {
     const suggestion = await this.prisma.aiSuggestion.findFirst({
       where: {
         id,
@@ -1353,6 +1421,29 @@ export class InboxService {
         finalSentText: dto.final_sent_text
       }
     });
+
+    const auditActionByStatus: Partial<Record<string, AuditAction>> = {
+      sent: AuditAction.AI_SUGGEST_SENT,
+      edited: AuditAction.AI_SUGGEST_EDITED,
+      rejected: AuditAction.AI_SUGGEST_REJECTED
+    };
+    const auditAction = auditActionByStatus[dto.status];
+    if (auditAction) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: auditAction,
+          targetType: "AiSuggestion",
+          targetId: updated.id,
+          metadata: {
+            conversationId: suggestion.conversationId,
+            status: dto.status,
+            finalSentText: dto.final_sent_text ?? null
+          }
+        }
+      });
+    }
 
     return {
       success: true,
@@ -1414,6 +1505,106 @@ export class InboxService {
     });
 
     return template;
+  }
+
+  private async assertAiCreditAvailable(tenantId: string, userId: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { planId: true }
+    });
+
+    const limits = tenant
+      ? await this.prisma.planLimit.findUnique({
+          where: { planId: tenant.planId }
+        })
+      : null;
+
+    if (!tenant || !limits) {
+      throw new NotFoundException("Plan limit not found");
+    }
+
+    if (limits.maxAiCreditsPerMonth <= 0) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: AuditAction.PLAN_LIMIT_EXCEEDED,
+          targetType: "AiSuggestion",
+          metadata: {
+            planId: tenant.planId,
+            limit: limits.maxAiCreditsPerMonth,
+            metric: AI_SUGGEST_USAGE_METRIC
+          }
+        }
+      });
+      throw new PlanLimitExceededException("AI credits are not available on the current plan.", {
+        planId: tenant.planId,
+        limit: limits.maxAiCreditsPerMonth,
+        metric: AI_SUGGEST_USAGE_METRIC
+      });
+    }
+
+    const { periodStart, periodEnd } = getCurrentMonthUsagePeriod();
+    const counter = await this.prisma.usageCounter.findUnique({
+      where: {
+        tenantId_metric_periodStart: {
+          tenantId,
+          metric: AI_SUGGEST_USAGE_METRIC,
+          periodStart
+        }
+      }
+    });
+
+    const currentUsage = Number(counter?.value ?? 0n);
+    if (currentUsage >= limits.maxAiCreditsPerMonth) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: AuditAction.PLAN_LIMIT_EXCEEDED,
+          targetType: "AiSuggestion",
+          metadata: {
+            planId: tenant.planId,
+            limit: limits.maxAiCreditsPerMonth,
+            current: currentUsage,
+            metric: AI_SUGGEST_USAGE_METRIC,
+            periodStart,
+            periodEnd
+          }
+        }
+      });
+      throw new PlanLimitExceededException("Monthly AI credit limit exceeded.", {
+        planId: tenant.planId,
+        limit: limits.maxAiCreditsPerMonth,
+        current: currentUsage,
+        metric: AI_SUGGEST_USAGE_METRIC
+      });
+    }
+  }
+
+  private async incrementAiCreditUsage(tenantId: string): Promise<void> {
+    const { periodStart, periodEnd } = getCurrentMonthUsagePeriod();
+
+    await this.prisma.usageCounter.upsert({
+      where: {
+        tenantId_metric_periodStart: {
+          tenantId,
+          metric: AI_SUGGEST_USAGE_METRIC,
+          periodStart
+        }
+      },
+      create: {
+        tenantId,
+        metric: AI_SUGGEST_USAGE_METRIC,
+        periodStart,
+        periodEnd,
+        value: 1
+      },
+      update: {
+        value: { increment: 1 },
+        periodEnd
+      }
+    });
   }
 }
 

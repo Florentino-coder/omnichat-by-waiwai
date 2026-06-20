@@ -68,6 +68,16 @@ type MockPrisma = {
   promptTemplate: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  tenant: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  planLimit: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  usageCounter: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+    upsert: jest.Mock<Promise<unknown>, [unknown]>;
+  };
 };
 
 const createPrisma = (): MockPrisma => ({
@@ -126,6 +136,16 @@ const createPrisma = (): MockPrisma => ({
   },
   promptTemplate: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  tenant: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  planLimit: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  usageCounter: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>(),
+    upsert: jest.fn<Promise<unknown>, [unknown]>()
   }
 });
 
@@ -146,6 +166,13 @@ const mockRedisService = {
 const mockLlmClient = {
   generateReply: jest.fn().mockResolvedValue("AI Suggested Answer")
 };
+
+function mockAiCreditsAvailable(prisma: MockPrisma): void {
+  prisma.tenant.findUnique.mockResolvedValue({ planId: "pro" });
+  prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 10000 });
+  prisma.usageCounter.findUnique.mockResolvedValue(null);
+  prisma.usageCounter.upsert.mockResolvedValue({ value: 1n });
+}
 
 const createService = (prisma: MockPrisma): InboxService =>
   new InboxService(
@@ -413,19 +440,22 @@ describe("InboxService", () => {
     prisma.tenantSettings.findUnique.mockResolvedValue({
       inProgressAlertMinutes: 15,
       enableAiSuggest: true,
-      aiProvider: "gemini"
+      aiProvider: "gemini",
+      aiAgentGender: "FEMALE"
     });
     prisma.tenantSettings.upsert.mockResolvedValue({
       inProgressAlertMinutes: 5,
       enableAiSuggest: true,
-      aiProvider: "gemini"
+      aiProvider: "gemini",
+      aiAgentGender: "FEMALE"
     });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
     await expect(createService(prisma).getSettings("tenant-1")).resolves.toEqual({
       inProgressAlertMinutes: 15,
       enableAiSuggest: true,
-      aiProvider: "gemini"
+      aiProvider: "gemini",
+      aiAgentGender: "FEMALE"
     });
     await createService(prisma).updateSettings("tenant-1", "user-1", { inProgressAlertMinutes: 5 });
 
@@ -435,17 +465,20 @@ describe("InboxService", () => {
         tenantId: "tenant-1",
         inProgressAlertMinutes: 5,
         enableAiSuggest: true,
-        aiProvider: "gemini"
+        aiProvider: "gemini",
+        aiAgentGender: "FEMALE"
       },
       update: {
         inProgressAlertMinutes: 5,
         enableAiSuggest: undefined,
-        aiProvider: undefined
+        aiProvider: undefined,
+        aiAgentGender: undefined
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
-        aiProvider: true
+        aiProvider: true,
+        aiAgentGender: true
       }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
@@ -894,6 +927,16 @@ describe("InboxService", () => {
       mockLlmClient.generateReply.mockResolvedValue("AI Suggested Answer");
     });
 
+    function setupAiSuggestPrisma(prisma: MockPrisma): void {
+      mockAiCreditsAvailable(prisma);
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableAiSuggest: true,
+        aiProvider: "gemini",
+        aiAgentGender: "FEMALE"
+      });
+      prisma.auditLog.create.mockResolvedValue({ id: "audit-ai" });
+    }
+
     it("should throw forbidden when AI suggestions are disabled for tenant", async () => {
       const prisma = createPrisma();
       prisma.tenantSettings.findUnique.mockResolvedValue({
@@ -901,7 +944,7 @@ describe("InboxService", () => {
         enableAiSuggest: false
       });
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
           status: 403
         })
@@ -913,7 +956,7 @@ describe("InboxService", () => {
       const prisma = createPrisma();
       mockRedisService.client.incr.mockResolvedValueOnce(11).mockResolvedValueOnce(1);
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
           status: 429
         })
@@ -924,7 +967,7 @@ describe("InboxService", () => {
       const prisma = createPrisma();
       mockRedisService.client.incr.mockResolvedValueOnce(1).mockResolvedValueOnce(61);
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
           status: 429
         })
@@ -933,6 +976,7 @@ describe("InboxService", () => {
 
     it("should compile context, prompt template fallback, call LLM, and log suggestion on success", async () => {
       const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
       
       // Mock conversation findFirst
       prisma.conversation.findFirst.mockResolvedValue({
@@ -995,7 +1039,7 @@ describe("InboxService", () => {
       });
 
       const service = createService(prisma);
-      const result = await service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any });
+      const result = await service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any });
 
       expect(result).toEqual({
         suggestion_id: "sug-1",
@@ -1017,10 +1061,68 @@ describe("InboxService", () => {
           status: "shown"
         })
       });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: AuditAction.AI_SUGGEST_GENERATED,
+          targetId: "sug-1"
+        })
+      });
+
+      expect(prisma.usageCounter.upsert).toHaveBeenCalled();
+    });
+
+    it("should normalize dual Thai polite particles for female agent gender", async () => {
+      const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
+
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        tenantId: "tenant-1",
+        customerId: "cust-1",
+        customer: { id: "cust-1", displayName: "F", deletedAt: null }
+      });
+      prisma.message.findMany.mockResolvedValue([
+        { id: "msg-1", direction: "INBOUND", text: "สบายดีไหม", createdAt: new Date() }
+      ]);
+      prisma.conversation.findMany.mockResolvedValue([]);
+      prisma.promptTemplate.findFirst.mockResolvedValue({
+        systemPrompt: "{{agent_gender_instruction}} {{conversation_history}}"
+      });
+      prisma.aiSuggestion.create.mockResolvedValue({
+        id: "sug-dual",
+        suggestionText: "normalized"
+      });
+
+      mockLlmClient.generateReply.mockResolvedValueOnce(
+        "สบายดีค่ะ/ครับ ขอบคุณที่ถามนะคะ/นะครับ"
+      );
+
+      const service = createService(prisma);
+      const result = await service.aiSuggest("tenant-1", "user-1", "conv-1", {
+        action_type: "generate" as any
+      });
+
+      expect(result.suggestion_text).toBe("สบายดีค่ะ ขอบคุณที่ถามนะคะ");
+    });
+
+    it("should throw plan limit exception when monthly AI credits are exhausted", async () => {
+      const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
+      prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 100 });
+      prisma.usageCounter.findUnique.mockResolvedValue({ value: 100n });
+
+      const service = createService(prisma);
+      await expect(
+        service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any })
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockLlmClient.generateReply).not.toHaveBeenCalled();
     });
 
     it("should ignore soft-deleted customer notes and details in prompt creation", async () => {
       const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
       
       prisma.conversation.findFirst.mockResolvedValue({
         id: "conv-1",
@@ -1034,13 +1136,14 @@ describe("InboxService", () => {
       });
 
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         NotFoundException
       );
     });
 
     it("should throw 502 Bad Gateway and not write suggestion to DB on LLM error", async () => {
       const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
       
       prisma.conversation.findFirst.mockResolvedValue({
         id: "conv-1",
@@ -1062,7 +1165,7 @@ describe("InboxService", () => {
       mockLlmClient.generateReply.mockRejectedValue(new Error("Timeout/API Error"));
 
       const service = createService(prisma);
-      await expect(service.aiSuggest("tenant-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
+      await expect(service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
           status: 502
         })
@@ -1077,15 +1180,17 @@ describe("InboxService", () => {
       prisma.aiSuggestion.findFirst.mockResolvedValue({
         id: "sug-1",
         tenantId: "tenant-1",
+        conversationId: "conv-1",
         status: AiSuggestionStatus.SHOWN
       });
       prisma.aiSuggestion.update.mockResolvedValue({
         id: "sug-1",
         status: AiSuggestionStatus.SENT
       });
+      prisma.auditLog.create.mockResolvedValue({ id: "audit-ai-sent" });
 
       const service = createService(prisma);
-      const result = await service.updateAiSuggestion("tenant-1", "sug-1", {
+      const result = await service.updateAiSuggestion("tenant-1", "user-1", "sug-1", {
         status: AiSuggestionStatus.SENT,
         final_sent_text: "Final Answer"
       });
@@ -1103,6 +1208,12 @@ describe("InboxService", () => {
           finalSentText: "Final Answer"
         }
       });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: AuditAction.AI_SUGGEST_SENT
+        })
+      });
     });
 
     it("should throw NotFoundException on update if suggestion does not match tenant", async () => {
@@ -1111,12 +1222,13 @@ describe("InboxService", () => {
 
       const service = createService(prisma);
       await expect(
-        service.updateAiSuggestion("tenant-1", "sug-1", { status: AiSuggestionStatus.SENT })
+        service.updateAiSuggestion("tenant-1", "user-1", "sug-1", { status: AiSuggestionStatus.SENT })
       ).rejects.toThrow(NotFoundException);
     });
 
     it("should mark previous suggestion as superseded when refinement is requested", async () => {
       const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
       
       prisma.conversation.findFirst.mockResolvedValue({
         id: "conv-1",
@@ -1133,9 +1245,6 @@ describe("InboxService", () => {
       prisma.promptTemplate.findFirst.mockResolvedValue({
         systemPrompt: "Default Prompt {{current_draft}}"
       });
-      prisma.tenantSettings.findUnique.mockResolvedValue({
-        aiProvider: "openai"
-      });
       prisma.aiSuggestion.create.mockResolvedValue({
         id: "sug-2",
         suggestionText: "Shorter answer"
@@ -1143,7 +1252,7 @@ describe("InboxService", () => {
       mockLlmClient.generateReply.mockResolvedValueOnce("Shorter answer");
 
       const service = createService(prisma);
-      const result = await service.aiSuggest("tenant-1", "conv-1", {
+      const result = await service.aiSuggest("tenant-1", "user-1", "conv-1", {
         action_type: "shorter" as any,
         current_text: "Old long text draft",
         previous_suggestion_id: "sug-1"

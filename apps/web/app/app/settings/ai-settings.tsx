@@ -8,6 +8,7 @@ type AiSettingsData = {
   inProgressAlertMinutes: number;
   enableAiSuggest: boolean;
   aiProvider: string;
+  aiAgentGender: "FEMALE" | "MALE";
 };
 
 type PromptTemplateData = {
@@ -20,7 +21,8 @@ export function AiSettings() {
   const [settings, setSettings] = useState<AiSettingsData>({
     inProgressAlertMinutes: 10,
     enableAiSuggest: true,
-    aiProvider: "gemini"
+    aiProvider: "gemini",
+    aiAgentGender: "FEMALE"
   });
   const [promptTemplate, setPromptTemplate] = useState<PromptTemplateData | null>(null);
 
@@ -72,7 +74,8 @@ export function AiSettings() {
         body: JSON.stringify({
           inProgressAlertMinutes: settings.inProgressAlertMinutes,
           enableAiSuggest: settings.enableAiSuggest,
-          aiProvider: settings.aiProvider
+          aiProvider: settings.aiProvider,
+          aiAgentGender: settings.aiAgentGender
         })
       });
 
@@ -155,6 +158,27 @@ export function AiSettings() {
           </p>
         </div>
 
+        {/* Agent gender / Thai polite particles */}
+        <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
+          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">เพศของแอดมิน (คำลงท้าย)</label>
+          <select
+            value={settings.aiAgentGender}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                aiAgentGender: e.target.value as AiSettingsData["aiAgentGender"]
+              })
+            }
+            className="w-full mt-2 rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+          >
+            <option value="FEMALE">ผู้หญิง (ค่ะ / นะคะ)</option>
+            <option value="MALE">ผู้ชาย (ครับ / นะครับ)</option>
+          </select>
+          <p className="text-xs text-[#767A8C] mt-2">
+            AI จะใช้คำลงท้ายตามเพศนี้เท่านั้น ไม่สร้างแบบ ค่ะ/ครับ
+          </p>
+        </div>
+
         {/* inProgressAlertMinutes */}
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
           <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">เวลาเตือนตอบแชทช้า</label>
@@ -201,6 +225,7 @@ export function AiSettings() {
           <div className="mt-4 rounded-lg bg-[#ECEBFF]/40 border border-[#ECEBFF] p-4">
             <h4 className="text-xs font-bold text-[#4636D7] uppercase tracking-wider mb-2">ตัวแปรข้อความ (Placeholders) ที่รองรับ:</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs text-[#525770]">
+              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{agent_gender_instruction}}"}</code>: กฎคำลงท้ายตามเพศแอดมิน</div>
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{customer_name}}"}</code>: ชื่อลูกค้าปัจจุบัน</div>
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{tags}}"}</code>: รายการแท็กของลูกค้า</div>
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{notes}}"}</code>: โน้ตภายในของลูกค้า</div>

@@ -84,6 +84,11 @@ enum AuditAction {
   LINE_UNFOLLOW_RECEIVED
   LINE_UNSEND_RECEIVED
   LINE_BROADCAST_SCHEDULED
+  // AI Suggest
+  AI_SUGGEST_GENERATED
+  AI_SUGGEST_SENT
+  AI_SUGGEST_EDITED
+  AI_SUGGEST_REJECTED
 }
 
 enum MessageSource {
@@ -110,6 +115,11 @@ enum ConversationPriority {
   NORMAL
   HIGH
   URGENT
+}
+
+enum AiAgentGender {
+  FEMALE
+  MALE
 }
 
 // ============================================================
@@ -177,8 +187,9 @@ model TenantSettings {
   enableTwoFa            Boolean  @default(false)
   maxAgents              Int      @default(10)
   inProgressAlertMinutes Int      @default(10)
-  enableAiSuggest        Boolean  @default(true)   @map("enable_ai_suggest")
-  aiProvider             String   @default("gemini") @map("ai_provider")
+  enableAiSuggest        Boolean       @default(true)   @map("enable_ai_suggest")
+  aiProvider             String        @default("gemini") @map("ai_provider")
+  aiAgentGender          AiAgentGender @default(FEMALE)   @map("ai_agent_gender")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
