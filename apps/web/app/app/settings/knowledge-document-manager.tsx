@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
-import { FileText, RefreshCw, Trash2 } from "lucide-react";
+import { FileText, Link2, RefreshCw, Trash2, Upload } from "lucide-react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
@@ -22,15 +22,19 @@ type KnowledgeDocument = {
   updatedAt: string;
 };
 
+type IngestMode = "paste" | "file" | "url";
+
 type FormState = {
   title: string;
   rawText: string;
+  sourceUrl: string;
   lineChannelId: string;
 };
 
 const emptyForm: FormState = {
   title: "",
   rawText: "",
+  sourceUrl: "",
   lineChannelId: ""
 };
 
@@ -61,7 +65,9 @@ export function KnowledgeDocumentManager() {
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>("all");
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [ingestMode, setIngestMode] = useState<IngestMode>("paste");
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [reindexingId, setReindexingId] = useState<string | null>(null);
@@ -129,7 +135,7 @@ export function KnowledgeDocumentManager() {
     [documents]
   );
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handlePasteSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canEdit) {
       return;
@@ -150,6 +156,68 @@ export function KnowledgeDocumentManager() {
         body: JSON.stringify(payload)
       });
       setForm(emptyForm);
+      setSelectedFile(null);
+      await loadDocuments(selectedChannelId);
+    } catch (saveError) {
+      setError(readMessage(saveError, t.saveDocumentError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleFileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canEdit || !selectedFile) {
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    const body = new FormData();
+    body.append("file", selectedFile);
+    body.append("title", form.title.trim());
+    if (form.lineChannelId) {
+      body.append("lineChannelId", form.lineChannelId);
+    }
+
+    try {
+      await apiFetch("/api/v1/knowledge/documents/upload", {
+        method: "POST",
+        body
+      });
+      setForm(emptyForm);
+      setSelectedFile(null);
+      await loadDocuments(selectedChannelId);
+    } catch (saveError) {
+      setError(readMessage(saveError, t.saveDocumentError));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleUrlSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canEdit) {
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    const payload = {
+      title: form.title.trim(),
+      sourceUrl: form.sourceUrl.trim(),
+      lineChannelId: form.lineChannelId || undefined
+    };
+
+    try {
+      await apiFetch("/api/v1/knowledge/documents/from-url", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      setForm(emptyForm);
+      setSelectedFile(null);
       await loadDocuments(selectedChannelId);
     } catch (saveError) {
       setError(readMessage(saveError, t.saveDocumentError));
@@ -197,6 +265,43 @@ export function KnowledgeDocumentManager() {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   }
 
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setSelectedFile(file);
+  }
+
+  const channelFields = (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-2">
+        <Label htmlFor="doc-title">{t.docTitleLabel}</Label>
+        <Input
+          id="doc-title"
+          name="title"
+          value={form.title}
+          onChange={updateFormField}
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="doc-lineChannelId">{t.lineChannelOptional}</Label>
+        <select
+          id="doc-lineChannelId"
+          name="lineChannelId"
+          value={form.lineChannelId}
+          onChange={updateFormField}
+          className="w-full rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm"
+        >
+          <option value="">{t.allChannels}</option>
+          {channels.map((channel) => (
+            <option key={channel.id} value={channel.id}>
+              {channel.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-[#ECEBFF] bg-[#F8F7FF] p-4 text-sm text-[#4636D7]">
@@ -235,58 +340,99 @@ export function KnowledgeDocumentManager() {
       </div>
 
       {canEdit ? (
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-xl border border-[#DEDDE6] p-4">
+        <div className="space-y-4 rounded-xl border border-[#DEDDE6] p-4">
           <h3 className="font-semibold text-[#16182B]">{t.addDocumentTitle}</h3>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="doc-title">{t.docTitleLabel}</Label>
-              <Input
-                id="doc-title"
-                name="title"
-                value={form.title}
-                onChange={updateFormField}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="doc-lineChannelId">{t.lineChannelOptional}</Label>
-              <select
-                id="doc-lineChannelId"
-                name="lineChannelId"
-                value={form.lineChannelId}
-                onChange={updateFormField}
-                className="w-full rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm"
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["paste", t.ingestPasteTab],
+                ["file", t.ingestFileTab],
+                ["url", t.ingestUrlTab]
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={[
+                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  ingestMode === mode
+                    ? "bg-[#4636D7] text-white"
+                    : "bg-[#F3F2FF] text-[#4636D7] hover:bg-[#ECEBFF]"
+                ].join(" ")}
+                onClick={() => setIngestMode(mode)}
               >
-                <option value="">{t.allChannels}</option>
-                {channels.map((channel) => (
-                  <option key={channel.id} value={channel.id}>
-                    {channel.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                {label}
+              </button>
+            ))}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="doc-rawText">{t.docTextLabel}</Label>
-            <textarea
-              id="doc-rawText"
-              name="rawText"
-              value={form.rawText}
-              onChange={updateFormField}
-              required
-              minLength={20}
-              rows={8}
-              className="w-full rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm font-mono"
-              placeholder={t.docTextPlaceholder}
-            />
-          </div>
+          {ingestMode === "paste" ? (
+            <form onSubmit={handlePasteSubmit} className="space-y-4">
+              {channelFields}
+              <div className="space-y-2">
+                <Label htmlFor="doc-rawText">{t.docTextLabel}</Label>
+                <textarea
+                  id="doc-rawText"
+                  name="rawText"
+                  value={form.rawText}
+                  onChange={updateFormField}
+                  required
+                  minLength={20}
+                  rows={8}
+                  className="w-full rounded-lg border border-[#DEDDE6] bg-white px-3 py-2 text-sm font-mono"
+                  placeholder={t.docTextPlaceholder}
+                />
+              </div>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? t.indexing : t.uploadAndIndex}
+              </Button>
+            </form>
+          ) : null}
 
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? t.indexing : t.uploadAndIndex}
-          </Button>
-        </form>
+          {ingestMode === "file" ? (
+            <form onSubmit={handleFileSubmit} className="space-y-4">
+              {channelFields}
+              <div className="space-y-2">
+                <Label htmlFor="doc-file">{t.docFileLabel}</Label>
+                <Input
+                  id="doc-file"
+                  type="file"
+                  accept=".pdf,.docx,.txt,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={handleFileChange}
+                  required
+                />
+                <p className="text-xs text-[#767A8C]">{t.docFileHint}</p>
+              </div>
+              <Button type="submit" disabled={isSaving || !selectedFile}>
+                <Upload size={14} className="mr-1" />
+                {isSaving ? t.indexing : t.uploadFileAndIndex}
+              </Button>
+            </form>
+          ) : null}
+
+          {ingestMode === "url" ? (
+            <form onSubmit={handleUrlSubmit} className="space-y-4">
+              {channelFields}
+              <div className="space-y-2">
+                <Label htmlFor="doc-sourceUrl">{t.docUrlLabel}</Label>
+                <Input
+                  id="doc-sourceUrl"
+                  name="sourceUrl"
+                  type="url"
+                  value={form.sourceUrl}
+                  onChange={updateFormField}
+                  required
+                  placeholder={t.docUrlPlaceholder}
+                />
+              </div>
+              <Button type="submit" disabled={isSaving}>
+                <Link2 size={14} className="mr-1" />
+                {isSaving ? t.indexing : t.indexFromUrl}
+              </Button>
+            </form>
+          ) : null}
+        </div>
       ) : (
         <p className="text-sm text-[#767A8C]">{t.onlyAgentCanAddDocs}</p>
       )}

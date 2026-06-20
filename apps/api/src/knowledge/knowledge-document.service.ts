@@ -7,20 +7,36 @@ import {
 } from "@nestjs/common";
 import {
   AuditAction,
+  FileType,
   KnowledgeDocument,
+  KnowledgeDocumentSource,
   KnowledgeDocumentStatus,
+  RetentionType,
   Role
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { StorageService } from "../storage/storage.service";
 import { CreateKnowledgeDocumentDto } from "./dto/create-knowledge-document.dto";
+import { CreateKnowledgeDocumentFromUrlDto } from "./dto/create-knowledge-document-from-url.dto";
 import { EmbeddingService } from "./embedding.service";
+import { KnowledgeIngestQueueService } from "./knowledge-ingest-queue.service";
 import { splitTextIntoChunks } from "./knowledge-chunk.util";
 import {
   formatRagContext,
   mergeKnowledgeContext,
-  rankChunksByEmbedding
+  rankChunksByEmbedding,
+  type HybridKnowledgeResult,
+  type KnowledgeCitation
 } from "./knowledge-rag.util";
-import { formatKnowledgeContext, rankKnowledgeArticles } from "./knowledge-search.util";
+import {
+  formatKnowledgeContext,
+  rankKnowledgeArticles,
+  scoreKnowledgeArticle,
+  tokenizeSearchQuery
+} from "./knowledge-search.util";
+import { KnowledgeTextExtractionService } from "./knowledge-text-extraction.service";
+import { fetchPublicUrlText } from "./knowledge-url.util";
+import { UploadedKnowledgeFile } from "./knowledge-upload.types";
 
 type ChunkRow = {
   content: string;
@@ -34,7 +50,10 @@ export class KnowledgeDocumentService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly embeddingService: EmbeddingService
+    private readonly embeddingService: EmbeddingService,
+    private readonly storageService: StorageService,
+    private readonly textExtractionService: KnowledgeTextExtractionService,
+    private readonly knowledgeIngestQueueService: KnowledgeIngestQueueService
   ) {}
 
   listDocuments(
@@ -91,24 +110,101 @@ export class KnowledgeDocumentService {
         lineChannelId: dto.lineChannelId ?? null,
         title: dto.title.trim(),
         rawText: dto.rawText.trim(),
+        sourceType: KnowledgeDocumentSource.TEXT,
         status: KnowledgeDocumentStatus.PENDING
       }
     });
 
-    await this.prisma.auditLog.create({
+    await this.auditDocumentCreated(tenantId, userId, document);
+    return this.scheduleIngest(tenantId, userId, document.id);
+  }
+
+  async createFromUpload(
+    tenantId: string,
+    userId: string,
+    file: UploadedKnowledgeFile,
+    title: string,
+    lineChannelId?: string
+  ): Promise<KnowledgeDocument> {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException("File is required");
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException("File exceeds 10 MB limit");
+    }
+
+    if (lineChannelId) {
+      await this.assertLineChannelBelongsToTenant(tenantId, lineChannelId);
+    }
+
+    const mimeType = file.mimetype || "application/octet-stream";
+    const extractedText = await this.textExtractionService.extractFromBuffer(
+      file.buffer,
+      mimeType
+    );
+
+    const upload = await this.storageService.uploadFile(
+      tenantId,
+      null,
+      FileType.DOCUMENT,
+      RetentionType.PERMANENT,
+      file.buffer,
+      file.originalname || "document",
+      mimeType
+    );
+
+    const document = await this.prisma.knowledgeDocument.create({
       data: {
         tenantId,
-        userId,
-        action: AuditAction.KNOWLEDGE_DOCUMENT_CREATED,
-        targetType: "KnowledgeDocument",
-        targetId: document.id,
-        metadata: {
-          title: document.title
-        }
+        lineChannelId: lineChannelId ?? null,
+        title: title.trim(),
+        rawText: extractedText,
+        sourceType: KnowledgeDocumentSource.FILE,
+        mimeType,
+        storageKey: upload.r2Key,
+        status: KnowledgeDocumentStatus.PENDING
       }
     });
 
-    return this.ingestDocument(tenantId, userId, document.id);
+    await this.auditDocumentCreated(tenantId, userId, document, {
+      sourceType: "FILE",
+      mimeType
+    });
+
+    return this.scheduleIngest(tenantId, userId, document.id);
+  }
+
+  async createFromUrl(
+    tenantId: string,
+    userId: string,
+    dto: CreateKnowledgeDocumentFromUrlDto
+  ): Promise<KnowledgeDocument> {
+    if (dto.lineChannelId) {
+      await this.assertLineChannelBelongsToTenant(tenantId, dto.lineChannelId);
+    }
+
+    const fetchedBody = await fetchPublicUrlText(dto.sourceUrl);
+    const extractedText = this.textExtractionService.extractFromHtml(fetchedBody);
+
+    const document = await this.prisma.knowledgeDocument.create({
+      data: {
+        tenantId,
+        lineChannelId: dto.lineChannelId ?? null,
+        title: dto.title.trim(),
+        rawText: extractedText,
+        sourceType: KnowledgeDocumentSource.URL,
+        sourceUrl: dto.sourceUrl.trim(),
+        status: KnowledgeDocumentStatus.PENDING
+      }
+    });
+
+    await this.auditDocumentCreated(tenantId, userId, document, {
+      sourceType: "URL",
+      sourceUrl: dto.sourceUrl.trim()
+    });
+
+    return this.scheduleIngest(tenantId, userId, document.id);
   }
 
   async reindexDocument(
@@ -133,7 +229,7 @@ export class KnowledgeDocumentService {
       }
     });
 
-    return this.ingestDocument(tenantId, userId, document.id);
+    return this.scheduleIngest(tenantId, userId, document.id);
   }
 
   async deleteDocument(
@@ -185,7 +281,7 @@ export class KnowledgeDocumentService {
     lineChannelId?: string | null,
     articleLimit = 5,
     chunkLimit = 3
-  ): Promise<string> {
+  ): Promise<HybridKnowledgeResult> {
     const articles = await this.prisma.knowledgeArticle.findMany({
       where: {
         tenantId,
@@ -201,48 +297,127 @@ export class KnowledgeDocumentService {
       take: 100
     });
 
-    const rankedArticles = rankKnowledgeArticles(articles, queryText, articleLimit);
-    const articleContext = formatKnowledgeContext(rankedArticles);
+    const tokens = tokenizeSearchQuery(queryText);
+    const rankedArticles =
+      tokens.length > 0
+        ? articles
+            .map((article) => ({
+              article,
+              score: scoreKnowledgeArticle(article, tokens)
+            }))
+            .filter((entry) => entry.score > 0)
+            .sort((left, right) => right.score - left.score)
+            .slice(0, articleLimit)
+            .map((entry) => entry.article)
+        : rankKnowledgeArticles(articles, queryText, articleLimit);
 
+    const articleCitations: KnowledgeCitation[] = rankedArticles.map((article) => ({
+      type: "article",
+      title: article.title,
+      excerpt: article.content.slice(0, 160)
+    }));
+
+    const articleContext = formatKnowledgeContext(rankedArticles);
     const trimmedQuery = queryText.trim();
+
     if (!trimmedQuery) {
-      return articleContext;
+      return { context: articleContext, citations: articleCitations };
     }
 
     try {
       const queryEmbedding = await this.embeddingService.embedQuery(trimmedQuery);
       if (queryEmbedding.length === 0) {
-        return articleContext;
+        return { context: articleContext, citations: articleCitations };
       }
 
       const chunks = await this.loadReadyChunks(tenantId, lineChannelId);
       const rankedChunks = rankChunksByEmbedding(chunks, queryEmbedding, chunkLimit);
       const ragContext = formatRagContext(rankedChunks);
-      return mergeKnowledgeContext(articleContext, ragContext);
+      const documentCitations: KnowledgeCitation[] = rankedChunks.map((chunk) => ({
+        type: "document",
+        title: chunk.documentTitle,
+        score: chunk.score,
+        excerpt: chunk.content.slice(0, 160)
+      }));
+
+      return {
+        context: mergeKnowledgeContext(articleContext, ragContext),
+        citations: [...articleCitations, ...documentCitations]
+      };
     } catch (error) {
       this.logger.warn(
         `RAG retrieval skipped: ${error instanceof Error ? error.message : "unknown error"}`
       );
-      return articleContext;
+      return { context: articleContext, citations: articleCitations };
     }
+  }
+
+  async runIngestJob(
+    tenantId: string,
+    userId: string,
+    documentId: string,
+    throwOnFailure = false
+  ): Promise<void> {
+    if (throwOnFailure) {
+      await this.ingestDocument(tenantId, userId, documentId, true);
+      return;
+    }
+
+    try {
+      await this.ingestDocument(tenantId, userId, documentId, false);
+    } catch (error) {
+      this.logger.error(
+        `Knowledge ingest job failed for ${documentId}: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`
+      );
+    }
+  }
+
+  private async scheduleIngest(
+    tenantId: string,
+    userId: string,
+    documentId: string
+  ): Promise<KnowledgeDocument> {
+    await this.knowledgeIngestQueueService.enqueueIngest({
+      tenantId,
+      userId,
+      documentId
+    });
+
+    return this.findOne(tenantId, documentId);
   }
 
   private async ingestDocument(
     tenantId: string,
     userId: string,
-    documentId: string
+    documentId: string,
+    throwOnFailure: boolean
   ): Promise<KnowledgeDocument> {
     const document = await this.findOne(tenantId, documentId);
-    const chunks = splitTextIntoChunks(document.rawText);
+    const sourceText = await this.resolveDocumentText(document);
+    const chunks = splitTextIntoChunks(sourceText);
 
     if (chunks.length === 0) {
-      throw new BadRequestException("Document text is too short to index");
+      const message = "Document text is too short to index";
+      await this.markIngestFailed(tenantId, userId, document.id, message);
+      if (throwOnFailure) {
+        throw new BadRequestException(message);
+      }
+      return this.findOne(tenantId, documentId);
     }
 
     try {
       const embeddings = await this.embeddingService.embedTexts(chunks);
 
       await this.prisma.$transaction(async (tx) => {
+        await tx.knowledgeChunk.deleteMany({
+          where: {
+            tenantId,
+            documentId: document.id
+          }
+        });
+
         for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex += 1) {
           await tx.knowledgeChunk.create({
             data: {
@@ -259,6 +434,7 @@ export class KnowledgeDocumentService {
       const updated = await this.prisma.knowledgeDocument.update({
         where: { id: document.id },
         data: {
+          rawText: sourceText,
           status: KnowledgeDocumentStatus.READY,
           chunkCount: chunks.length,
           errorMessage: null
@@ -282,30 +458,77 @@ export class KnowledgeDocumentService {
       return updated;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Ingest failed";
-      const failed = await this.prisma.knowledgeDocument.update({
-        where: { id: document.id },
-        data: {
-          status: KnowledgeDocumentStatus.FAILED,
-          errorMessage: message
-        }
-      });
-
-      await this.prisma.auditLog.create({
-        data: {
-          tenantId,
-          userId,
-          action: AuditAction.KNOWLEDGE_DOCUMENT_INGEST_FAILED,
-          targetType: "KnowledgeDocument",
-          targetId: failed.id,
-          metadata: {
-            title: failed.title,
-            error: message
-          }
-        }
-      });
-
-      throw new BadRequestException(message);
+      await this.markIngestFailed(tenantId, userId, document.id, message);
+      if (throwOnFailure) {
+        throw new BadRequestException(message);
+      }
+      return this.findOne(tenantId, documentId);
     }
+  }
+
+  private async resolveDocumentText(document: KnowledgeDocument): Promise<string> {
+    if (document.sourceType === KnowledgeDocumentSource.FILE && document.storageKey) {
+      const buffer = await this.storageService.getObjectBuffer(document.storageKey);
+      const mimeType = document.mimeType || "application/octet-stream";
+      return this.textExtractionService.extractFromBuffer(buffer, mimeType);
+    }
+
+    if (document.sourceType === KnowledgeDocumentSource.URL && document.sourceUrl) {
+      const fetchedBody = await fetchPublicUrlText(document.sourceUrl);
+      return this.textExtractionService.extractFromHtml(fetchedBody);
+    }
+
+    return document.rawText.trim();
+  }
+
+  private async markIngestFailed(
+    tenantId: string,
+    userId: string,
+    documentId: string,
+    message: string
+  ): Promise<void> {
+    const failed = await this.prisma.knowledgeDocument.update({
+      where: { id: documentId },
+      data: {
+        status: KnowledgeDocumentStatus.FAILED,
+        errorMessage: message
+      }
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.KNOWLEDGE_DOCUMENT_INGEST_FAILED,
+        targetType: "KnowledgeDocument",
+        targetId: failed.id,
+        metadata: {
+          title: failed.title,
+          error: message
+        }
+      }
+    });
+  }
+
+  private async auditDocumentCreated(
+    tenantId: string,
+    userId: string,
+    document: KnowledgeDocument,
+    metadata: Record<string, string> = {}
+  ): Promise<void> {
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action: AuditAction.KNOWLEDGE_DOCUMENT_CREATED,
+        targetType: "KnowledgeDocument",
+        targetId: document.id,
+        metadata: {
+          title: document.title,
+          ...metadata
+        }
+      }
+    });
   }
 
   private async loadReadyChunks(

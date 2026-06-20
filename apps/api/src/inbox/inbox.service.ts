@@ -1314,11 +1314,12 @@ export class InboxService {
       .join(" ")
       .trim();
 
-    const knowledgeContext = await this.knowledgeService.buildKnowledgeContext(
+    const knowledgeResult = await this.knowledgeService.buildKnowledgeContextWithCitations(
       tenantId,
       knowledgeQueryText || conversationHistoryText,
       conversation.lineChannelId
     );
+    const knowledgeContext = knowledgeResult.context;
 
     const scenarioMatch = await this.scenarioService.buildScenarioInstructions(
       tenantId,
@@ -1486,7 +1487,8 @@ export class InboxService {
 
     return {
       suggestion_id: suggestion.id,
-      suggestion_text: suggestionText
+      suggestion_text: suggestionText,
+      knowledge_citations: knowledgeResult.citations
     };
   }
 

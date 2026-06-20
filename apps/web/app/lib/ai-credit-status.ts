@@ -1,32 +1,37 @@
+import { getMessages, type Locale } from "./i18n";
+
 export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
 
 export function getAiCreditStatusMessage(
-  blockReason: AiCreditBlockReason | null | undefined
+  blockReason: AiCreditBlockReason | null | undefined,
+  locale?: Locale
 ): string | null {
+  const t = getMessages(locale);
+
   if (blockReason === "PLAN_EXCLUDES_AI") {
-    return "แผนปัจจุบันยังไม่เปิดโควต้า AI (0 ครั้ง) ติดต่อผู้ดูแลระบบเพื่ออัปเกรดแผน";
+    return t.aiCreditPlanExcludes;
   }
   if (blockReason === "MONTHLY_LIMIT_REACHED") {
-    return "ใช้โควต้า AI ครบแล้วในรอบเดือนนี้ รอรอบ billing ถัดไปหรือติดต่อผู้ดูแลระบบ";
+    return t.aiCreditMonthlyLimit;
   }
   return null;
 }
 
-export function getAiCreditErrorMessage(message: string): string | null {
+export function getAiCreditErrorMessage(message: string, locale?: Locale): string | null {
   if (
     message.includes("not available on the current plan") ||
     message.includes("PLAN_EXCLUDES_AI")
   ) {
-    return getAiCreditStatusMessage("PLAN_EXCLUDES_AI");
+    return getAiCreditStatusMessage("PLAN_EXCLUDES_AI", locale);
   }
   if (
     message.includes("Monthly AI credit limit exceeded") ||
     message.includes("MONTHLY_LIMIT_REACHED")
   ) {
-    return getAiCreditStatusMessage("MONTHLY_LIMIT_REACHED");
+    return getAiCreditStatusMessage("MONTHLY_LIMIT_REACHED", locale);
   }
   if (message.includes("PLAN_LIMIT_EXCEEDED")) {
-    return "โควต้า AI ไม่พร้อมใช้งาน ตรวจสอบแผนและการใช้งานใน Settings > AI";
+    return getMessages(locale).aiCreditSettingsHint;
   }
   return null;
 }

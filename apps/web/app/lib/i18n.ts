@@ -162,6 +162,18 @@ export const messages = {
     reindexError: "re-index ไม่สำเร็จ",
     deleteDocumentError: "ลบเอกสารไม่สำเร็จ",
     onlyAgentCanAddDocs: "เฉพาะ Owner/Admin/Agent เพิ่มเอกสารได้",
+    ingestPasteTab: "วางข้อความ",
+    ingestFileTab: "อัปโหลดไฟล์",
+    ingestUrlTab: "จาก URL",
+    docFileLabel: "ไฟล์เอกสาร (PDF, DOCX, TXT)",
+    docFileHint: "สูงสุด 10 MB — ระบบจะดึงข้อความแล้ว index อัตโนมัติ",
+    docUrlLabel: "URL หน้าเว็บ",
+    docUrlPlaceholder: "https://example.com/help/shipping-policy",
+    uploadFileAndIndex: "อัปโหลดไฟล์และ index",
+    indexFromUrl: "ดึงจาก URL และ index",
+    knowledgeCitationsTitle: "แหล่งอ้างอิง Knowledge",
+    sourceArticle: "FAQ",
+    sourceDocument: "เอกสาร",
 
     // Scenarios
     scenariosTitle: "AI Scenarios",
@@ -245,7 +257,67 @@ export const messages = {
     // AI Assistant settings
     aiAssistantTitle: "ตั้งค่า AI Assistant",
     aiAssistantSubtitle:
-      "เลือก LLM เปิด/ปิดฟีเจอร์ ตั้ง SLA และแก้ system prompt template"
+      "เลือก LLM เปิด/ปิดฟีเจอร์ ตั้ง SLA และแก้ system prompt template",
+    aiSettingsLoading: "กำลังโหลดการตั้งค่า AI...",
+    aiSettingsLoadError: "โหลดการตั้งค่า AI ไม่สำเร็จ",
+    aiSettingsSaveError: "บันทึกการตั้งค่า AI ไม่สำเร็จ",
+    aiSettingsSaveSuccess: "บันทึกการตั้งค่า AI สำเร็จแล้ว!",
+    aiTestFailed: "ทดสอบ AI ไม่สำเร็จ",
+    aiMonthlyQuota: "โควต้า AI รายเดือน",
+    aiTimesUnit: "ครั้ง",
+    aiRemainingQuota: "เหลือ {remaining} ครั้ง",
+    aiCurrentProvider: "Provider ปัจจุบัน",
+    aiUsedPercent: "ใช้ไป {percent}%",
+    aiPlanBadge: "แผน {plan}",
+    aiCreditsUnavailable: "โควต้า AI ไม่พร้อมใช้งาน ติดต่อผู้ดูแลระบบ",
+    aiCreditPlanExcludes:
+      "แผนปัจจุบันยังไม่เปิดโควต้า AI (0 ครั้ง) ติดต่อผู้ดูแลระบบเพื่ออัปเกรดแผน",
+    aiCreditMonthlyLimit:
+      "ใช้โควต้า AI ครบแล้วในรอบเดือนนี้ รอรอบ billing ถัดไปหรือติดต่อผู้ดูแลระบบ",
+    aiCreditSettingsHint:
+      "โควต้า AI ไม่พร้อมใช้งาน ตรวจสอบแผนและการใช้งานใน Settings > AI",
+    aiSuggestedReplySystem: "ระบบร่างคำตอบอัจฉริยะ",
+    aiEnableSuggestedReply: "เปิดใช้งาน AI Suggested Reply",
+    aiSuggestedReplyHint:
+      'เปิดหรือปิดการแสดงปุ่ม "✨ AI ร่างคำตอบ" ในหน้าแชทของตัวแทน',
+    aiLlmProvider: "ผู้ให้บริการโมเดล AI (LLM)",
+    aiProviderGemini: "Google Gemini (เสถียรที่สุด)",
+    aiProviderOpenai: "OpenAI GPT",
+    aiProviderClaude: "Anthropic Claude",
+    aiLlmProviderHint:
+      "โมเดลประมวลผลสำหรับสร้างคำตอบร่าง (ดึงค่าจาก API Key ของส่วนกลางหลังบ้าน)",
+    aiAgentGender: "เพศของแอดมิน (คำลงท้าย)",
+    aiGenderFemale: "ผู้หญิง (ค่ะ / นะคะ)",
+    aiGenderMale: "ผู้ชาย (ครับ / นะครับ)",
+    aiAgentGenderHint:
+      "AI จะใช้คำลงท้ายตามเพศนี้เท่านั้น ไม่สร้างแบบ ค่ะ/ครับ",
+    aiSlowReplyAlert: "เวลาเตือนตอบแชทช้า",
+    aiMinutesUnit: "นาที",
+    aiSlowReplyHint:
+      "เวลาสูงสุดก่อนระบุว่าแชทที่กำลังดำเนินการอยู่นั้นตอบช้าเกินเกณฑ์ (Overdue SLA)",
+    aiTestSectionTitle: "ทดสอบ AI ก่อนใช้งานจริง",
+    aiTestSectionHint:
+      "ส่งข้อความตัวอย่างไปยัง LLM ด้วย prompt และเพศแอดมินที่ตั้งไว้ (นับโควต้า 1 ครั้ง)",
+    aiSampleMessageLabel: "ข้อความลูกค้าตัวอย่าง",
+    aiDefaultSampleMessage: "สวัสดีครับ มีสินค้าอะไรบ้างคะ",
+    aiTesting: "กำลังทดสอบ...",
+    aiTestButton: "ทดสอบ AI",
+    aiEnableBeforeTest: "เปิด AI Suggested Reply ก่อนทดสอบ",
+    aiTestCreditsUnavailable: "โควต้า AI ไม่พร้อมใช้งาน ไม่สามารถทดสอบได้",
+    aiDraftedReply: "คำตอบที่ AI ร่าง",
+    aiSystemPromptTitle: "AI System Instruction Template",
+    aiSystemPromptHint:
+      "ปรับแต่งคำสั่งเริ่มต้นของระบบ AI สำหรับจัดหมวดหมู่และเรียบเรียงคำตอบ",
+    aiPlaceholdersTitle: "ตัวแปรข้อความ (Placeholders) ที่รองรับ:",
+    aiPlaceholderAgentGender: "กฎคำลงท้ายตามเพศแอดมิน",
+    aiPlaceholderCustomerName: "ชื่อลูกค้าปัจจุบัน",
+    aiPlaceholderTags: "รายการแท็กของลูกค้า",
+    aiPlaceholderNotes: "โน้ตภายในของลูกค้า",
+    aiPlaceholderKnowledge: "ข้อมูลจาก Knowledge Base",
+    aiPlaceholderScenario: "คำสั่งจาก AI Scenario ที่ match",
+    aiPlaceholderHistory: "ประวัติแชทล่าสุด",
+    aiPlaceholderDraft: "ข้อความที่พึ่งพิมพ์ร่างอยู่",
+    aiSaveSettings: "บันทึกการตั้งค่า AI"
   },
   en: {
     inboxTitle: "Inbox",
@@ -406,6 +478,18 @@ export const messages = {
     reindexError: "Failed to re-index document",
     deleteDocumentError: "Failed to delete document",
     onlyAgentCanAddDocs: "Only Owner/Admin/Agent can add documents.",
+    ingestPasteTab: "Paste text",
+    ingestFileTab: "Upload file",
+    ingestUrlTab: "From URL",
+    docFileLabel: "Document file (PDF, DOCX, TXT)",
+    docFileHint: "Max 10 MB — text is extracted and indexed automatically",
+    docUrlLabel: "Web page URL",
+    docUrlPlaceholder: "https://example.com/help/shipping-policy",
+    uploadFileAndIndex: "Upload file and index",
+    indexFromUrl: "Fetch URL and index",
+    knowledgeCitationsTitle: "Knowledge sources",
+    sourceArticle: "FAQ",
+    sourceDocument: "Document",
 
     // Scenarios
     scenariosTitle: "AI Scenarios",
@@ -489,7 +573,67 @@ export const messages = {
     // AI Assistant settings
     aiAssistantTitle: "AI Assistant Settings",
     aiAssistantSubtitle:
-      "Configure LLM engines, feature toggles, SLA response times, and system prompt templates."
+      "Configure LLM engines, feature toggles, SLA response times, and system prompt templates.",
+    aiSettingsLoading: "Loading AI settings...",
+    aiSettingsLoadError: "Failed to load AI settings.",
+    aiSettingsSaveError: "Failed to save AI settings.",
+    aiSettingsSaveSuccess: "AI settings saved successfully!",
+    aiTestFailed: "AI test failed.",
+    aiMonthlyQuota: "Monthly AI quota",
+    aiTimesUnit: "uses",
+    aiRemainingQuota: "{remaining} remaining",
+    aiCurrentProvider: "Current provider",
+    aiUsedPercent: "{percent}% used",
+    aiPlanBadge: "Plan {plan}",
+    aiCreditsUnavailable: "AI credits unavailable. Contact your administrator.",
+    aiCreditPlanExcludes:
+      "Your current plan does not include AI credits (0 uses). Contact your administrator to upgrade.",
+    aiCreditMonthlyLimit:
+      "Monthly AI credit limit reached. Wait for the next billing cycle or contact your administrator.",
+    aiCreditSettingsHint:
+      "AI credits unavailable. Check your plan and usage in Settings > AI.",
+    aiSuggestedReplySystem: "Smart reply drafting",
+    aiEnableSuggestedReply: "Enable AI Suggested Reply",
+    aiSuggestedReplyHint:
+      'Show or hide the "✨ AI draft reply" button in the agent chat view.',
+    aiLlmProvider: "AI model provider (LLM)",
+    aiProviderGemini: "Google Gemini (most stable)",
+    aiProviderOpenai: "OpenAI GPT",
+    aiProviderClaude: "Anthropic Claude",
+    aiLlmProviderHint:
+      "Model used to generate draft replies (API keys are managed centrally on the backend).",
+    aiAgentGender: "Agent gender (polite particles)",
+    aiGenderFemale: "Female (ค่ะ / นะคะ)",
+    aiGenderMale: "Male (ครับ / นะครับ)",
+    aiAgentGenderHint:
+      "AI uses only the particles for this gender — never mixed ค่ะ/ครับ.",
+    aiSlowReplyAlert: "Slow reply alert time",
+    aiMinutesUnit: "minutes",
+    aiSlowReplyHint:
+      "Maximum time before an in-progress chat is marked as overdue (Overdue SLA).",
+    aiTestSectionTitle: "Test AI before going live",
+    aiTestSectionHint:
+      "Send a sample message to the LLM using your prompt and agent gender settings (counts as 1 credit).",
+    aiSampleMessageLabel: "Sample customer message",
+    aiDefaultSampleMessage: "Hello, what products do you have?",
+    aiTesting: "Testing...",
+    aiTestButton: "Test AI",
+    aiEnableBeforeTest: "Enable AI Suggested Reply before testing",
+    aiTestCreditsUnavailable: "AI credits unavailable. Cannot run test.",
+    aiDraftedReply: "AI draft reply",
+    aiSystemPromptTitle: "AI System Instruction Template",
+    aiSystemPromptHint:
+      "Customize the default system instruction for categorizing and composing replies.",
+    aiPlaceholdersTitle: "Supported message placeholders:",
+    aiPlaceholderAgentGender: "Polite particle rules for agent gender",
+    aiPlaceholderCustomerName: "Current customer name",
+    aiPlaceholderTags: "Customer tag list",
+    aiPlaceholderNotes: "Internal customer notes",
+    aiPlaceholderKnowledge: "Knowledge Base context",
+    aiPlaceholderScenario: "Matched AI Scenario instructions",
+    aiPlaceholderHistory: "Recent chat history",
+    aiPlaceholderDraft: "Current draft text being composed",
+    aiSaveSettings: "Save AI settings"
   }
 } as const;
 

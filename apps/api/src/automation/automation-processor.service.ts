@@ -2,7 +2,6 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Worker } from "bullmq";
 import {
-  AUTOMATION_JOB_NAME,
   AUTOMATION_QUEUE_NAME,
   AutomationJobData,
   isBullmqAutomationQueueEnabled

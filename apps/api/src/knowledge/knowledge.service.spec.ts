@@ -81,9 +81,10 @@ describe("KnowledgeService", () => {
   it("builds knowledge context from ranked articles", async () => {
     const prisma = createPrismaMock();
     const knowledgeDocumentService = createDocumentServiceMock();
-    knowledgeDocumentService.buildHybridKnowledgeContext.mockResolvedValue(
-      "1. [Policy] Shipping\nFree shipping over 1000 THB"
-    );
+    knowledgeDocumentService.buildHybridKnowledgeContext.mockResolvedValue({
+      context: "1. [Policy] Shipping\nFree shipping over 1000 THB",
+      citations: [{ type: "article", title: "Shipping", excerpt: "Free shipping" }]
+    });
 
     const service = new KnowledgeService(
       prisma as unknown as PrismaService,

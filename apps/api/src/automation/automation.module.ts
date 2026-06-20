@@ -11,7 +11,6 @@ import {
   AutomationQueueService,
   createAutomationQueue,
   createInlineAutomationQueue,
-  createNoopAutomationQueue,
   isBullmqAutomationQueueEnabled
 } from "./automation-queue.service";
 import { AutomationService } from "./automation.service";

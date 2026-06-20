@@ -4,6 +4,18 @@ export type ScoredChunk = {
   score: number;
 };
 
+export type KnowledgeCitation = {
+  type: "article" | "document";
+  title: string;
+  score?: number;
+  excerpt?: string;
+};
+
+export type HybridKnowledgeResult = {
+  context: string;
+  citations: KnowledgeCitation[];
+};
+
 export function cosineSimilarity(left: number[], right: number[]): number {
   if (left.length === 0 || right.length === 0 || left.length !== right.length) {
     return 0;

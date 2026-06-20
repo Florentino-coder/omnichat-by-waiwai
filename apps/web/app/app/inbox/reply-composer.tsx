@@ -11,6 +11,12 @@ import { getMessages } from "../../lib/i18n";
 type AiSuggestionResponse = {
   suggestion_id: string;
   suggestion_text: string;
+  knowledge_citations?: Array<{
+    type: "article" | "document";
+    title: string;
+    score?: number;
+    excerpt?: string;
+  }>;
 };
 
 interface ReplyComposerProps {
@@ -62,6 +68,9 @@ export function ReplyComposer({
   const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
   const [suggestionId, setSuggestionId] = useState<string | null>(null);
   const [lastSuggestionText, setLastSuggestionText] = useState<string | null>(null);
+  const [knowledgeCitations, setKnowledgeCitations] = useState<
+    NonNullable<AiSuggestionResponse["knowledge_citations"]>
+  >([]);
   const [rateLimitLock, setRateLimitLock] = useState(false);
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
 
@@ -87,6 +96,7 @@ export function ReplyComposer({
   useEffect(() => {
     setSuggestionId(null);
     setLastSuggestionText(null);
+    setKnowledgeCitations([]);
   }, [conversationId]);
 
   // Fetch all saved replies for autocomplete
@@ -176,9 +186,10 @@ export function ReplyComposer({
       setText(data.suggestion_text || "");
       setSuggestionId(data.suggestion_id);
       setLastSuggestionText(data.suggestion_text || "");
+      setKnowledgeCitations(data.knowledge_citations ?? []);
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      const quotaMessage = getAiCreditErrorMessage(message);
+      const quotaMessage = getAiCreditErrorMessage(message, locale);
       if (quotaMessage) {
         setError(quotaMessage);
       } else if (message.includes("Too many AI suggestions") || message.includes("RATE_LIMIT")) {
@@ -208,6 +219,7 @@ export function ReplyComposer({
     }).catch(() => {});
     setSuggestionId(null);
     setLastSuggestionText(null);
+    setKnowledgeCitations([]);
     setText("");
   }
 
@@ -360,6 +372,28 @@ export function ReplyComposer({
         </div>
       </div>
       <div className="flex flex-col gap-3 p-5">
+        {suggestionId && knowledgeCitations.length > 0 ? (
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-indigo-900">
+            <p className="mb-2 font-semibold">{t.knowledgeCitationsTitle}</p>
+            <ul className="flex flex-wrap gap-2">
+              {knowledgeCitations.map((citation, index) => (
+                <li
+                  key={`${citation.type}-${citation.title}-${index}`}
+                  className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5"
+                  title={citation.excerpt}
+                >
+                  <span className="font-semibold text-indigo-700">
+                    {citation.type === "article" ? t.sourceArticle : t.sourceDocument}:
+                  </span>{" "}
+                  {citation.title}
+                  {typeof citation.score === "number" ? (
+                    <span className="ml-1 text-indigo-500">({Math.round(citation.score * 100)}%)</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {suggestionId && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-purple-50 p-3 border border-purple-100 text-xs font-semibold text-purple-700">
             <span className="mr-1">🤖 ปรับแก้ข้อเสนอแนะ:</span>

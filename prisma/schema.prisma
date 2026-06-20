@@ -138,6 +138,7 @@ enum KnowledgeDocumentStatus {
 enum KnowledgeDocumentSource {
   TEXT
   FILE
+  URL
 }
 
 enum MessageSource {
@@ -619,6 +620,7 @@ model KnowledgeDocument {
   sourceType    KnowledgeDocumentSource @default(TEXT)
   mimeType      String?
   storageKey    String?
+  sourceUrl     String?
   rawText       String
   status        KnowledgeDocumentStatus @default(PENDING)
   errorMessage  String?

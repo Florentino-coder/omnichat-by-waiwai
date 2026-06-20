@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../../lib/api-client";
 import { Button } from "@omnichat/ui";
 import { getAiCreditStatusMessage, type AiCreditBlockReason } from "../../lib/ai-credit-status";
+import { useLanguage } from "../../lib/language-context";
+import { getMessages, type Locale } from "../../lib/i18n";
 
 type AiSettingsData = {
   inProgressAlertMinutes: number;
@@ -41,12 +43,10 @@ type AiTestResult = {
   latency_ms: number;
 };
 
-const DEFAULT_SAMPLE_MESSAGE = "สวัสดีครับ มีสินค้าอะไรบ้างคะ";
-
-function formatUsagePeriod(startIso: string, endIso: string): string {
+function formatUsagePeriod(startIso: string, endIso: string, locale: Locale): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const formatter = new Intl.DateTimeFormat("th-TH", {
+  const formatter = new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
     day: "numeric",
     month: "short",
     year: "numeric"
@@ -60,7 +60,15 @@ function usageBarColor(percentage: number): string {
   return "bg-[#4636D7]";
 }
 
+function formatNumber(value: number, locale: Locale): string {
+  return value.toLocaleString(locale === "th" ? "th-TH" : "en-US");
+}
+
 export function AiSettings() {
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
+  const numberLocale = locale === "th" ? "th-TH" : "en-US";
+
   const [settings, setSettings] = useState<AiSettingsData>({
     inProgressAlertMinutes: 10,
     enableAiSuggest: true,
@@ -75,10 +83,33 @@ export function AiSettings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<boolean>(false);
 
-  const [sampleMessage, setSampleMessage] = useState(DEFAULT_SAMPLE_MESSAGE);
+  const [sampleMessage, setSampleMessage] = useState<string>(t.aiDefaultSampleMessage);
   const [isTesting, setIsTesting] = useState(false);
   const [testError, setTestError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<AiTestResult | null>(null);
+
+  const placeholderItems = useMemo(
+    () => [
+      { token: "{{agent_gender_instruction}}", description: t.aiPlaceholderAgentGender },
+      { token: "{{customer_name}}", description: t.aiPlaceholderCustomerName },
+      { token: "{{tags}}", description: t.aiPlaceholderTags },
+      { token: "{{notes}}", description: t.aiPlaceholderNotes },
+      { token: "{{knowledge_context}}", description: t.aiPlaceholderKnowledge },
+      { token: "{{scenario_instructions}}", description: t.aiPlaceholderScenario },
+      { token: "{{conversation_history}}", description: t.aiPlaceholderHistory },
+      { token: "{{current_draft}}", description: t.aiPlaceholderDraft }
+    ],
+    [t]
+  );
+
+  useEffect(() => {
+    setSampleMessage((current) =>
+      current === getMessages("th").aiDefaultSampleMessage ||
+      current === getMessages("en").aiDefaultSampleMessage
+        ? t.aiDefaultSampleMessage
+        : current
+    );
+  }, [t.aiDefaultSampleMessage]);
 
   const loadUsage = useCallback(async () => {
     try {
@@ -108,7 +139,7 @@ export function AiSettings() {
         }
       } catch (err) {
         if (isCurrent) {
-          setError(err instanceof Error ? err.message : "Failed to load AI settings.");
+          setError(err instanceof Error ? err.message : t.aiSettingsLoadError);
         }
       } finally {
         if (isCurrent) {
@@ -120,7 +151,7 @@ export function AiSettings() {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [t.aiSettingsLoadError]);
 
   async function handleSave() {
     setIsSaving(true);
@@ -152,7 +183,7 @@ export function AiSettings() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save AI settings.");
+      setError(err instanceof Error ? err.message : t.aiSettingsSaveError);
     } finally {
       setIsSaving(false);
     }
@@ -167,13 +198,13 @@ export function AiSettings() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sample_message: sampleMessage.trim() || DEFAULT_SAMPLE_MESSAGE
+          sample_message: sampleMessage.trim() || t.aiDefaultSampleMessage
         })
       });
       setTestResult(result);
       await loadUsage();
     } catch (err) {
-      setTestError(err instanceof Error ? err.message : "AI test failed.");
+      setTestError(err instanceof Error ? err.message : t.aiTestFailed);
     } finally {
       setIsTesting(false);
     }
@@ -183,7 +214,7 @@ export function AiSettings() {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-4">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#4636D7] border-t-transparent"></div>
-        <p className="text-sm text-[#767A8C]">กำลังโหลดการตั้งค่า AI...</p>
+        <p className="text-sm text-[#767A8C]">{t.aiSettingsLoading}</p>
       </div>
     );
   }
@@ -197,7 +228,7 @@ export function AiSettings() {
       )}
       {success && (
         <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-600">
-          ✓ บันทึกการตั้งค่า AI สำเร็จแล้ว!
+          ✓ {t.aiSettingsSaveSuccess}
         </div>
       )}
 
@@ -205,17 +236,21 @@ export function AiSettings() {
         <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C]">โควต้า AI รายเดือน</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C]">{t.aiMonthlyQuota}</p>
               <p className="mt-1 text-2xl font-semibold text-[#16182B]">
-                {usage.used.toLocaleString("th-TH")}
-                <span className="text-base font-medium text-[#767A8C]"> / {usage.limit.toLocaleString("th-TH")} ครั้ง</span>
+                {formatNumber(usage.used, locale)}
+                <span className="text-base font-medium text-[#767A8C]">
+                  {" "}
+                  / {formatNumber(usage.limit, locale)} {t.aiTimesUnit}
+                </span>
               </p>
               <p className="mt-1 text-xs text-[#767A8C]">
-                เหลือ {usage.remaining.toLocaleString("th-TH")} ครั้ง · {formatUsagePeriod(usage.periodStart, usage.periodEnd)}
+                {t.aiRemainingQuota.replace("{remaining}", formatNumber(usage.remaining, locale))} ·{" "}
+                {formatUsagePeriod(usage.periodStart, usage.periodEnd, locale)}
               </p>
             </div>
             <div className="rounded-lg bg-[#F6F5FA] px-3 py-2 text-right">
-              <p className="text-xs text-[#767A8C]">Provider ปัจจุบัน</p>
+              <p className="text-xs text-[#767A8C]">{t.aiCurrentProvider}</p>
               <p className="text-sm font-semibold text-[#16182B]">{usage.providerLabel}</p>
               <p className="text-xs text-[#767A8C]">{usage.modelName}</p>
             </div>
@@ -223,8 +258,8 @@ export function AiSettings() {
 
           <div className="mt-4">
             <div className="mb-1.5 flex items-center justify-between text-xs text-[#767A8C]">
-              <span>ใช้ไป {usage.percentage}%</span>
-              <span>แผน {usage.planId.toUpperCase()}</span>
+              <span>{t.aiUsedPercent.replace("{percent}", String(usage.percentage))}</span>
+              <span>{t.aiPlanBadge.replace("{plan}", usage.planId.toUpperCase())}</span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-[#ECEBFF]">
               <div
@@ -234,8 +269,7 @@ export function AiSettings() {
             </div>
             {!usage.creditsAvailable && (
               <p className="mt-2 text-xs font-medium text-red-600">
-                {getAiCreditStatusMessage(usage.blockReason) ??
-                  "โควต้า AI ไม่พร้อมใช้งาน ติดต่อผู้ดูแลระบบ"}
+                {getAiCreditStatusMessage(usage.blockReason, locale) ?? t.aiCreditsUnavailable}
               </p>
             )}
           </div>
@@ -244,9 +278,11 @@ export function AiSettings() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">ระบบร่างคำตอบอัจฉริยะ</label>
+          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+            {t.aiSuggestedReplySystem}
+          </label>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-sm font-semibold text-[#16182B]">เปิดใช้งาน AI Suggested Reply</span>
+            <span className="text-sm font-semibold text-[#16182B]">{t.aiEnableSuggestedReply}</span>
             <input
               type="checkbox"
               checked={settings.enableAiSuggest}
@@ -254,29 +290,25 @@ export function AiSettings() {
               className="h-5 w-5 rounded border-[#DEDDE6] text-[#4636D7] focus:ring-[#4636D7] cursor-pointer"
             />
           </div>
-          <p className="text-xs text-[#767A8C] mt-2">
-            เปิดหรือปิดการแสดงปุ่ม "✨ AI ร่างคำตอบ" ในหน้าแชทของตัวแทน
-          </p>
+          <p className="text-xs text-[#767A8C] mt-2">{t.aiSuggestedReplyHint}</p>
         </div>
 
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">ผู้ให้บริการโมเดล AI (LLM)</label>
+          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">{t.aiLlmProvider}</label>
           <select
             value={settings.aiProvider}
             onChange={(e) => setSettings({ ...settings, aiProvider: e.target.value })}
             className="w-full mt-2 rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
           >
-            <option value="gemini">Google Gemini (เสถียรที่สุด)</option>
-            <option value="openai">OpenAI GPT</option>
-            <option value="claude">Anthropic Claude</option>
+            <option value="gemini">{t.aiProviderGemini}</option>
+            <option value="openai">{t.aiProviderOpenai}</option>
+            <option value="claude">{t.aiProviderClaude}</option>
           </select>
-          <p className="text-xs text-[#767A8C] mt-2">
-            โมเดลประมวลผลสำหรับสร้างคำตอบร่าง (ดึงค่าจาก API Key ของส่วนกลางหลังบ้าน)
-          </p>
+          <p className="text-xs text-[#767A8C] mt-2">{t.aiLlmProviderHint}</p>
         </div>
 
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">เพศของแอดมิน (คำลงท้าย)</label>
+          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">{t.aiAgentGender}</label>
           <select
             value={settings.aiAgentGender}
             onChange={(e) =>
@@ -287,45 +319,46 @@ export function AiSettings() {
             }
             className="w-full mt-2 rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
           >
-            <option value="FEMALE">ผู้หญิง (ค่ะ / นะคะ)</option>
-            <option value="MALE">ผู้ชาย (ครับ / นะครับ)</option>
+            <option value="FEMALE">{t.aiGenderFemale}</option>
+            <option value="MALE">{t.aiGenderMale}</option>
           </select>
-          <p className="text-xs text-[#767A8C] mt-2">
-            AI จะใช้คำลงท้ายตามเพศนี้เท่านั้น ไม่สร้างแบบ ค่ะ/ครับ
-          </p>
+          <p className="text-xs text-[#767A8C] mt-2">{t.aiAgentGenderHint}</p>
         </div>
 
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">เวลาเตือนตอบแชทช้า</label>
+          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">{t.aiSlowReplyAlert}</label>
           <div className="flex items-center gap-2 mt-2">
             <input
               type="number"
               min={1}
               max={1440}
               value={settings.inProgressAlertMinutes}
-              onChange={(e) => setSettings({ ...settings, inProgressAlertMinutes: Math.max(1, parseInt(e.target.value) || 1) })}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  inProgressAlertMinutes: Math.max(1, parseInt(e.target.value) || 1)
+                })
+              }
               className="w-24 rounded-lg border border-[#DEDDE6] p-2 text-sm font-semibold text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
             />
-            <span className="text-sm font-semibold text-[#16182B]">นาที</span>
+            <span className="text-sm font-semibold text-[#16182B]">{t.aiMinutesUnit}</span>
           </div>
-          <p className="text-xs text-[#767A8C] mt-2">
-            เวลาสูงสุดก่อนระบุว่าแชทที่กำลังดำเนินการอยู่นั้นตอบช้าเกินเกณฑ์ (Overdue SLA)
-          </p>
+          <p className="text-xs text-[#767A8C] mt-2">{t.aiSlowReplyHint}</p>
         </div>
       </div>
 
       <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-4">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">ทดสอบ AI ก่อนใช้งานจริง</label>
-          <p className="text-xs text-[#767A8C]">
-            ส่งข้อความตัวอย่างไปยัง LLM ด้วย prompt และเพศแอดมินที่ตั้งไว้ (นับโควต้า 1 ครั้ง)
-          </p>
+          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+            {t.aiTestSectionTitle}
+          </label>
+          <p className="text-xs text-[#767A8C]">{t.aiTestSectionHint}</p>
         </div>
 
         <div className="space-y-4">
           <div>
             <label htmlFor="ai-sample-message" className="text-sm font-semibold text-[#16182B]">
-              ข้อความลูกค้าตัวอย่าง
+              {t.aiSampleMessageLabel}
             </label>
             <textarea
               id="ai-sample-message"
@@ -333,7 +366,7 @@ export function AiSettings() {
               value={sampleMessage}
               onChange={(e) => setSampleMessage(e.target.value)}
               className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
-              placeholder={DEFAULT_SAMPLE_MESSAGE}
+              placeholder={t.aiDefaultSampleMessage}
             />
           </div>
 
@@ -344,14 +377,14 @@ export function AiSettings() {
               onClick={handleTestAi}
               className="inline-flex h-10 items-center justify-center rounded-xl bg-[#16182B] px-5 text-sm font-semibold text-white hover:bg-[#2A2D45] transition-all duration-200 cursor-pointer disabled:bg-slate-300"
             >
-              {isTesting ? "⏳ กำลังทดสอบ..." : "🧪 ทดสอบ AI"}
+              {isTesting ? `⏳ ${t.aiTesting}` : `🧪 ${t.aiTestButton}`}
             </Button>
             {!settings.enableAiSuggest && (
-              <p className="text-xs text-amber-700">เปิด AI Suggested Reply ก่อนทดสอบ</p>
+              <p className="text-xs text-amber-700">{t.aiEnableBeforeTest}</p>
             )}
             {usage?.creditsAvailable === false && (
               <p className="text-xs text-red-600">
-                {getAiCreditStatusMessage(usage.blockReason) ?? "โควต้า AI ไม่พร้อมใช้งาน ไม่สามารถทดสอบได้"}
+                {getAiCreditStatusMessage(usage.blockReason, locale) ?? t.aiTestCreditsUnavailable}
               </p>
             )}
           </div>
@@ -370,11 +403,15 @@ export function AiSettings() {
                 </span>
                 <span>{testResult.model_name}</span>
                 <span>·</span>
-                <span>{testResult.latency_ms.toLocaleString("th-TH")} ms</span>
+                <span>{testResult.latency_ms.toLocaleString(numberLocale)} ms</span>
               </div>
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C] mb-1">คำตอบที่ AI ร่าง</p>
-                <p className="text-sm leading-relaxed text-[#16182B] whitespace-pre-wrap">{testResult.suggestion_text}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C] mb-1">
+                  {t.aiDraftedReply}
+                </p>
+                <p className="text-sm leading-relaxed text-[#16182B] whitespace-pre-wrap">
+                  {testResult.suggestion_text}
+                </p>
               </div>
             </div>
           )}
@@ -385,10 +422,10 @@ export function AiSettings() {
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between border-b border-[#DEDDE6]/60 pb-3 mb-3">
             <div>
-              <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">AI System Instruction Template</label>
-              <p className="text-xs text-[#767A8C] mt-0.5">
-                ปรับแต่งคำสั่งเริ่มต้นของระบบ AI สำหรับจัดหมวดหมู่และเรียบเรียงคำตอบ
-              </p>
+              <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+                {t.aiSystemPromptTitle}
+              </label>
+              <p className="text-xs text-[#767A8C] mt-0.5">{t.aiSystemPromptHint}</p>
             </div>
             <span className="rounded-full bg-[#ECEBFF] px-2.5 py-0.5 text-xs font-bold text-[#4636D7]">
               suggested_reply_default
@@ -403,16 +440,18 @@ export function AiSettings() {
           />
 
           <div className="mt-4 rounded-lg bg-[#ECEBFF]/40 border border-[#ECEBFF] p-4">
-            <h4 className="text-xs font-bold text-[#4636D7] uppercase tracking-wider mb-2">ตัวแปรข้อความ (Placeholders) ที่รองรับ:</h4>
+            <h4 className="text-xs font-bold text-[#4636D7] uppercase tracking-wider mb-2">
+              {t.aiPlaceholdersTitle}
+            </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 text-xs text-[#525770]">
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{agent_gender_instruction}}"}</code>: กฎคำลงท้ายตามเพศแอดมิน</div>
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{customer_name}}"}</code>: ชื่อลูกค้าปัจจุบัน</div>
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{tags}}"}</code>: รายการแท็กของลูกค้า</div>
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{notes}}"}</code>: โน้ตภายในของลูกค้า</div>
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{knowledge_context}}"}</code>: ข้อมูลจาก Knowledge Base</div>
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{scenario_instructions}}"}</code>: คำสั่งจาก AI Scenario ที่ match</div>
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{conversation_history}}"}</code>: ประวัติแชทล่าสุด</div>
-              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{current_draft}}"}</code>: ข้อความที่พึ่งพิมพ์ร่างอยู่</div>
+              {placeholderItems.map((item) => (
+                <div key={item.token}>
+                  <code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">
+                    {item.token}
+                  </code>
+                  : {item.description}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -425,7 +464,7 @@ export function AiSettings() {
           onClick={handleSave}
           className="inline-flex h-11 items-center justify-center rounded-xl bg-[#4636D7] px-8 text-sm font-semibold text-white shadow-md shadow-[#4636D7]/15 hover:bg-[#382BB5] transition-all duration-200 cursor-pointer disabled:bg-slate-300 disabled:shadow-none"
         >
-          {isSaving ? "⏳ กำลังบันทึก..." : "บันทึกการตั้งค่า AI"}
+          {isSaving ? `⏳ ${t.saving}` : t.aiSaveSettings}
         </Button>
       </div>
     </div>

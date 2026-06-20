@@ -224,11 +224,28 @@ export class KnowledgeService {
     lineChannelId?: string | null,
     limit = 5
   ): Promise<string> {
-    return this.knowledgeDocumentService.buildHybridKnowledgeContext(
+    const result = await this.knowledgeDocumentService.buildHybridKnowledgeContext(
       tenantId,
       queryText,
       lineChannelId,
       limit
+    );
+    return result.context;
+  }
+
+  buildKnowledgeContextWithCitations(
+    tenantId: string,
+    queryText: string,
+    lineChannelId?: string | null,
+    articleLimit = 5,
+    chunkLimit = 3
+  ) {
+    return this.knowledgeDocumentService.buildHybridKnowledgeContext(
+      tenantId,
+      queryText,
+      lineChannelId,
+      articleLimit,
+      chunkLimit
     );
   }
 
