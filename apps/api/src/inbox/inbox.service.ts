@@ -71,6 +71,8 @@ export type InboxSettings = {
   aiAgentGender: AiAgentGender;
 };
 
+export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
+
 export type AiUsageSnapshot = {
   used: number;
   limit: number;
@@ -83,6 +85,7 @@ export type AiUsageSnapshot = {
   providerLabel: string;
   modelName: string;
   creditsAvailable: boolean;
+  blockReason: AiCreditBlockReason | null;
 };
 
 export type AiTestResult = {
@@ -1433,6 +1436,8 @@ export class InboxService {
       select: { aiProvider: true }
     });
     const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
+    const blockReason: AiCreditBlockReason | null =
+      limit <= 0 ? "PLAN_EXCLUDES_AI" : used >= limit ? "MONTHLY_LIMIT_REACHED" : null;
 
     return {
       used,
@@ -1445,7 +1450,8 @@ export class InboxService {
       provider,
       providerLabel: this.getProviderLabel(provider),
       modelName: this.getModelNameForProvider(provider),
-      creditsAvailable: limit > 0 && used < limit
+      creditsAvailable: blockReason === null,
+      blockReason
     };
   }
 
@@ -1822,7 +1828,8 @@ export class InboxService {
       throw new PlanLimitExceededException("AI credits are not available on the current plan.", {
         planId: tenant.planId,
         limit: limits.maxAiCreditsPerMonth,
-        metric: AI_SUGGEST_USAGE_METRIC
+        metric: AI_SUGGEST_USAGE_METRIC,
+        reason: "PLAN_EXCLUDES_AI"
       });
     }
 
@@ -1859,7 +1866,8 @@ export class InboxService {
         planId: tenant.planId,
         limit: limits.maxAiCreditsPerMonth,
         current: currentUsage,
-        metric: AI_SUGGEST_USAGE_METRIC
+        metric: AI_SUGGEST_USAGE_METRIC,
+        reason: "MONTHLY_LIMIT_REACHED"
       });
     }
   }

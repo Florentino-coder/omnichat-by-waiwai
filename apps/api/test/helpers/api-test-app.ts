@@ -2,12 +2,28 @@ import "reflect-metadata";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { AppModule } from "../../src/app.module";
+import { ClaudeClient } from "../../src/common/llm/claude.client";
+import { GeminiClient } from "../../src/common/llm/gemini.client";
+import { OpenAIClient } from "../../src/common/llm/openai.client";
+import { LLMClient } from "../../src/common/llm/llm.interface";
 import { HttpExceptionFilter } from "../../src/common/http/http-exception.filter";
 import { ResponseEnvelopeInterceptor } from "../../src/common/http/response-envelope.interceptor";
 import { MailService } from "../../src/mail/mail.service";
 import { RedisService } from "../../src/redis/redis.service";
+import { createMockLlmClient } from "./mock-llm-client";
+import { createInMemoryRedisClient, InMemoryRedisClient } from "./mock-redis-client";
+
+export interface ApiTestAppContext {
+  app: INestApplication;
+  redisClient: InMemoryRedisClient;
+  llmClient: LLMClient;
+}
 
 export async function createApiTestApp(): Promise<INestApplication> {
+  return (await createApiTestAppWithMocks()).app;
+}
+
+export async function createApiTestAppWithMocks(): Promise<ApiTestAppContext> {
   process.env.JWT_SECRET = process.env.JWT_SECRET ?? "test-jwt-secret";
   process.env.JWT_REFRESH_SECRET =
     process.env.JWT_REFRESH_SECRET ?? "test-refresh-secret";
@@ -17,6 +33,9 @@ export async function createApiTestApp(): Promise<INestApplication> {
   process.env.RESEND_API_KEY = process.env.RESEND_API_KEY ?? "re_test_key";
   process.env.ENCRYPTION_KEY =
     process.env.ENCRYPTION_KEY ?? Buffer.alloc(32, 7).toString("base64");
+
+  const redisClient = createInMemoryRedisClient();
+  const llmClient = createMockLlmClient();
 
   const moduleRef = await Test.createTestingModule({
     imports: [AppModule]
@@ -29,22 +48,15 @@ export async function createApiTestApp(): Promise<INestApplication> {
       sendWelcomeEmail: jest.fn().mockResolvedValue(undefined)
     })
     .overrideProvider(RedisService)
-    .useValue({
-      client: {
-        set: jest.fn().mockResolvedValue("OK"),
-        get: jest.fn().mockResolvedValue(null),
-        del: jest.fn().mockResolvedValue(1),
-        sadd: jest.fn().mockResolvedValue(1),
-        srem: jest.fn().mockResolvedValue(1),
-        smembers: jest.fn().mockResolvedValue([]),
-        publish: jest.fn().mockResolvedValue(1),
-        subscribe: jest.fn().mockResolvedValue(1),
-        unsubscribe: jest.fn().mockResolvedValue(1),
-        on: jest.fn(),
-        off: jest.fn(),
-        quit: jest.fn().mockResolvedValue(undefined)
-      }
-    })
+    .useValue({ client: redisClient })
+    .overrideProvider(GeminiClient)
+    .useValue(llmClient)
+    .overrideProvider(OpenAIClient)
+    .useValue(llmClient)
+    .overrideProvider(ClaudeClient)
+    .useValue(llmClient)
+    .overrideProvider("LLMClient")
+    .useValue(llmClient)
     .compile();
 
   const app = moduleRef.createNestApplication({ rawBody: true });
@@ -60,5 +72,5 @@ export async function createApiTestApp(): Promise<INestApplication> {
   );
   await app.init();
 
-  return app;
+  return { app, redisClient, llmClient };
 }

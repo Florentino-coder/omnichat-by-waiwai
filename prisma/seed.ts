@@ -25,25 +25,25 @@ const planLimits = [
     planId: "free",
     maxWorkspaces: 1,
     maxAgents: 20,
-    maxAiCreditsPerMonth: 0,
+    maxAiCreditsPerMonth: 100,
   },
   {
     planId: "starter",
     maxWorkspaces: 1,
     maxAgents: 50,
-    maxAiCreditsPerMonth: 0,
+    maxAiCreditsPerMonth: 1000,
   },
   {
     planId: "pro",
     maxWorkspaces: 3,
     maxAgents: 20,
-    maxAiCreditsPerMonth: 0,
+    maxAiCreditsPerMonth: 10000,
   },
   {
     planId: "enterprise",
     maxWorkspaces: 100,
     maxAgents: 1000,
-    maxAiCreditsPerMonth: 0,
+    maxAiCreditsPerMonth: 100000,
   },
 ] as const;
 

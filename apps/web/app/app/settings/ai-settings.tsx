@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api-client";
 import { Button } from "@omnichat/ui";
+import { getAiCreditStatusMessage, type AiCreditBlockReason } from "../../lib/ai-credit-status";
 
 type AiSettingsData = {
   inProgressAlertMinutes: number;
@@ -29,6 +30,7 @@ type AiUsageData = {
   providerLabel: string;
   modelName: string;
   creditsAvailable: boolean;
+  blockReason: AiCreditBlockReason | null;
 };
 
 type AiTestResult = {
@@ -232,7 +234,8 @@ export function AiSettings() {
             </div>
             {!usage.creditsAvailable && (
               <p className="mt-2 text-xs font-medium text-red-600">
-                โควต้า AI หมดแล้ว รอรอบบilling ถัดไปหรือติดต่อผู้ดูแลระบบ
+                {getAiCreditStatusMessage(usage.blockReason) ??
+                  "โควต้า AI ไม่พร้อมใช้งาน ติดต่อผู้ดูแลระบบ"}
               </p>
             )}
           </div>
@@ -347,7 +350,9 @@ export function AiSettings() {
               <p className="text-xs text-amber-700">เปิด AI Suggested Reply ก่อนทดสอบ</p>
             )}
             {usage?.creditsAvailable === false && (
-              <p className="text-xs text-red-600">โควต้า AI หมด ไม่สามารถทดสอบได้</p>
+              <p className="text-xs text-red-600">
+                {getAiCreditStatusMessage(usage.blockReason) ?? "โควต้า AI ไม่พร้อมใช้งาน ไม่สามารถทดสอบได้"}
+              </p>
             )}
           </div>
 

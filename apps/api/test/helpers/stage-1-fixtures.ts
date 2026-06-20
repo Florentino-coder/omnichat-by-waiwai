@@ -56,11 +56,15 @@ export async function resetStage1Data(prisma: PrismaClient): Promise<void> {
   }
 
   await prisma.message.deleteMany();
+  await prisma.aiSuggestion.deleteMany();
   await prisma.savedReply.deleteMany();
   await prisma.conversationInternalNote.deleteMany();
   await prisma.conversationTagLink.deleteMany();
   await prisma.conversationTag.deleteMany();
   await prisma.conversation.deleteMany();
+  await prisma.customerChannel.deleteMany();
+  await prisma.customer.deleteMany();
+  await prisma.promptTemplate.deleteMany();
   await prisma.lineChannel.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.invitation.deleteMany();
@@ -119,7 +123,13 @@ async function seedPlanLimits(prisma: PrismaClient): Promise<void> {
         maxAgents: 10,
         maxAiCreditsPerMonth: 1000
       },
-      { planId: "pro", maxWorkspaces: 10, maxAgents: 50, maxAiCreditsPerMonth: 10000 }
+      { planId: "pro", maxWorkspaces: 10, maxAgents: 50, maxAiCreditsPerMonth: 10000 },
+      {
+        planId: "enterprise",
+        maxWorkspaces: 100,
+        maxAgents: 1000,
+        maxAiCreditsPerMonth: 100000
+      }
     ]
   });
 }

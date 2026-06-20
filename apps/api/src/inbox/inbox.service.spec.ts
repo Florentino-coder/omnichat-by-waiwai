@@ -1299,8 +1299,38 @@ describe("InboxService", () => {
       expect(result.provider).toBe("gemini");
       expect(result.providerLabel).toBe("Google Gemini");
       expect(result.creditsAvailable).toBe(true);
+      expect(result.blockReason).toBeNull();
       expect(result.periodStart).toEqual(expect.any(String));
       expect(result.periodEnd).toEqual(expect.any(String));
+    });
+
+    it("should mark plan without AI credits as PLAN_EXCLUDES_AI", async () => {
+      const prisma = createPrisma();
+      prisma.tenant.findUnique.mockResolvedValue({ planId: "free" });
+      prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 0 });
+      prisma.usageCounter.findUnique.mockResolvedValue({ value: 0n });
+      prisma.tenantSettings.findUnique.mockResolvedValue({ aiProvider: "gemini" });
+
+      const service = createService(prisma);
+      const result = await service.getAiUsage("tenant-1");
+
+      expect(result.creditsAvailable).toBe(false);
+      expect(result.blockReason).toBe("PLAN_EXCLUDES_AI");
+    });
+
+    it("should mark exhausted monthly quota as MONTHLY_LIMIT_REACHED", async () => {
+      const prisma = createPrisma();
+      prisma.tenant.findUnique.mockResolvedValue({ planId: "starter" });
+      prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 100 });
+      prisma.usageCounter.findUnique.mockResolvedValue({ value: 100n });
+      prisma.tenantSettings.findUnique.mockResolvedValue({ aiProvider: "gemini" });
+
+      const service = createService(prisma);
+      const result = await service.getAiUsage("tenant-1");
+
+      expect(result.creditsAvailable).toBe(false);
+      expect(result.blockReason).toBe("MONTHLY_LIMIT_REACHED");
+      expect(result.remaining).toBe(0);
     });
 
     it("should run AI test with sample message and consume credit", async () => {

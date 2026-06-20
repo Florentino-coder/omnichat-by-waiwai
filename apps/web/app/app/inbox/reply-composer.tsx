@@ -4,6 +4,7 @@ import { ClipboardEvent, FormEvent, KeyboardEvent, useEffect, useMemo, useRef, u
 import { Button } from "@omnichat/ui";
 import { ImagePlus, SendHorizontal, X } from "lucide-react";
 import { apiFetch } from "../../lib/api-client";
+import { getAiCreditErrorMessage } from "../../lib/ai-credit-status";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
@@ -177,7 +178,10 @@ export function ReplyComposer({
       setLastSuggestionText(data.suggestion_text || "");
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
-      if (message.includes("Too many AI suggestions") || message.includes("RATE_LIMIT")) {
+      const quotaMessage = getAiCreditErrorMessage(message);
+      if (quotaMessage) {
+        setError(quotaMessage);
+      } else if (message.includes("Too many AI suggestions") || message.includes("RATE_LIMIT")) {
         setRateLimitLock(true);
         setRateLimitCountdown(15);
         setError("ใช้ AI บ่อยเกินไป รอสักครู่แล้วลองใหม่");
