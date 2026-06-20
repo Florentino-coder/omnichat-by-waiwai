@@ -19,6 +19,7 @@ import { StorageModule } from "./storage/storage.module";
 import { BackupModule } from "./backup/backup.module";
 import { MonitorModule } from "./monitor/monitor.module";
 import { CustomersModule } from "./customers/customers.module";
+import { KnowledgeModule } from "./knowledge/knowledge.module";
 import { LlmModule } from "./common/llm/llm.module";
 
 @Module({
@@ -45,6 +46,7 @@ import { LlmModule } from "./common/llm/llm.module";
     BackupModule,
     MonitorModule,
     CustomersModule,
+    KnowledgeModule,
     LlmModule
   ]
 })

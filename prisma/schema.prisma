@@ -90,6 +90,10 @@ enum AuditAction {
   AI_SUGGEST_EDITED
   AI_SUGGEST_REJECTED
   AI_SUGGEST_FAILED
+  // Knowledge Base
+  KNOWLEDGE_ARTICLE_CREATED
+  KNOWLEDGE_ARTICLE_UPDATED
+  KNOWLEDGE_ARTICLE_DELETED
 }
 
 enum MessageSource {
@@ -159,6 +163,7 @@ model Tenant {
   customerChannels          CustomerChannel[]
   aiSuggestions             AiSuggestion[]
   promptTemplates           PromptTemplate[]
+  knowledgeArticles         KnowledgeArticle[]
 
   @@index([slug])
   @@index([planId])
@@ -397,8 +402,9 @@ model LineChannel {
 
   conversations Conversation[]
   messages      Message[]
-  savedReplies  SavedReply[]
-  broadcastJobs BroadcastJob[]
+  savedReplies       SavedReply[]
+  broadcastJobs      BroadcastJob[]
+  knowledgeArticles  KnowledgeArticle[]
 
   @@unique([tenantId, lineChannelId])
   @@index([tenantId])
@@ -529,6 +535,27 @@ model SavedReply {
   @@map("saved_replies")
 }
 
+model KnowledgeArticle {
+  id            String       @id @default(uuid())
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  lineChannelId String?
+  lineChannel   LineChannel? @relation(fields: [lineChannelId], references: [id], onDelete: SetNull)
+  title         String
+  content       String
+  keywords      String[]     @default([])
+  category      String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+  @@index([tenantId, lineChannelId])
+  @@map("knowledge_articles")
+}
+
 model Message {
   id                String           @id @default(uuid())
   tenantId          String
@@ -609,9 +636,7 @@ enum RetentionType {
 // model Customer { ... }
 // model CustomerNote { ... }
 
-// Stage 5: Knowledge
-// model KnowledgeArticle { ... }
-// model SavedReply { ... }
+// Stage 5: Knowledge — KnowledgeArticle implemented above; SavedReply in Stage 3b
 
 // Stage 17: Billing
 // model Plan { ... }

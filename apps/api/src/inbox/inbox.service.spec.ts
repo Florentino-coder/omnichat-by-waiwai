@@ -174,6 +174,10 @@ function mockAiCreditsAvailable(prisma: MockPrisma): void {
   prisma.usageCounter.upsert.mockResolvedValue({ value: 1n });
 }
 
+const mockKnowledgeService = {
+  buildKnowledgeContext: jest.fn().mockResolvedValue("ไม่มี")
+};
+
 const createService = (prisma: MockPrisma): InboxService =>
   new InboxService(
     prisma as unknown as PrismaService,
@@ -181,7 +185,8 @@ const createService = (prisma: MockPrisma): InboxService =>
     mockRedisService as any,
     mockLlmClient as any,
     mockLlmClient as any,
-    mockLlmClient as any
+    mockLlmClient as any,
+    mockKnowledgeService as any
   );
 
 type Stage3BInboxService = InboxService & {

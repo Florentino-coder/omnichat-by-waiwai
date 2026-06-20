@@ -23,6 +23,7 @@ import { LLMClient } from "../common/llm/llm.interface";
 import { GeminiClient } from "../common/llm/gemini.client";
 import { OpenAIClient } from "../common/llm/openai.client";
 import { ClaudeClient } from "../common/llm/claude.client";
+import { KnowledgeService } from "../knowledge/knowledge.service";
 import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { AiSuggestDto } from "./dto/ai-suggest.dto";
@@ -143,7 +144,8 @@ export class InboxService {
     private readonly redisService: RedisService,
     private readonly geminiClient: GeminiClient,
     private readonly openaiClient: OpenAIClient,
-    private readonly claudeClient: ClaudeClient
+    private readonly claudeClient: ClaudeClient,
+    private readonly knowledgeService: KnowledgeService
   ) { }
 
   async listConversations(
@@ -1269,6 +1271,22 @@ export class InboxService {
       })
       .join("\n");
 
+    const knowledgeQueryText = [
+      ...history
+        .filter((msg) => msg.direction === "INBOUND")
+        .slice(-3)
+        .map((msg) => msg.text || ""),
+      dto.current_text || ""
+    ]
+      .join(" ")
+      .trim();
+
+    const knowledgeContext = await this.knowledgeService.buildKnowledgeContext(
+      tenantId,
+      knowledgeQueryText || conversationHistoryText,
+      conversation.lineChannelId
+    );
+
     // 5. Load prompt template
     let template = await this.prisma.promptTemplate.findFirst({
       where: {
@@ -1296,6 +1314,9 @@ export class InboxService {
 แท็กลูกค้า: {{tags}}
 โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
 
+ข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):
+{{knowledge_context}}
+
 ประวัติการสนทนาล่าสุด:
 {{conversation_history}}
 
@@ -1319,13 +1340,18 @@ export class InboxService {
       .replace("{{customer_name}}", customer.displayName || "ลูกค้า")
       .replace("{{tags}}", tagsStr)
       .replace("{{notes}}", notesStr)
+      .replace("{{knowledge_context}}", knowledgeContext)
       .replace("{{action_type}}", actionType)
       .replace("{{conversation_history}}", conversationHistoryText)
       .replace("{{current_draft}}", dto.current_text || "ไม่มี");
 
-    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+    const promptWithKnowledge = systemPromptTemplate.includes("{{knowledge_context}}")
       ? compiledPromptBase
-      : `${agentGenderInstruction}\n\n${compiledPromptBase}`;
+      : `${compiledPromptBase}\n\nข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):\n${knowledgeContext}`;
+
+    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+      ? promptWithKnowledge
+      : `${agentGenderInstruction}\n\n${promptWithKnowledge}`;
 
     const historyForLlm = history.map((msg) => ({
       role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
@@ -1525,6 +1551,9 @@ export class InboxService {
 แท็กลูกค้า: {{tags}}
 โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
 
+ข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):
+{{knowledge_context}}
+
 ประวัติการสนทนาล่าสุด:
 {{conversation_history}}
 
@@ -1537,18 +1566,27 @@ export class InboxService {
 ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
 
     const conversationHistoryText = `ลูกค้าทดสอบ: ${sampleMessage}`;
+    const knowledgeContext = await this.knowledgeService.buildKnowledgeContext(
+      tenantId,
+      sampleMessage
+    );
     const compiledPromptBase = systemPromptTemplate
       .replace("{{agent_gender_instruction}}", agentGenderInstruction)
       .replace("{{customer_name}}", "ลูกค้าทดสอบ")
       .replace("{{tags}}", "ทดสอบ")
       .replace("{{notes}}", "ไม่มี")
+      .replace("{{knowledge_context}}", knowledgeContext)
       .replace("{{action_type}}", "generate")
       .replace("{{conversation_history}}", conversationHistoryText)
       .replace("{{current_draft}}", "ไม่มี");
 
-    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+    const promptWithKnowledge = systemPromptTemplate.includes("{{knowledge_context}}")
       ? compiledPromptBase
-      : `${agentGenderInstruction}\n\n${compiledPromptBase}`;
+      : `${compiledPromptBase}\n\nข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):\n${knowledgeContext}`;
+
+    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+      ? promptWithKnowledge
+      : `${agentGenderInstruction}\n\n${promptWithKnowledge}`;
 
     const historyForLlm = [{ role: "customer" as const, text: sampleMessage }];
     const startedAt = Date.now();

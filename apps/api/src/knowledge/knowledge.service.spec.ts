@@ -1,0 +1,97 @@
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { AuditAction, Role } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { KnowledgeService } from "./knowledge.service";
+
+function createPrismaMock() {
+  return {
+    knowledgeArticle: {
+      findMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
+    lineChannel: {
+      findFirst: jest.fn()
+    },
+    auditLog: {
+      create: jest.fn()
+    }
+  };
+}
+
+describe("KnowledgeService", () => {
+  it("creates article with audit log", async () => {
+    const prisma = createPrismaMock();
+    prisma.knowledgeArticle.create.mockResolvedValue({
+      id: "article-1",
+      tenantId: "tenant-1",
+      title: "FAQ",
+      lineChannelId: null
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    const service = new KnowledgeService(prisma as unknown as PrismaService);
+    const article = await service.createArticle("tenant-1", "user-1", {
+      title: "FAQ",
+      content: "Answer here",
+      keywords: ["faq"]
+    });
+
+    expect(article.id).toBe("article-1");
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: AuditAction.KNOWLEDGE_ARTICLE_CREATED,
+        targetType: "KnowledgeArticle",
+        targetId: "article-1"
+      })
+    });
+  });
+
+  it("blocks delete for agents", async () => {
+    const prisma = createPrismaMock();
+    prisma.knowledgeArticle.findFirst.mockResolvedValue({
+      id: "article-1",
+      tenantId: "tenant-1",
+      title: "FAQ"
+    });
+
+    const service = new KnowledgeService(prisma as unknown as PrismaService);
+
+    await expect(
+      service.deleteArticle("tenant-1", "user-1", Role.AGENT, "article-1")
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("builds knowledge context from ranked articles", async () => {
+    const prisma = createPrismaMock();
+    prisma.knowledgeArticle.findMany.mockResolvedValue([
+      {
+        title: "Shipping",
+        content: "Free shipping over 1000 THB",
+        keywords: ["delivery"],
+        category: "Policy"
+      }
+    ]);
+
+    const service = new KnowledgeService(prisma as unknown as PrismaService);
+    const context = await service.buildKnowledgeContext(
+      "tenant-1",
+      "delivery free shipping"
+    );
+
+    expect(context).toContain("[Policy] Shipping");
+    expect(context).toContain("Free shipping over 1000 THB");
+  });
+
+  it("throws when article not found in tenant", async () => {
+    const prisma = createPrismaMock();
+    prisma.knowledgeArticle.findFirst.mockResolvedValue(null);
+
+    const service = new KnowledgeService(prisma as unknown as PrismaService);
+
+    await expect(service.findOne("tenant-1", "missing")).rejects.toBeInstanceOf(
+      NotFoundException
+    );
+  });
+});

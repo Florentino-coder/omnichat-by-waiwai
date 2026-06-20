@@ -409,6 +409,7 @@ export function AiSettings() {
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{customer_name}}"}</code>: ชื่อลูกค้าปัจจุบัน</div>
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{tags}}"}</code>: รายการแท็กของลูกค้า</div>
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{notes}}"}</code>: โน้ตภายในของลูกค้า</div>
+              <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{knowledge_context}}"}</code>: ข้อมูลจาก Knowledge Base</div>
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{conversation_history}}"}</code>: ประวัติแชทล่าสุด</div>
               <div><code className="bg-white px-1.5 py-0.5 rounded border border-[#DEDDE6] font-mono text-[#4636D7] font-semibold">{"{{current_draft}}"}</code>: ข้อความที่พึ่งพิมพ์ร่างอยู่</div>
             </div>

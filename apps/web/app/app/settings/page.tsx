@@ -3,15 +3,16 @@
 import { useEffect, useState } from "react";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
-import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon } from "lucide-react";
+import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen } from "lucide-react";
 import { LineChannelForm } from "./line-channel-form";
 import { QuickReplyManager } from "./quick-reply-manager";
+import { KnowledgeManager } from "./knowledge-manager";
 import { ProfileEditor } from "./profile-editor";
 import { AiSettings } from "./ai-settings";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
-type SettingsTab = "channels" | "replies" | "team" | "profile" | "ai";
+type SettingsTab = "channels" | "replies" | "knowledge" | "team" | "profile" | "ai";
 
 export default function SettingsPage() {
   const { locale } = useLanguage();
@@ -90,6 +91,20 @@ export default function SettingsPage() {
               {t.quickReplyTab}
             </button>
           )}
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("knowledge")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === "knowledge"
+                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+              }`}
+            >
+              <BookOpen size={16} />
+              Knowledge
+            </button>
+          )}
           {(role === "OWNER" || role === "ADMIN") && (
             <button
               type="button"
@@ -160,6 +175,20 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <QuickReplyManager />
+              </Card>
+            </div>
+          )}
+
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+            <div className={`${activeTab === "knowledge" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+              <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+                <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
+                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">Knowledge Base</h2>
+                  <p className="text-sm text-[#767A8C]">
+                    Store product info, policies, and FAQs. AI uses these articles when drafting replies.
+                  </p>
+                </div>
+                <KnowledgeManager />
               </Card>
             </div>
           )}

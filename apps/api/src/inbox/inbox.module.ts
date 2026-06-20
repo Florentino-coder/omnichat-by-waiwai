@@ -3,11 +3,12 @@ import { AuthModule } from "../auth/auth.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { RedisModule } from "../redis/redis.module";
 import { LlmModule } from "../common/llm/llm.module";
+import { KnowledgeModule } from "../knowledge/knowledge.module";
 import { InboxController } from "./inbox.controller";
 import { InboxService } from "./inbox.service";
 
 @Module({
-  imports: [AuthModule, PrismaModule, RedisModule, LlmModule],
+  imports: [AuthModule, PrismaModule, RedisModule, LlmModule, KnowledgeModule],
   controllers: [InboxController],
   providers: [InboxService]
 })
