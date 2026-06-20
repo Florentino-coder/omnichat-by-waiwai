@@ -1,11 +1,12 @@
 import "reflect-metadata";
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { ResponseEnvelopeInterceptor } from "./common/http/response-envelope.interceptor";
 
 async function bootstrap(): Promise<void> {
+  const logger = new Logger("Bootstrap");
   const app = await NestFactory.create(AppModule, { rawBody: true });
   app.enableCors({
     origin: true,
@@ -22,9 +23,19 @@ async function bootstrap(): Promise<void> {
       transform: true
     })
   );
+  app.enableShutdownHooks();
 
+  const host = process.env.HOST ?? "0.0.0.0";
   const port = Number(process.env.PORT ?? 3001);
-  await app.listen(port);
+  await app.listen(port, host);
+  logger.log(`API listening on http://${host}:${port}`);
 }
 
-void bootstrap();
+bootstrap().catch((error: unknown) => {
+  const logger = new Logger("Bootstrap");
+  logger.error(
+    "Failed to start API",
+    error instanceof Error ? error.stack : String(error)
+  );
+  process.exit(1);
+});

@@ -20,8 +20,8 @@ RUN npx prisma generate
 # Build the NestJS API
 RUN npm run api:build
 
-# Expose NestJS API port
-EXPOSE 3001
+# Render sets PORT at runtime (often 10000). EXPOSE is documentation only.
+EXPOSE 10000
 
-# Start the NestJS API server
-CMD ["npm", "run", "api:start"]
+# Run migrations then bind 0.0.0.0 via main.ts (Render port scan requirement)
+CMD ["npm", "run", "api:start:prod"]

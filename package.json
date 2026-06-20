@@ -10,6 +10,7 @@
     "api:build": "tsc -p apps/api/tsconfig.json",
     "api:deploy:build": "npx prisma generate && npx prisma migrate deploy && npm run prisma:seed && npm run api:build",
     "api:start": "node apps/api/dist/src/main.js",
+    "api:start:prod": "npx prisma migrate deploy && node apps/api/dist/src/main.js",
     "api:test": "jest --config apps/api/jest.config.cjs",
     "api:test:cov": "jest --config apps/api/jest.config.cjs --coverage",
     "api:test:e2e": "jest --config apps/api/jest-e2e.config.cjs --runInBand",
