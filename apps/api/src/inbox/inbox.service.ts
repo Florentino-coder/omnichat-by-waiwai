@@ -24,6 +24,7 @@ import { GeminiClient } from "../common/llm/gemini.client";
 import { OpenAIClient } from "../common/llm/openai.client";
 import { ClaudeClient } from "../common/llm/claude.client";
 import { KnowledgeService } from "../knowledge/knowledge.service";
+import { ScenarioService } from "../scenario/scenario.service";
 import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { AiSuggestDto } from "./dto/ai-suggest.dto";
@@ -145,7 +146,8 @@ export class InboxService {
     private readonly geminiClient: GeminiClient,
     private readonly openaiClient: OpenAIClient,
     private readonly claudeClient: ClaudeClient,
-    private readonly knowledgeService: KnowledgeService
+    private readonly knowledgeService: KnowledgeService,
+    private readonly scenarioService: ScenarioService
   ) { }
 
   async listConversations(
@@ -1287,6 +1289,25 @@ export class InboxService {
       conversation.lineChannelId
     );
 
+    const scenarioMatch = await this.scenarioService.buildScenarioInstructions(
+      tenantId,
+      knowledgeQueryText || conversationHistoryText,
+      Array.from(tagsMap),
+      conversation.lineChannelId
+    );
+
+    if (scenarioMatch.scenario) {
+      await this.scenarioService.applyScenarioActions({
+        tenantId,
+        conversationId,
+        scenario: scenarioMatch.scenario,
+        userId,
+        source: "ai_suggest"
+      });
+    }
+
+    const scenarioInstructions = scenarioMatch.instructions;
+
     // 5. Load prompt template
     let template = await this.prisma.promptTemplate.findFirst({
       where: {
@@ -1317,6 +1338,9 @@ export class InboxService {
 ข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):
 {{knowledge_context}}
 
+คำสั่ง Scenario ที่ match (ให้ความสำคัญสูงกว่าคำสั่งทั่วไป):
+{{scenario_instructions}}
+
 ประวัติการสนทนาล่าสุด:
 {{conversation_history}}
 
@@ -1341,6 +1365,7 @@ export class InboxService {
       .replace("{{tags}}", tagsStr)
       .replace("{{notes}}", notesStr)
       .replace("{{knowledge_context}}", knowledgeContext)
+      .replace("{{scenario_instructions}}", scenarioInstructions)
       .replace("{{action_type}}", actionType)
       .replace("{{conversation_history}}", conversationHistoryText)
       .replace("{{current_draft}}", dto.current_text || "ไม่มี");
@@ -1349,9 +1374,13 @@ export class InboxService {
       ? compiledPromptBase
       : `${compiledPromptBase}\n\nข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):\n${knowledgeContext}`;
 
-    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+    const promptWithScenario = systemPromptTemplate.includes("{{scenario_instructions}}")
       ? promptWithKnowledge
-      : `${agentGenderInstruction}\n\n${promptWithKnowledge}`;
+      : `${promptWithKnowledge}\n\nคำสั่ง Scenario ที่ match:\n${scenarioInstructions}`;
+
+    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+      ? promptWithScenario
+      : `${agentGenderInstruction}\n\n${promptWithScenario}`;
 
     const historyForLlm = history.map((msg) => ({
       role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
@@ -1554,6 +1583,9 @@ export class InboxService {
 ข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):
 {{knowledge_context}}
 
+คำสั่ง Scenario ที่ match (ให้ความสำคัญสูงกว่าคำสั่งทั่วไป):
+{{scenario_instructions}}
+
 ประวัติการสนทนาล่าสุด:
 {{conversation_history}}
 
@@ -1570,12 +1602,19 @@ export class InboxService {
       tenantId,
       sampleMessage
     );
+    const scenarioMatch = await this.scenarioService.buildScenarioInstructions(
+      tenantId,
+      sampleMessage,
+      []
+    );
+    const scenarioInstructions = scenarioMatch.instructions;
     const compiledPromptBase = systemPromptTemplate
       .replace("{{agent_gender_instruction}}", agentGenderInstruction)
       .replace("{{customer_name}}", "ลูกค้าทดสอบ")
       .replace("{{tags}}", "ทดสอบ")
       .replace("{{notes}}", "ไม่มี")
       .replace("{{knowledge_context}}", knowledgeContext)
+      .replace("{{scenario_instructions}}", scenarioInstructions)
       .replace("{{action_type}}", "generate")
       .replace("{{conversation_history}}", conversationHistoryText)
       .replace("{{current_draft}}", "ไม่มี");
@@ -1584,9 +1623,13 @@ export class InboxService {
       ? compiledPromptBase
       : `${compiledPromptBase}\n\nข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):\n${knowledgeContext}`;
 
-    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+    const promptWithScenario = systemPromptTemplate.includes("{{scenario_instructions}}")
       ? promptWithKnowledge
-      : `${agentGenderInstruction}\n\n${promptWithKnowledge}`;
+      : `${promptWithKnowledge}\n\nคำสั่ง Scenario ที่ match:\n${scenarioInstructions}`;
+
+    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
+      ? promptWithScenario
+      : `${agentGenderInstruction}\n\n${promptWithScenario}`;
 
     const historyForLlm = [{ role: "customer" as const, text: sampleMessage }];
     const startedAt = Date.now();

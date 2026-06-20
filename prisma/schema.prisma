@@ -94,6 +94,11 @@ enum AuditAction {
   KNOWLEDGE_ARTICLE_CREATED
   KNOWLEDGE_ARTICLE_UPDATED
   KNOWLEDGE_ARTICLE_DELETED
+  // AI Scenarios
+  AI_SCENARIO_CREATED
+  AI_SCENARIO_UPDATED
+  AI_SCENARIO_DELETED
+  AI_SCENARIO_MATCHED
 }
 
 enum MessageSource {
@@ -164,6 +169,7 @@ model Tenant {
   aiSuggestions             AiSuggestion[]
   promptTemplates           PromptTemplate[]
   knowledgeArticles         KnowledgeArticle[]
+  aiScenarios               AiScenario[]
 
   @@index([slug])
   @@index([planId])
@@ -405,6 +411,7 @@ model LineChannel {
   savedReplies       SavedReply[]
   broadcastJobs      BroadcastJob[]
   knowledgeArticles  KnowledgeArticle[]
+  aiScenarios        AiScenario[]
 
   @@unique([tenantId, lineChannelId])
   @@index([tenantId])
@@ -554,6 +561,34 @@ model KnowledgeArticle {
   @@index([tenantId, isActive])
   @@index([tenantId, lineChannelId])
   @@map("knowledge_articles")
+}
+
+model AiScenario {
+  id                   String                @id @default(uuid())
+  tenantId             String
+  tenant               Tenant                @relation(fields: [tenantId], references: [id])
+  lineChannelId        String?
+  lineChannel          LineChannel?          @relation(fields: [lineChannelId], references: [id], onDelete: SetNull)
+  name                 String
+  priority             Int                   @default(100)
+  isEnabled            Boolean               @default(true)
+  triggerKeywords      String[]              @default([])
+  triggerTagNames      String[]              @default([])
+  activeHourStart      Int?
+  activeHourEnd        Int?
+  instructions         String
+  actionAddTagName     String?
+  actionAssignMemberId String?
+  actionSetPriority    ConversationPriority?
+  actionEscalate       Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  deletedAt            DateTime?
+
+  @@index([tenantId])
+  @@index([tenantId, isEnabled])
+  @@index([tenantId, lineChannelId])
+  @@map("ai_scenarios")
 }
 
 model Message {

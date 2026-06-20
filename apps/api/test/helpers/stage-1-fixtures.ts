@@ -58,6 +58,7 @@ export async function resetStage1Data(prisma: PrismaClient): Promise<void> {
   await prisma.message.deleteMany();
   await prisma.aiSuggestion.deleteMany();
   await prisma.knowledgeArticle.deleteMany();
+  await prisma.aiScenario.deleteMany();
   await prisma.savedReply.deleteMany();
   await prisma.conversationInternalNote.deleteMany();
   await prisma.conversationTagLink.deleteMany();

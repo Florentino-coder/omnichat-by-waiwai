@@ -178,6 +178,14 @@ const mockKnowledgeService = {
   buildKnowledgeContext: jest.fn().mockResolvedValue("ไม่มี")
 };
 
+const mockScenarioService = {
+  buildScenarioInstructions: jest.fn().mockResolvedValue({
+    scenario: null,
+    instructions: "ไม่มี scenario ที่ match — ตอบตาม knowledge และบริบททั่วไป"
+  }),
+  applyScenarioActions: jest.fn().mockResolvedValue(undefined)
+};
+
 const createService = (prisma: MockPrisma): InboxService =>
   new InboxService(
     prisma as unknown as PrismaService,
@@ -186,7 +194,8 @@ const createService = (prisma: MockPrisma): InboxService =>
     mockLlmClient as any,
     mockLlmClient as any,
     mockLlmClient as any,
-    mockKnowledgeService as any
+    mockKnowledgeService as any,
+    mockScenarioService as any
   );
 
 type Stage3BInboxService = InboxService & {

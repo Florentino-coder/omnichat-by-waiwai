@@ -22,9 +22,10 @@ import { StorageModule } from "../storage/storage.module";
 import { LineBroadcastService } from "./line-broadcast.service";
 import { LineBroadcastScheduler } from "./line-broadcast.scheduler";
 import { MonitorModule } from "../monitor/monitor.module";
+import { ScenarioModule } from "../scenario/scenario.module";
 
 @Module({
-  imports: [AuthModule, PrismaModule, RealtimeModule, StorageModule, MonitorModule],
+  imports: [AuthModule, PrismaModule, RealtimeModule, StorageModule, MonitorModule, ScenarioModule],
   controllers: [LineChannelsController, LineWebhookController],
   providers: [
     LineChannelsService,

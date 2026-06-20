@@ -4,11 +4,12 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { RedisModule } from "../redis/redis.module";
 import { LlmModule } from "../common/llm/llm.module";
 import { KnowledgeModule } from "../knowledge/knowledge.module";
+import { ScenarioModule } from "../scenario/scenario.module";
 import { InboxController } from "./inbox.controller";
 import { InboxService } from "./inbox.service";
 
 @Module({
-  imports: [AuthModule, PrismaModule, RedisModule, LlmModule, KnowledgeModule],
+  imports: [AuthModule, PrismaModule, RedisModule, LlmModule, KnowledgeModule, ScenarioModule],
   controllers: [InboxController],
   providers: [InboxService]
 })

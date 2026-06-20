@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
-import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen } from "lucide-react";
+import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch } from "lucide-react";
 import { LineChannelForm } from "./line-channel-form";
 import { QuickReplyManager } from "./quick-reply-manager";
 import { KnowledgeManager } from "./knowledge-manager";
+import { ScenarioManager } from "./scenario-manager";
 import { ProfileEditor } from "./profile-editor";
 import { AiSettings } from "./ai-settings";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
-type SettingsTab = "channels" | "replies" | "knowledge" | "team" | "profile" | "ai";
+type SettingsTab = "channels" | "replies" | "knowledge" | "scenarios" | "team" | "profile" | "ai";
 
 export default function SettingsPage() {
   const { locale } = useLanguage();
@@ -105,6 +106,20 @@ export default function SettingsPage() {
               Knowledge
             </button>
           )}
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("scenarios")}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 px-3 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0 ${
+                activeTab === "scenarios"
+                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+              }`}
+            >
+              <GitBranch size={16} />
+              Scenarios
+            </button>
+          )}
           {(role === "OWNER" || role === "ADMIN") && (
             <button
               type="button"
@@ -189,6 +204,20 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 <KnowledgeManager />
+              </Card>
+            </div>
+          )}
+
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+            <div className={`${activeTab === "scenarios" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+              <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+                <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
+                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">AI Scenarios</h2>
+                  <p className="text-sm text-[#767A8C]">
+                    Intent rules that shape AI replies and optional auto-tag or assign actions.
+                  </p>
+                </div>
+                <ScenarioManager />
               </Card>
             </div>
           )}

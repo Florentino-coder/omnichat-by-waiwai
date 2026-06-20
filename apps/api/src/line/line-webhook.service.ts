@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   AuditAction,
   FileType,
@@ -12,6 +12,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { StorageService } from "../storage/storage.service";
 import { MonitorService } from "../monitor/monitor.service";
+import { ScenarioService } from "../scenario/scenario.service";
 
 type LineWebhookPayload = {
   events?: LineWebhookEvent[];
@@ -46,12 +47,15 @@ type LineProfile = {
 
 @Injectable()
 export class LineWebhookService {
+  private readonly logger = new Logger(LineWebhookService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cryptoSecret: CryptoSecretService,
     private readonly realtimeService?: RealtimeService,
     private readonly storageService?: StorageService,
-    private readonly monitorService?: MonitorService
+    private readonly monitorService?: MonitorService,
+    private readonly scenarioService?: ScenarioService
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
@@ -299,6 +303,26 @@ export class LineWebhookService {
         lineChannelId: channel.id,
         direction: MessageDirection.INBOUND
       }, flowId);
+
+      if (
+        this.scenarioService &&
+        messageType === MessageType.TEXT &&
+        lineMessage.text?.trim()
+      ) {
+        await this.scenarioService
+          .processInboundMessage(
+            channel.tenantId,
+            conversation.id,
+            lineMessage.text,
+            channel.id
+          )
+          .catch((error: unknown) => {
+            this.logger.error(
+              "Failed to process AI scenario for inbound message",
+              error instanceof Error ? error.stack : error
+            );
+          });
+      }
 
       if (flowId && this.monitorService) {
         await this.monitorService.recordEvent(flowId, "REDIS_PUBLISH_END");
