@@ -15,7 +15,7 @@ export class GeminiClient implements LLMClient {
       throw new Error("GEMINI_API_KEY is not defined");
     }
 
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
     const contents: { role: string; parts: { text: string }[] }[] = [];
