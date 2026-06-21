@@ -8,8 +8,8 @@
   },
   "scripts": {
     "api:build": "tsc -p apps/api/tsconfig.json",
-    "api:deploy:build": "npx prisma generate && npx prisma migrate deploy && npm run prisma:seed && npm run api:build",
-    "api:start": "npx prisma migrate deploy && node apps/api/dist/src/main.js",
+    "api:deploy:build": "npx prisma generate && npm run prisma:resolve:enable-ai-scenarios && npx prisma migrate deploy && npm run prisma:seed && npm run api:build",
+    "api:start": "npm run prisma:resolve:enable-ai-scenarios && npx prisma migrate deploy && node apps/api/dist/src/main.js",
     "api:start:prod": "npm run api:start",
     "api:test": "jest --config apps/api/jest.config.cjs",
     "api:test:cov": "jest --config apps/api/jest.config.cjs --coverage",
