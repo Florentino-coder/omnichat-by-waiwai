@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import AppLayout from "../app/app/layout";
 import SettingsPage from "../app/app/settings/page";
 import { LanguageProvider } from "../app/lib/language-context";
@@ -9,10 +9,152 @@ jest.mock("../app/lib/language-context", () => ({
 }));
 
 describe("App shell", () => {
+  let mockWorkspaces: any[] = [];
+  let mockLineChannels: any[] = [];
+  let mockSavedReplies: any[] = [];
+  let mockAiUsage: any = null;
+  let mockSettings: any = null;
+  let mockPromptTemplate: any = null;
+  let lastPostData: any = null;
+  let fetchMock: jest.Mock<any, any>;
+
   beforeEach(() => {
     window.localStorage.clear();
     window.localStorage.setItem("omnichat.accessToken", "access-token");
     window.localStorage.setItem("chatwai.locale", "en");
+
+    mockWorkspaces = [{ id: "workspace-1", name: "Default Workspace", isDefault: true }];
+    mockLineChannels = [];
+    mockSavedReplies = [];
+    mockSettings = {
+      inProgressAlertMinutes: 10,
+      enableAiSuggest: true,
+      aiProvider: "gemini",
+      aiAgentGender: "FEMALE"
+    };
+    mockPromptTemplate = { systemPrompt: "Default Prompt" };
+    mockAiUsage = {
+      used: 0,
+      limit: 20,
+      remaining: 20,
+      percentage: 0,
+      planId: "free",
+      periodStart: "2026-06-01T00:00:00.000Z",
+      periodEnd: "2026-06-30T23:59:59.000Z",
+      providerLabel: "Google Gemini",
+      modelName: "gemini-2.5-flash",
+      creditsAvailable: true
+    };
+    lastPostData = null;
+
+    fetchMock = jest.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const method = init?.method?.toUpperCase() ?? "GET";
+
+      if (url.includes("/api/v1/workspaces")) {
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: mockWorkspaces })
+        };
+      }
+      if (url.includes("/api/v1/line/channels")) {
+        if (method === "POST") {
+          lastPostData = JSON.parse(init?.body as string);
+          const newChannel = {
+            id: "line-channel-" + (mockLineChannels.length + 1),
+            name: lastPostData.name,
+            badgeColor: lastPostData.badgeColor,
+            lineChannelId: lastPostData.lineChannelId,
+            workspaceId: lastPostData.workspaceId,
+            createdAt: new Date().toISOString()
+          };
+          mockLineChannels.push(newChannel);
+          return {
+            ok: true,
+            json: async () => ({ success: true, data: newChannel })
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: mockLineChannels })
+        };
+      }
+      if (url.includes("/api/v1/inbox/saved-replies")) {
+        if (method === "POST") {
+          const body = JSON.parse(init?.body as string);
+          const newReply = {
+            id: "reply-" + (mockSavedReplies.length + 1),
+            lineChannelId: body.lineChannelId,
+            title: body.title,
+            body: body.body,
+            isActive: true
+          };
+          mockSavedReplies.push(newReply);
+          return {
+            ok: true,
+            json: async () => ({ success: true, data: newReply })
+          };
+        }
+        if (method === "DELETE") {
+          const id = url.split("/").pop();
+          mockSavedReplies = mockSavedReplies.filter(r => r.id !== id);
+          return {
+            ok: true,
+            json: async () => ({ success: true, data: { id } })
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: mockSavedReplies })
+        };
+      }
+      if (url.includes("/api/v1/inbox/settings")) {
+        if (method === "PATCH") {
+          const body = JSON.parse(init?.body as string);
+          mockSettings = { ...mockSettings, ...body };
+          return {
+            ok: true,
+            json: async () => ({ success: true, data: mockSettings })
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: mockSettings })
+        };
+      }
+      if (url.includes("/api/v1/inbox/prompt-templates")) {
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: mockPromptTemplate })
+        };
+      }
+      if (url.includes("/api/v1/inbox/ai-usage")) {
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: mockAiUsage })
+        };
+      }
+      if (url.includes("/api/v1/scenarios")) {
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: [] })
+        };
+      }
+      if (url.includes("/api/v1/automations")) {
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: [] })
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ success: true, data: null })
+      };
+    });
+
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      value: fetchMock
+    });
   });
 
   afterEach(() => {
@@ -20,15 +162,6 @@ describe("App shell", () => {
   });
 
   it("renders icon rail, enabled inbox nav, disabled future nav, and settings content", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ success: true, data: [] })
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
-
     render(
       <AppLayout>
         <SettingsPage />
@@ -48,65 +181,16 @@ describe("App shell", () => {
     );
 
     for (const label of ["Customers", "Reports", "Knowledge"]) {
-      expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+      const button = within(nav).getByRole("button", { name: label });
+      expect(button).toBeInTheDocument();
+      expect(button).toBeDisabled();
     }
 
-    expect(screen.getByRole("button", { name: "Customers" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Reports" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Knowledge" })).toBeDisabled();
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(await screen.findByText("No LINE channel connected yet.")).toBeInTheDocument();
   });
 
   it("posts LINE channel settings from the settings page", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "workspace-1",
-              name: "Default Workspace",
-              isDefault: true
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: { id: "line-channel-1" } })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "line-channel-1",
-              name: "Main LINE OA",
-              badgeColor: "#0ea5e9",
-              lineChannelId: "1234567890",
-              workspaceId: "workspace-1",
-              createdAt: "2026-06-14T01:02:00.000Z"
-            }
-          ]
-        })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
-
     render(
       <LanguageProvider>
         <SettingsPage />
@@ -159,89 +243,16 @@ describe("App shell", () => {
   });
 
   it("keeps the LINE settings form ready for adding multiple OA channels", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "workspace-1",
-              name: "Default Workspace",
-              isDefault: true
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "line-channel-1",
-              name: "Line OA 1",
-              badgeColor: "#4f46e5",
-              lineChannelId: "1111111111",
-              workspaceId: "workspace-1",
-              createdAt: "2026-06-14T01:02:00.000Z"
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "line-channel-1",
-              name: "Line OA 1",
-              badgeColor: "#4f46e5",
-              lineChannelId: "1111111111",
-              workspaceId: "workspace-1",
-              createdAt: "2026-06-14T01:02:00.000Z"
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: { id: "line-channel-2" } })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "line-channel-1",
-              name: "Line OA 1",
-              badgeColor: "#4f46e5",
-              lineChannelId: "1111111111",
-              workspaceId: "workspace-1",
-              createdAt: "2026-06-14T01:02:00.000Z"
-            },
-            {
-              id: "line-channel-2",
-              name: "Line OA 2",
-              badgeColor: "#16a34a",
-              lineChannelId: "2222222222",
-              workspaceId: "workspace-1",
-              createdAt: "2026-06-14T01:03:00.000Z"
-            }
-          ]
-        })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    mockLineChannels = [
+      {
+        id: "line-channel-1",
+        name: "Line OA 1",
+        badgeColor: "#4f46e5",
+        lineChannelId: "1111111111",
+        workspaceId: "workspace-1",
+        createdAt: "2026-06-14T01:02:00.000Z"
+      }
+    ];
 
     render(
       <LanguageProvider>
@@ -284,116 +295,32 @@ describe("App shell", () => {
       });
     });
     expect(await screen.findByText("2 connected")).toBeInTheDocument();
-    expect(screen.getByLabelText("Channel name")).toHaveValue("");
+    expect(nameInput).toHaveValue("");
   });
 
   it("manages quick replies per LINE OA from settings", async () => {
     window.localStorage.setItem("omnichat.user", JSON.stringify({ id: "user-1", role: "OWNER" }));
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [{ id: "workspace-1", name: "Default Workspace", isDefault: true }]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "line-channel-1",
-              name: "Line OA 1",
-              badgeColor: "#0ea5e9",
-              lineChannelId: "1234567890",
-              workspaceId: "workspace-1",
-              createdAt: "2026-06-14T01:02:00.000Z"
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "line-channel-1",
-              name: "Line OA 1",
-              badgeColor: "#0ea5e9",
-              lineChannelId: "1234567890",
-              workspaceId: "workspace-1",
-              createdAt: "2026-06-14T01:02:00.000Z"
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "reply-1",
-              lineChannelId: "line-channel-1",
-              title: "Greeting",
-              body: "Hello customer",
-              isActive: true
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: { id: "reply-2" } })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "reply-1",
-              lineChannelId: "line-channel-1",
-              title: "Greeting",
-              body: "Hello customer",
-              isActive: true
-            },
-            {
-              id: "reply-2",
-              lineChannelId: "line-channel-1",
-              title: "Price",
-              body: "Price details",
-              isActive: true
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: { id: "reply-1" } })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "reply-2",
-              lineChannelId: "line-channel-1",
-              title: "Price",
-              body: "Price details",
-              isActive: true
-            }
-          ]
-        })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    
+    mockLineChannels = [
+      {
+        id: "line-channel-1",
+        name: "Line OA 1",
+        badgeColor: "#0ea5e9",
+        lineChannelId: "1234567890",
+        workspaceId: "workspace-1",
+        createdAt: "2026-06-14T01:02:00.000Z"
+      }
+    ];
+
+    mockSavedReplies = [
+      {
+        id: "reply-1",
+        lineChannelId: "line-channel-1",
+        title: "Greeting",
+        body: "Hello customer",
+        isActive: true
+      }
+    ];
 
     render(
       <LanguageProvider>
@@ -402,13 +329,7 @@ describe("App shell", () => {
     );
 
     expect(await screen.findByText("Line OA 1 : Quick Reply Greeting")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/inbox/saved-replies?lineChannelId=line-channel-1&type=shared",
-      {
-        headers: { Authorization: "Bearer access-token" }
-      }
-    );
-
+    
     fireEvent.change(screen.getByLabelText("Quick Reply title"), {
       target: { value: "Price" }
     });

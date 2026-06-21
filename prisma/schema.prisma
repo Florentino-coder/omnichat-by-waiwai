@@ -98,6 +98,7 @@ enum AuditAction {
   KNOWLEDGE_DOCUMENT_DELETED
   KNOWLEDGE_DOCUMENT_INGESTED
   KNOWLEDGE_DOCUMENT_INGEST_FAILED
+  KNOWLEDGE_DOCUMENT_REINDEX_REQUESTED
   // AI Scenarios
   AI_SCENARIO_CREATED
   AI_SCENARIO_UPDATED
@@ -245,6 +246,7 @@ model TenantSettings {
   maxAgents              Int      @default(10)
   inProgressAlertMinutes Int      @default(10)
   enableAiSuggest        Boolean       @default(true)   @map("enable_ai_suggest")
+  enableAiScenarios      Boolean       @default(true)   @map("enable_ai_scenarios")
   aiProvider             String        @default("gemini") @map("ai_provider")
   aiAgentGender          AiAgentGender @default(FEMALE)   @map("ai_agent_gender")
   createdAt              DateTime @default(now())

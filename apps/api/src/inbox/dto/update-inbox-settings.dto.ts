@@ -12,6 +12,10 @@ export class UpdateInboxSettingsDto {
   @IsOptional()
   enableAiSuggest?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  enableAiScenarios?: boolean;
+
   @IsEnum(["gemini", "openai", "claude"])
   @IsOptional()
   aiProvider?: string;

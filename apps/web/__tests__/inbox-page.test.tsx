@@ -59,62 +59,67 @@ describe("InboxPage", () => {
   });
 
   it("loads tenant conversations and messages from the inbox API", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-1",
-              externalThreadId: "U123",
-              displayName: "Somchai LINE",
-              status: "OPEN",
-              lastMessageAt: "2026-06-14T01:00:00.000Z",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Main LINE",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
-              },
-              messages: [
-                {
-                  id: "message-preview-1",
-                  direction: "INBOUND",
-                  text: "สวัสดีครับ",
-                  createdAt: "2026-06-14T01:00:00.000Z"
-                }
-              ]
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-1",
-              direction: "INBOUND",
-              text: "สวัสดีครับ",
-              createdAt: "2026-06-14T01:00:00.000Z",
-              rawPayload: {
-                source: { type: "user", userId: "U123" },
-                message: { id: "line-message-1", type: "text" },
-                timestamp: 1781398800000,
-                lineProfile: {
-                  displayName: "Somchai LINE",
-                  pictureUrl: "https://profile.line-scdn.net/customer.png",
-                  statusMessage: "Ready",
-                  language: "th"
+    const fetchMock = jest.fn((url: string) => {
+      if (url.includes("/api/v1/inbox/conversations/conversation-1/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "message-1",
+                direction: "INBOUND",
+                text: "สวัสดีครับ",
+                createdAt: "2026-06-14T01:00:00.000Z",
+                rawPayload: {
+                  source: { type: "user", userId: "U123" },
+                  message: { id: "line-message-1", type: "text" },
+                  timestamp: 1781398800000,
+                  lineProfile: {
+                    displayName: "Somchai LINE",
+                    pictureUrl: "https://profile.line-scdn.net/customer.png",
+                    statusMessage: "Ready",
+                    language: "th"
+                  }
                 }
               }
-            }
-          ]
-        })
-      });
+            ]
+          })
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-1",
+                externalThreadId: "U123",
+                displayName: "Somchai LINE",
+                status: "OPEN",
+                lastMessageAt: "2026-06-14T01:00:00.000Z",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: [
+                  {
+                    id: "message-preview-1",
+                    direction: "INBOUND",
+                    text: "สวัสดีครับ",
+                    createdAt: "2026-06-14T01:00:00.000Z"
+                  }
+                ]
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -150,57 +155,59 @@ describe("InboxPage", () => {
 
   it("refreshes the inbox so newly received LINE conversations appear", async () => {
     jest.useFakeTimers();
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: []
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-2",
-              externalThreadId: "U456",
-              status: "OPEN",
-              lastMessageAt: "2026-06-14T01:05:00.000Z",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Main LINE",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
-              },
-              messages: [
-                {
-                  id: "message-preview-2",
-                  direction: "INBOUND",
-                  text: "new LINE message",
-                  createdAt: "2026-06-14T01:05:00.000Z"
-                }
-              ]
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-2",
-              direction: "INBOUND",
-              text: "new LINE message",
-              createdAt: "2026-06-14T01:05:00.000Z"
-            }
-          ]
-        })
-      });
+    let callsCount = 0;
+    const fetchMock = jest.fn((url: string) => {
+      if (url.includes("/api/v1/inbox/conversations/conversation-2/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "message-2",
+                direction: "INBOUND",
+                text: "new LINE message",
+                createdAt: "2026-06-14T01:05:00.000Z"
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations")) {
+        callsCount++;
+        const data = callsCount === 1 ? [] : [
+          {
+            id: "conversation-2",
+            externalThreadId: "U456",
+            displayName: "U456",
+            status: "OPEN",
+            lastMessageAt: "2026-06-14T01:05:00.000Z",
+            lineChannel: {
+              id: "line-channel-1",
+              name: "Main LINE",
+              badgeColor: "#0ea5e9",
+              lineChannelId: "1234567890"
+            },
+            messages: [
+              {
+                id: "message-preview-2",
+                direction: "INBOUND",
+                text: "new LINE message",
+                createdAt: "2026-06-14T01:05:00.000Z"
+              }
+            ]
+          }
+        ];
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -225,64 +232,67 @@ describe("InboxPage", () => {
 
   it("refreshes the selected message thread without a browser reload", async () => {
     jest.useFakeTimers();
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-1",
-              externalThreadId: "U123",
-              displayName: "Somchai LINE",
-              status: "OPEN",
-              lastMessageAt: "2026-06-14T01:00:00.000Z",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Main LINE",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
+    let messageFetchCount = 0;
+    const fetchMock = jest.fn((url: string) => {
+      if (url.includes("/api/v1/inbox/conversations/conversation-1/messages")) {
+        messageFetchCount++;
+        const data = messageFetchCount === 1
+          ? [
+              {
+                id: "message-1",
+                direction: "INBOUND",
+                text: "first message",
+                createdAt: "2026-06-14T01:00:00.000Z"
+              }
+            ]
+          : [
+              {
+                id: "message-1",
+                direction: "INBOUND",
+                text: "first message",
+                createdAt: "2026-06-14T01:00:00.000Z"
               },
-              messages: []
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-1",
-              direction: "INBOUND",
-              text: "first message",
-              createdAt: "2026-06-14T01:00:00.000Z"
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-1",
-              direction: "INBOUND",
-              text: "first message",
-              createdAt: "2026-06-14T01:00:00.000Z"
-            },
-            {
-              id: "message-2",
-              direction: "INBOUND",
-              text: "second live message",
-              createdAt: "2026-06-14T01:00:02.000Z"
-            }
-          ]
-        })
-      });
+              {
+                id: "message-2",
+                direction: "INBOUND",
+                text: "second live message",
+                createdAt: "2026-06-14T01:00:02.000Z"
+              }
+            ];
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data
+          })
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-1",
+                externalThreadId: "U123",
+                displayName: "Somchai LINE",
+                status: "OPEN",
+                lastMessageAt: "2026-06-14T01:00:00.000Z",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -446,60 +456,67 @@ describe("InboxPage", () => {
     const firstMessages = new Promise<{ success: true; data: unknown[] }>((resolve) => {
       resolveFirstMessages = resolve;
     });
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-a",
-              externalThreadId: "UA",
-              displayName: "Customer A",
-              status: "OPEN",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Main LINE",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
+    const fetchMock = jest.fn((url: string) => {
+      if (url.includes("/api/v1/inbox/conversations/conversation-a/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => firstMessages
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations/conversation-b/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "message-b",
+                direction: "INBOUND",
+                text: "fresh B message",
+                createdAt: "2026-06-14T01:00:02.000Z"
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-a",
+                externalThreadId: "UA",
+                displayName: "Customer A",
+                status: "OPEN",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
               },
-              messages: []
-            },
-            {
-              id: "conversation-b",
-              externalThreadId: "UB",
-              displayName: "Customer B",
-              status: "OPEN",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Main LINE",
-                badgeColor: "#0ea5e9",
-                lineChannelId: "1234567890"
-              },
-              messages: []
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () => firstMessages
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-b",
-              direction: "INBOUND",
-              text: "fresh B message",
-              createdAt: "2026-06-14T01:00:02.000Z"
-            }
-          ]
-        })
-      });
+              {
+                id: "conversation-b",
+                externalThreadId: "UB",
+                displayName: "Customer B",
+                status: "OPEN",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Main LINE",
+                  badgeColor: "#0ea5e9",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -533,71 +550,76 @@ describe("InboxPage", () => {
   });
 
   it("renders sticker messages and applies the LINE OA badge color", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-2",
-              externalThreadId: "U456",
-              displayName: "Customer Two",
-              status: "OPEN",
-              lastMessageAt: "2026-06-14T02:30:00.000Z",
-              lineChannel: {
-                id: "line-channel-2",
-                name: "Line OA 2",
-                badgeColor: "#16a34a",
-                lineChannelId: "1656471223"
-              },
-              messages: [
-                {
-                  id: "message-preview-sticker",
-                  direction: "INBOUND",
-                  type: "STICKER",
-                  text: null,
-                  rawPayload: {
-                    message: {
-                      id: "sticker-msg-1",
-                      type: "sticker",
-                      packageId: "11538",
-                      stickerId: "51626494"
-                    }
-                  },
-                  createdAt: "2026-06-14T02:30:00.000Z"
-                }
-              ]
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-sticker",
-              direction: "INBOUND",
-              type: "STICKER",
-              text: null,
-              createdAt: "2026-06-14T02:30:00.000Z",
-              rawPayload: {
-                source: { type: "user", userId: "U456" },
-                message: {
-                  id: "sticker-msg-1",
-                  type: "sticker",
-                  packageId: "11538",
-                  stickerId: "51626494",
-                  stickerResourceType: "STATIC"
+    const fetchMock = jest.fn((url: string) => {
+      if (url.includes("/api/v1/inbox/conversations/conversation-2/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "message-sticker",
+                direction: "INBOUND",
+                type: "STICKER",
+                text: null,
+                createdAt: "2026-06-14T02:30:00.000Z",
+                rawPayload: {
+                  source: { type: "user", userId: "U456" },
+                  message: {
+                    id: "sticker-msg-1",
+                    type: "sticker",
+                    packageId: "11538",
+                    stickerId: "51626494",
+                    stickerResourceType: "STATIC"
+                  }
                 }
               }
-            }
-          ]
-        })
-      });
+            ]
+          })
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-2",
+                externalThreadId: "U456",
+                displayName: "Customer Two",
+                status: "OPEN",
+                lastMessageAt: "2026-06-14T02:30:00.000Z",
+                lineChannel: {
+                  id: "line-channel-2",
+                  name: "Line OA 2",
+                  badgeColor: "#16a34a",
+                  lineChannelId: "1656471223"
+                },
+                messages: [
+                  {
+                    id: "message-preview-sticker",
+                    direction: "INBOUND",
+                    type: "STICKER",
+                    text: null,
+                    rawPayload: {
+                      message: {
+                        id: "sticker-msg-1",
+                        type: "sticker",
+                        packageId: "11538",
+                        stickerId: "51626494"
+                      }
+                    },
+                    createdAt: "2026-06-14T02:30:00.000Z"
+                  }
+                ]
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -778,53 +800,82 @@ describe("InboxPage", () => {
   });
 
   it("changes a conversation to in progress, shows a running timer, and saves the alert threshold", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
+    let mockAlertMinutes = 10;
+    let mockStatus = "OPEN";
+    let mockInProgressStartedAt: string | null = null;
+
+    const fetchMock = jest.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      const method = init?.method?.toUpperCase() ?? "GET";
+      
+      if (url.includes("/api/v1/inbox/conversations/conversation-1/status")) {
+        mockStatus = "IN_PROGRESS";
+        mockInProgressStartedAt = "2026-06-14T01:00:00.000Z";
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
               id: "conversation-1",
-              externalThreadId: "U123",
-              displayName: "Customer A",
-              status: "OPEN",
-              inProgressStartedAt: null,
-              lastMessageAt: "2026-06-14T01:00:00.000Z",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Line OA 1",
-                badgeColor: "#4f46e5",
-                lineChannelId: "1234567890"
-              },
-              messages: []
+              status: mockStatus,
+              inProgressStartedAt: mockInProgressStartedAt
             }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
+          })
+        };
+      }
+      
+      if (url.includes("/api/v1/inbox/conversations")) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-1",
+                externalThreadId: "U123",
+                displayName: "Customer A",
+                status: mockStatus,
+                inProgressStartedAt: mockInProgressStartedAt,
+                lastMessageAt: "2026-06-14T01:00:00.000Z",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Line OA 1",
+                  badgeColor: "#4f46e5",
+                  lineChannelId: "1234567890"
+                },
+                messages: []
+              }
+            ]
+          })
+        };
+      }
+
+      if (url.includes("/api/v1/inbox/settings")) {
+        if (method === "PATCH") {
+          const body = JSON.parse(init?.body as string);
+          mockAlertMinutes = body.inProgressAlertMinutes;
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: { inProgressAlertMinutes: mockAlertMinutes }
+            })
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: { inProgressAlertMinutes: mockAlertMinutes }
+          })
+        };
+      }
+      
+      return {
         ok: true,
         json: async () => ({ success: true, data: [] })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: {
-            id: "conversation-1",
-            status: "IN_PROGRESS",
-            inProgressStartedAt: "2026-06-14T01:00:00.000Z"
-          }
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: { inProgressAlertMinutes: 5 }
-        })
-      });
+      };
+    });
+
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -886,33 +937,43 @@ describe("InboxPage", () => {
       },
       messages: []
     }));
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
+
+    const fetchMock = jest.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/v1/inbox/conversations")) {
+        if (url.includes("offset=10")) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: [
+                {
+                  id: "conversation-11",
+                  externalThreadId: "U11",
+                  displayName: "Customer 11",
+                  status: "OPEN",
+                  lineChannel: {
+                    id: "line-channel-1",
+                    name: "Line OA 1",
+                    badgeColor: "#4f46e5",
+                    lineChannelId: "1234567890"
+                  },
+                  messages: []
+                }
+              ]
+            })
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: firstPage })
+        };
+      }
+      return {
         ok: true,
-        json: async () => ({ success: true, data: firstPage })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-11",
-              externalThreadId: "U11",
-              displayName: "Customer 11",
-              status: "OPEN",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Line OA 1",
-                badgeColor: "#4f46e5",
-                lineChannelId: "1234567890"
-              },
-              messages: []
-            }
-          ]
-        })
-      });
+        json: async () => ({ success: true, data: [] })
+      };
+    });
+
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock

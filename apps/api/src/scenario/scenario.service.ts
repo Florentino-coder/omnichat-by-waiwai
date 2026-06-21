@@ -231,6 +231,16 @@ export class ScenarioService {
     tenantId: string,
     context: ScenarioMatchContext
   ): Promise<ScenarioMatchResult> {
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId }
+    });
+    if (settings?.enableAiScenarios === false) {
+      return {
+        scenario: null,
+        instructions: "AI suggestions are disabled for this tenant."
+      };
+    }
+
     const scenarios = await this.listEnabledScenarios(tenantId, context.lineChannelId);
     const scenario = pickBestMatchingScenario(scenarios, context);
 
@@ -322,7 +332,7 @@ export class ScenarioService {
     const priority = this.resolvePriority(scenario);
     if (priority) {
       await this.prisma.conversation.update({
-        where: { id: conversation.id },
+        where: { id: conversation.id, tenantId },
         data: { priority }
       });
       appliedActions.push(`priority:${priority}`);

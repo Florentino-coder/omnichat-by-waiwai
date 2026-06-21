@@ -321,6 +321,7 @@ export class LineWebhookService {
 
       if (
         this.scenarioService &&
+        process.env.DISABLE_AI_SCENARIOS !== "true" &&
         messageType === MessageType.TEXT &&
         lineMessage.text?.trim()
       ) {
@@ -392,7 +393,8 @@ export class LineWebhookService {
               AutomationTriggerType.OFF_HOURS,
               {
                 lineChannelId: channel.id,
-                messageText: lineMessage.text
+                messageText: lineMessage.text,
+                skipRuleIds: resumedRuleIds
               }
             )
             .catch((error: unknown) => {

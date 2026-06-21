@@ -21,6 +21,7 @@ import { TenantGuard } from "../auth/guards/tenant.guard";
 import { JwtTenantPayload } from "../auth/types/auth.types";
 import { CreateKnowledgeDocumentDto } from "./dto/create-knowledge-document.dto";
 import { CreateKnowledgeDocumentFromUrlDto } from "./dto/create-knowledge-document-from-url.dto";
+import { ReindexKnowledgeDocumentsDto } from "./dto/reindex-knowledge-documents.dto";
 import { KnowledgeDocumentService } from "./knowledge-document.service";
 import { UploadedKnowledgeFile } from "./knowledge-upload.types";
 
@@ -77,6 +78,15 @@ export class KnowledgeDocumentController {
     @Body() dto: CreateKnowledgeDocumentFromUrlDto
   ): Promise<KnowledgeDocument> {
     return this.knowledgeDocumentService.createFromUrl(ctx.tenantId, ctx.sub, dto);
+  }
+
+  @Post("reindex")
+  @Roles(Role.OWNER, Role.ADMIN)
+  requestReindex(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Body() dto: ReindexKnowledgeDocumentsDto
+  ): Promise<{ queuedCount: number }> {
+    return this.knowledgeDocumentService.requestReindex(ctx.tenantId, ctx.sub, dto);
   }
 
   @Get(":id")

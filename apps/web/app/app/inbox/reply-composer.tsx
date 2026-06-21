@@ -9,8 +9,9 @@ import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
 type AiSuggestionResponse = {
-  suggestion_id: string;
-  suggestion_text: string;
+  mode?: "llm" | "knowledge_only";
+  suggestion_id: string | null;
+  suggestion_text: string | null;
   knowledge_citations?: Array<{
     type: "article" | "document";
     title: string;
@@ -73,6 +74,7 @@ export function ReplyComposer({
   >([]);
   const [rateLimitLock, setRateLimitLock] = useState(false);
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+  const [knowledgeOnlyMode, setKnowledgeOnlyMode] = useState(false);
 
   useEffect(() => {
     let timer: number;
@@ -97,6 +99,7 @@ export function ReplyComposer({
     setSuggestionId(null);
     setLastSuggestionText(null);
     setKnowledgeCitations([]);
+    setKnowledgeOnlyMode(false);
   }, [conversationId]);
 
   // Fetch all saved replies for autocomplete
@@ -183,6 +186,16 @@ export function ReplyComposer({
         }
       );
 
+      if (data.mode === "knowledge_only") {
+        setKnowledgeOnlyMode(true);
+        setSuggestionId(null);
+        setLastSuggestionText(null);
+        setKnowledgeCitations(data.knowledge_citations ?? []);
+        setError(null);
+        return;
+      }
+
+      setKnowledgeOnlyMode(false);
       setText(data.suggestion_text || "");
       setSuggestionId(data.suggestion_id);
       setLastSuggestionText(data.suggestion_text || "");
@@ -224,7 +237,13 @@ export function ReplyComposer({
     setSuggestionId(null);
     setLastSuggestionText(null);
     setKnowledgeCitations([]);
+    setKnowledgeOnlyMode(false);
     setText("");
+  }
+
+  function handleDismissKnowledgeFallback() {
+    setKnowledgeOnlyMode(false);
+    setKnowledgeCitations([]);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -376,7 +395,19 @@ export function ReplyComposer({
         </div>
       </div>
       <div className="flex flex-col gap-3 p-5">
-        {suggestionId && knowledgeCitations.length > 0 ? (
+        {knowledgeOnlyMode ? (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-900">
+            <span className="flex-1">{t.knowledgeOnlyFallbackHint}</span>
+            <button
+              type="button"
+              className="rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-amber-800 transition-colors hover:bg-amber-100"
+              onClick={handleDismissKnowledgeFallback}
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
+        {(suggestionId || knowledgeOnlyMode) && knowledgeCitations.length > 0 ? (
           <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-indigo-900">
             <p className="mb-2 font-semibold">{t.knowledgeCitationsTitle}</p>
             <ul className="flex flex-wrap gap-2">

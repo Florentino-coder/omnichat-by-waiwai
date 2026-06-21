@@ -12,6 +12,7 @@ type MockPrisma = {
   conversation: {
     upsert: jest.Mock<Promise<unknown>, [unknown]>;
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
   };
   message: {
     upsert: jest.Mock<Promise<unknown>, [unknown]>;
@@ -35,7 +36,8 @@ const createPrisma = (): MockPrisma => ({
   },
   conversation: {
     upsert: jest.fn<Promise<unknown>, [unknown]>(),
-    findUnique: jest.fn<Promise<unknown>, [unknown]>()
+    findUnique: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn().mockResolvedValue(null)
   },
   message: {
     upsert: jest.fn<Promise<unknown>, [unknown]>()

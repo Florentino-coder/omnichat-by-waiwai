@@ -948,6 +948,10 @@ describe("InboxService", () => {
       jest.clearAllMocks();
       mockRedisService.client.incr.mockResolvedValue(1);
       mockLlmClient.generateReply.mockResolvedValue("AI Suggested Answer");
+      mockKnowledgeService.buildKnowledgeContextWithCitations.mockResolvedValue({
+        context: "ไม่มี",
+        citations: []
+      });
     });
 
     function setupAiSuggestPrisma(prisma: MockPrisma): void {
@@ -1065,6 +1069,7 @@ describe("InboxService", () => {
       const result = await service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any });
 
       expect(result).toEqual({
+        mode: "llm",
         suggestion_id: "sug-1",
         suggestion_text: "AI Suggested Answer",
         knowledge_citations: []
@@ -1198,6 +1203,72 @@ describe("InboxService", () => {
       expect(prisma.aiSuggestion.create).not.toHaveBeenCalled();
     });
 
+    it("should return knowledge_only fallback when LLM is rate limited and citations exist", async () => {
+      const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
+
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        tenantId: "tenant-1",
+        customerId: "cust-1",
+        customer: {
+          id: "cust-1",
+          displayName: "Somsak",
+          deletedAt: null
+        }
+      });
+      prisma.message.findMany.mockResolvedValue([]);
+      prisma.conversation.findMany.mockResolvedValue([]);
+      prisma.promptTemplate.findFirst.mockResolvedValue({
+        systemPrompt: "Default Prompt"
+      });
+
+      mockKnowledgeService.buildKnowledgeContextWithCitations.mockResolvedValueOnce({
+        context: "Shipping policy context",
+        citations: [
+          {
+            type: "document",
+            title: "Shipping FAQ",
+            score: 0.91,
+            excerpt: "Free shipping over 500 THB"
+          }
+        ]
+      });
+
+      mockLlmClient.generateReply.mockRejectedValue(new Error("Gemini API status 429: quota exceeded"));
+
+      const service = createService(prisma);
+      const result = await service.aiSuggest("tenant-1", "user-1", "conv-1", {
+        action_type: "generate" as any
+      });
+
+      expect(result).toEqual({
+        mode: "knowledge_only",
+        suggestion_id: null,
+        suggestion_text: null,
+        knowledge_citations: [
+          {
+            type: "document",
+            title: "Shipping FAQ",
+            score: 0.91,
+            excerpt: "Free shipping over 500 THB"
+          }
+        ]
+      });
+
+      expect(prisma.aiSuggestion.create).not.toHaveBeenCalled();
+      expect(prisma.usageCounter.upsert).not.toHaveBeenCalled();
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: AuditAction.AI_SUGGEST_FAILED,
+          metadata: expect.objectContaining({
+            mode: "knowledge_only",
+            errorCode: "AI_PROVIDER_RATE_LIMITED"
+          })
+        })
+      });
+    });
+
     it("should update status and final sent text of a suggestion", async () => {
       const prisma = createPrisma();
       
@@ -1283,6 +1354,7 @@ describe("InboxService", () => {
       });
 
       expect(result).toEqual({
+        mode: "llm",
         suggestion_id: "sug-2",
         suggestion_text: "Shorter answer",
         knowledge_citations: []

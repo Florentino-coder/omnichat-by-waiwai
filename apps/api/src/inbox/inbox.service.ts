@@ -71,6 +71,7 @@ type InboxConversationRow = Omit<InboxConversation, "unreadInboundMessageCount">
 export type InboxSettings = {
   inProgressAlertMinutes: number;
   enableAiSuggest: boolean;
+  enableAiScenarios: boolean;
   aiProvider: string;
   aiAgentGender: AiAgentGender;
 };
@@ -905,6 +906,7 @@ export class InboxService {
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
+        enableAiScenarios: true,
         aiProvider: true,
         aiAgentGender: true
       }
@@ -913,6 +915,7 @@ export class InboxService {
     return {
       inProgressAlertMinutes: settings?.inProgressAlertMinutes ?? 10,
       enableAiSuggest: settings?.enableAiSuggest ?? true,
+      enableAiScenarios: settings?.enableAiScenarios ?? true,
       aiProvider: settings?.aiProvider ?? "gemini",
       aiAgentGender: settings?.aiAgentGender ?? AiAgentGender.FEMALE
     };
@@ -929,18 +932,21 @@ export class InboxService {
         tenantId,
         inProgressAlertMinutes: dto.inProgressAlertMinutes ?? 10,
         enableAiSuggest: dto.enableAiSuggest ?? true,
+        enableAiScenarios: dto.enableAiScenarios ?? true,
         aiProvider: dto.aiProvider ?? "gemini",
         aiAgentGender: dto.aiAgentGender ?? AiAgentGender.FEMALE
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
         enableAiSuggest: dto.enableAiSuggest,
+        enableAiScenarios: dto.enableAiScenarios,
         aiProvider: dto.aiProvider,
         aiAgentGender: dto.aiAgentGender
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
+        enableAiScenarios: true,
         aiProvider: true,
         aiAgentGender: true
       }
@@ -956,6 +962,7 @@ export class InboxService {
         metadata: {
           inProgressAlertMinutes: dto.inProgressAlertMinutes,
           enableAiSuggest: dto.enableAiSuggest,
+          enableAiScenarios: dto.enableAiScenarios,
           aiProvider: dto.aiProvider,
           aiAgentGender: dto.aiAgentGender
         }
@@ -1429,6 +1436,26 @@ export class InboxService {
       suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
     } catch (llmError) {
       const errorCode = this.extractLlmErrorCode(llmError);
+      if (
+        this.shouldOfferKnowledgeOnlyFallback(errorCode) &&
+        knowledgeResult.citations.length > 0
+      ) {
+        await this.logAiSuggestFailure(tenantId, userId, {
+          conversationId,
+          actionType,
+          provider,
+          errorCode,
+          mode: "knowledge_only"
+        });
+
+        return {
+          mode: "knowledge_only" as const,
+          suggestion_id: null,
+          suggestion_text: null,
+          knowledge_citations: knowledgeResult.citations
+        };
+      }
+
       await this.logAiSuggestFailure(tenantId, userId, {
         conversationId,
         actionType,
@@ -1486,6 +1513,7 @@ export class InboxService {
     });
 
     return {
+      mode: "llm" as const,
       suggestion_id: suggestion.id,
       suggestion_text: suggestionText,
       knowledge_citations: knowledgeResult.citations
@@ -1852,6 +1880,12 @@ export class InboxService {
       return process.env.CLAUDE_MODEL || "claude-3-5-haiku-20241022";
     }
     return process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  }
+
+  private shouldOfferKnowledgeOnlyFallback(errorCode: string): boolean {
+    return (
+      errorCode === "AI_PROVIDER_RATE_LIMITED" || errorCode === "AI_PROVIDER_NOT_CONFIGURED"
+    );
   }
 
   private buildLlmHttpException(llmError: unknown): HttpException {

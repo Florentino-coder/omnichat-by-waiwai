@@ -10,6 +10,7 @@ import { getMessages, type Locale } from "../../lib/i18n";
 type AiSettingsData = {
   inProgressAlertMinutes: number;
   enableAiSuggest: boolean;
+  enableAiScenarios: boolean;
   aiProvider: string;
   aiAgentGender: "FEMALE" | "MALE";
 };
@@ -72,6 +73,7 @@ export function AiSettings() {
   const [settings, setSettings] = useState<AiSettingsData>({
     inProgressAlertMinutes: 10,
     enableAiSuggest: true,
+    enableAiScenarios: true,
     aiProvider: "gemini",
     aiAgentGender: "FEMALE"
   });
@@ -164,6 +166,7 @@ export function AiSettings() {
         body: JSON.stringify({
           inProgressAlertMinutes: settings.inProgressAlertMinutes,
           enableAiSuggest: settings.enableAiSuggest,
+          enableAiScenarios: settings.enableAiScenarios,
           aiProvider: settings.aiProvider,
           aiAgentGender: settings.aiAgentGender
         })
@@ -276,7 +279,7 @@ export function AiSettings() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
           <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
             {t.aiSuggestedReplySystem}
@@ -291,6 +294,22 @@ export function AiSettings() {
             />
           </div>
           <p className="text-xs text-[#767A8C] mt-2">{t.aiSuggestedReplyHint}</p>
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
+          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+            {t.aiScenarioEngineSystem}
+          </label>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-sm font-semibold text-[#16182B]">{t.aiEnableScenarioEngine}</span>
+            <input
+              type="checkbox"
+              checked={settings.enableAiScenarios}
+              onChange={(e) => setSettings({ ...settings, enableAiScenarios: e.target.checked })}
+              className="h-5 w-5 rounded border-[#DEDDE6] text-[#4636D7] focus:ring-[#4636D7] cursor-pointer"
+            />
+          </div>
+          <p className="text-xs text-[#767A8C] mt-2">{t.aiScenarioEngineHint}</p>
         </div>
 
         <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">

@@ -24,7 +24,8 @@ describe("AutomationService", () => {
       findMany: jest.fn()
     },
     automationRun: {
-      create: jest.fn()
+      create: jest.fn(),
+      findMany: jest.fn()
     }
   };
 
@@ -47,6 +48,7 @@ describe("AutomationService", () => {
     prisma.lineChannel.findFirst.mockResolvedValue({ id: "channel-1" });
     prisma.auditLog.create.mockResolvedValue({});
     prisma.automationRun.create.mockResolvedValue({ id: "run-1" });
+    prisma.automationRun.findMany.mockResolvedValue([]);
     automationQueueService.enqueueStep.mockResolvedValue(undefined);
   });
 
@@ -118,5 +120,22 @@ describe("AutomationService", () => {
         stepIndex: 0
       })
     );
+  });
+
+  it("resumes multiple waiting runs", async () => {
+    const runs = [
+      { id: "run-10", currentStepIndex: 1, ruleId: "rule-10" },
+      { id: "run-20", currentStepIndex: 2, ruleId: "rule-20" }
+    ];
+    prisma.automationRun.findMany.mockResolvedValue(runs);
+    automationEngineService.processRunStep.mockResolvedValue(undefined);
+
+    const result = await service.resumeWaitingRuns("tenant-1", "conv-1", "msg-1");
+
+    expect(prisma.automationRun.findMany).toHaveBeenCalled();
+    expect(automationEngineService.processRunStep).toHaveBeenCalledTimes(2);
+    expect(automationEngineService.processRunStep).toHaveBeenNthCalledWith(1, "run-10", 1);
+    expect(automationEngineService.processRunStep).toHaveBeenNthCalledWith(2, "run-20", 2);
+    expect(result).toEqual(["rule-10", "rule-20"]);
   });
 });

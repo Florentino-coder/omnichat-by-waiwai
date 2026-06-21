@@ -156,6 +156,10 @@ export const messages = {
     statusFailed: "ล้มเหลว",
     statusIndexing: "กำลัง index",
     reindex: "Re-index",
+    reindexAll: "Re-index ทั้งหมด",
+    reindexAllConfirm:
+      "Re-index เอกสารทั้งหมดในขอบเขตที่เลือก? ระบบจะลบ chunks เดิมแล้ว index ใหม่",
+    lastIndexedAt: "index ล่าสุด",
     deleteDocumentConfirm: "ลบเอกสารและ chunks ทั้งหมด?",
     loadDocumentsError: "โหลดเอกสารไม่สำเร็จ",
     saveDocumentError: "index เอกสารไม่สำเร็จ",
@@ -290,12 +294,18 @@ export const messages = {
       "โควต้า AI ของ Google Gemini วันนี้เต็มแล้ว (free tier ~20 ครั้ง/วัน) ลองพรุ่งนี้หรือเปิด billing ที่ Google AI",
     aiProviderNotConfigured:
       "ยังไม่ได้ตั้งค่า AI API key บนเซิร์ฟเวอร์ ติดต่อผู้ดูแลระบบ",
+    knowledgeOnlyFallbackHint:
+      "โควต้า AI เต็มแล้ว — แสดงแหล่งอ้างอิงจาก Knowledge เท่านั้น กรุณาร่างคำตอบเองจากข้อมูลด้านล่าง",
     aiCreditSettingsHint:
       "โควต้า AI ไม่พร้อมใช้งาน ตรวจสอบแผนและการใช้งานใน Settings > AI",
     aiSuggestedReplySystem: "ระบบร่างคำตอบอัจฉริยะ",
     aiEnableSuggestedReply: "เปิดใช้งาน AI Suggested Reply",
     aiSuggestedReplyHint:
       'เปิดหรือปิดการแสดงปุ่ม "✨ AI ร่างคำตอบ" ในหน้าแชทของตัวแทน',
+    aiScenarioEngineSystem: "ระบบคัดแยกและจัดการอัตโนมัติ",
+    aiEnableScenarioEngine: "เปิดใช้งาน AI Scenario Engine",
+    aiScenarioEngineHint:
+      "เปิดหรือปิดการตรวจจับ Keyword และ Tag อัตโนมัติด้วย Scenario Engine",
     aiLlmProvider: "ผู้ให้บริการโมเดล AI (LLM)",
     aiProviderGemini: "Google Gemini (เสถียรที่สุด)",
     aiProviderOpenai: "OpenAI GPT",
@@ -488,6 +498,10 @@ export const messages = {
     statusFailed: "failed",
     statusIndexing: "indexing",
     reindex: "Re-index",
+    reindexAll: "Re-index all",
+    reindexAllConfirm:
+      "Re-index all documents in the selected scope? Existing chunks will be removed and rebuilt.",
+    lastIndexedAt: "Last indexed",
     deleteDocumentConfirm: "Delete this document and all chunks?",
     loadDocumentsError: "Failed to load knowledge documents",
     saveDocumentError: "Failed to index knowledge document",
@@ -622,12 +636,18 @@ export const messages = {
       "Google Gemini daily quota is exhausted (free tier ~20 requests/day). Try again tomorrow or enable billing.",
     aiProviderNotConfigured:
       "AI API key is not configured on the server. Contact your administrator.",
+    knowledgeOnlyFallbackHint:
+      "AI quota exhausted — showing Knowledge citations only. Draft your reply using the references below.",
     aiCreditSettingsHint:
       "AI credits unavailable. Check your plan and usage in Settings > AI.",
     aiSuggestedReplySystem: "Smart reply drafting",
     aiEnableSuggestedReply: "Enable AI Suggested Reply",
     aiSuggestedReplyHint:
       'Show or hide the "✨ AI draft reply" button in the agent chat view.',
+    aiScenarioEngineSystem: "AI Scenario Routing & Automation",
+    aiEnableScenarioEngine: "Enable AI Scenario Engine",
+    aiScenarioEngineHint:
+      "Enable or disable automated routing based on keywords/tags via Scenario Engine.",
     aiLlmProvider: "AI model provider (LLM)",
     aiProviderGemini: "Google Gemini (most stable)",
     aiProviderOpenai: "OpenAI GPT",

@@ -18,6 +18,9 @@ function isPrivateIpv4(host: string): boolean {
   if (parts[0] === 127) {
     return true;
   }
+  if (parts[0] === 169 && parts[1] === 254) {
+    return true;
+  }
   if (parts[0] === 192 && parts[1] === 168) {
     return true;
   }
@@ -37,8 +40,8 @@ export function assertSafePublicUrl(sourceUrl: string): URL {
     throw new BadRequestException("Invalid URL");
   }
 
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new BadRequestException("Only http and https URLs are allowed");
+  if (parsed.protocol !== "https:") {
+    throw new BadRequestException("Only https URLs are allowed");
   }
 
   const host = parsed.hostname.toLowerCase();
@@ -68,8 +71,17 @@ export async function fetchPublicUrlText(sourceUrl: string): Promise<string> {
       throw new BadRequestException(`Failed to fetch URL (${response.status})`);
     }
 
+    const contentLength = Number(response.headers.get("content-length"));
+    if (contentLength && contentLength > 5 * 1024 * 1024) {
+      throw new BadRequestException("Response size exceeds limit (5MB)");
+    }
+
     const contentType = response.headers.get("content-type") ?? "";
     const body = await response.text();
+
+    if (body.length > 5 * 1024 * 1024) {
+      throw new BadRequestException("Response size exceeds limit (5MB)");
+    }
 
     if (contentType.includes("text/html") || body.includes("<html")) {
       return body;

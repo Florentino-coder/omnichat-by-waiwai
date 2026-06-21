@@ -7,6 +7,7 @@ import {
   NotFoundException,
   forwardRef
 } from "@nestjs/common";
+import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import {
   AuditAction,
   FileType,
@@ -20,6 +21,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { CreateKnowledgeDocumentDto } from "./dto/create-knowledge-document.dto";
 import { CreateKnowledgeDocumentFromUrlDto } from "./dto/create-knowledge-document-from-url.dto";
+import { ReindexKnowledgeDocumentsDto } from "./dto/reindex-knowledge-documents.dto";
 import { EmbeddingService } from "./embedding.service";
 import { KnowledgeIngestQueueService } from "./knowledge-ingest-queue.service";
 import { splitTextIntoChunks } from "./knowledge-chunk.util";
@@ -103,6 +105,7 @@ export class KnowledgeDocumentService {
     userId: string,
     dto: CreateKnowledgeDocumentDto
   ): Promise<KnowledgeDocument> {
+    await this.assertPlanAllowsAi(tenantId);
     if (dto.lineChannelId) {
       await this.assertLineChannelBelongsToTenant(tenantId, dto.lineChannelId);
     }
@@ -129,6 +132,7 @@ export class KnowledgeDocumentService {
     title: string,
     lineChannelId?: string
   ): Promise<KnowledgeDocument> {
+    await this.assertPlanAllowsAi(tenantId);
     if (!file?.buffer?.length) {
       throw new BadRequestException("File is required");
     }
@@ -183,6 +187,7 @@ export class KnowledgeDocumentService {
     userId: string,
     dto: CreateKnowledgeDocumentFromUrlDto
   ): Promise<KnowledgeDocument> {
+    await this.assertPlanAllowsAi(tenantId);
     if (dto.lineChannelId) {
       await this.assertLineChannelBelongsToTenant(tenantId, dto.lineChannelId);
     }
@@ -216,23 +221,54 @@ export class KnowledgeDocumentService {
     id: string
   ): Promise<KnowledgeDocument> {
     const document = await this.findOne(tenantId, id);
+    await this.queueDocumentForReindex(tenantId, userId, document, {
+      scope: "single",
+      documentId: document.id
+    });
+    return this.findOne(tenantId, document.id);
+  }
 
-    await this.prisma.knowledgeDocument.update({
-      where: { id: document.id },
+  async requestReindex(
+    tenantId: string,
+    userId: string,
+    dto: ReindexKnowledgeDocumentsDto
+  ): Promise<{ queuedCount: number }> {
+    const hasDocumentIds = Boolean(dto.documentIds?.length);
+    if (!dto.all && !dto.lineChannelId && !hasDocumentIds) {
+      throw new BadRequestException(
+        "Specify documentIds, lineChannelId, or all=true for re-index"
+      );
+    }
+
+    if (dto.lineChannelId) {
+      await this.assertLineChannelBelongsToTenant(tenantId, dto.lineChannelId);
+    }
+
+    const documents = await this.findDocumentsForReindex(tenantId, dto);
+    if (documents.length === 0) {
+      return { queuedCount: 0 };
+    }
+
+    for (const document of documents) {
+      await this.queueDocumentForReindex(tenantId, userId, document);
+    }
+
+    await this.prisma.auditLog.create({
       data: {
-        status: KnowledgeDocumentStatus.PENDING,
-        errorMessage: null
-      }
-    });
-
-    await this.prisma.knowledgeChunk.deleteMany({
-      where: {
         tenantId,
-        documentId: document.id
+        userId,
+        action: AuditAction.KNOWLEDGE_DOCUMENT_REINDEX_REQUESTED,
+        targetType: "KnowledgeDocument",
+        metadata: {
+          scope: dto.all ? "all" : dto.lineChannelId ? "lineChannel" : "documentIds",
+          lineChannelId: dto.lineChannelId ?? null,
+          documentIds: dto.documentIds ?? null,
+          queuedCount: documents.length
+        }
       }
     });
 
-    return this.scheduleIngest(tenantId, userId, document.id);
+    return { queuedCount: documents.length };
   }
 
   async deleteDocument(
@@ -377,6 +413,87 @@ export class KnowledgeDocumentService {
     }
   }
 
+  private async queueDocumentForReindex(
+    tenantId: string,
+    userId: string,
+    document: KnowledgeDocument,
+    auditMetadata?: Record<string, unknown>
+  ): Promise<void> {
+    await this.prisma.knowledgeDocument.update({
+      where: { id: document.id },
+      data: {
+        status: KnowledgeDocumentStatus.PENDING,
+        errorMessage: null
+      }
+    });
+
+    await this.prisma.knowledgeChunk.deleteMany({
+      where: {
+        tenantId,
+        documentId: document.id
+      }
+    });
+
+    await this.scheduleIngest(tenantId, userId, document.id);
+
+    if (auditMetadata) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: AuditAction.KNOWLEDGE_DOCUMENT_REINDEX_REQUESTED,
+          targetType: "KnowledgeDocument",
+          targetId: document.id,
+          metadata: {
+            title: document.title,
+            ...auditMetadata
+          }
+        }
+      });
+    }
+  }
+
+  private async findDocumentsForReindex(
+    tenantId: string,
+    dto: ReindexKnowledgeDocumentsDto
+  ): Promise<KnowledgeDocument[]> {
+    if (dto.all) {
+      return this.prisma.knowledgeDocument.findMany({
+        where: {
+          tenantId,
+          deletedAt: null
+        }
+      });
+    }
+
+    if (dto.lineChannelId) {
+      return this.prisma.knowledgeDocument.findMany({
+        where: {
+          tenantId,
+          deletedAt: null,
+          OR: [{ lineChannelId: null }, { lineChannelId: dto.lineChannelId }]
+        }
+      });
+    }
+
+    const documentIds = dto.documentIds ?? [];
+    return this.prisma.knowledgeDocument.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        id: { in: documentIds }
+      }
+    });
+  }
+
+  private formatIngestError(error: unknown): string {
+    const message = error instanceof Error ? error.message : "Ingest failed";
+    if (/status 429|rate limit|quota/i.test(message)) {
+      return "Embedding provider daily quota exceeded. Re-index later or upgrade your API plan.";
+    }
+    return message;
+  }
+
   private async scheduleIngest(
     tenantId: string,
     userId: string,
@@ -460,7 +577,7 @@ export class KnowledgeDocumentService {
 
       return updated;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Ingest failed";
+      const message = this.formatIngestError(error);
       await this.markIngestFailed(tenantId, userId, document.id, message);
       if (throwOnFailure) {
         throw new BadRequestException(message);
@@ -601,6 +718,25 @@ export class KnowledgeDocumentService {
 
     if (!lineChannel) {
       throw new NotFoundException("LINE channel not found");
+    }
+  }
+
+  private async assertPlanAllowsAi(tenantId: string): Promise<void> {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { planId: true }
+    });
+    const limits = tenant
+      ? await this.prisma.planLimit.findUnique({
+          where: { planId: tenant.planId }
+        })
+      : null;
+    if (!limits || limits.maxAiCreditsPerMonth <= 0) {
+      throw new PlanLimitExceededException("AI Knowledge Base features are not available on your plan.", {
+        planId: tenant?.planId ?? "unknown",
+        limit: limits?.maxAiCreditsPerMonth ?? 0,
+        metric: "max_ai_credits_per_month"
+      });
     }
   }
 }

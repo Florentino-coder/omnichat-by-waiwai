@@ -31,6 +31,9 @@ describe("ScenarioService", () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn()
+    },
+    tenantSettings: {
+      findUnique: jest.fn()
     }
   };
 
@@ -39,6 +42,7 @@ describe("ScenarioService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.auditLog.create.mockResolvedValue({});
+    prisma.tenantSettings.findUnique.mockResolvedValue({ enableAiScenarios: true });
   });
 
   it("creates scenario with audit log", async () => {
@@ -141,7 +145,7 @@ describe("ScenarioService", () => {
 
     expect(prisma.conversationTagLink.create).toHaveBeenCalled();
     expect(prisma.conversation.update).toHaveBeenCalledWith({
-      where: { id: "conv-1" },
+      where: { id: "conv-1", tenantId: "tenant-1" },
       data: { priority: ConversationPriority.HIGH }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({

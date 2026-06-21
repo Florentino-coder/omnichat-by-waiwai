@@ -18,8 +18,23 @@ export class KnowledgeTextExtractionService {
     }
   }
 
+  validateBufferContent(buffer: Buffer, mimeType: string): void {
+    if (mimeType === "application/pdf") {
+      if (buffer.length < 4 || buffer.readUInt32BE(0) !== 0x25504446) {
+        throw new BadRequestException("Invalid PDF file structure (magic bytes mismatch)");
+      }
+    } else if (
+      mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      if (buffer.length < 2 || buffer.readUInt16BE(0) !== 0x504B) {
+        throw new BadRequestException("Invalid DOCX file structure (magic bytes mismatch)");
+      }
+    }
+  }
+
   async extractFromBuffer(buffer: Buffer, mimeType: string): Promise<string> {
     this.assertAllowedUploadMimeType(mimeType);
+    this.validateBufferContent(buffer, mimeType);
 
     let text = "";
 
@@ -27,7 +42,11 @@ export class KnowledgeTextExtractionService {
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       try {
-        const parsed = await parser.getText();
+        const parsePromise = parser.getText();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("PDF parsing timeout")), 30000)
+        );
+        const parsed = await Promise.race([parsePromise, timeoutPromise]);
         text = parsed.text ?? "";
       } finally {
         await parser.destroy();

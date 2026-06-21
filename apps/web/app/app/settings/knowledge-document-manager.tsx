@@ -58,6 +58,17 @@ function statusLabel(
   return t.statusIndexing;
 }
 
+function formatLastIndexed(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
+function canReindexDocument(status: KnowledgeDocument["status"]): boolean {
+  return status === "READY" || status === "FAILED";
+}
+
 export function KnowledgeDocumentManager() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
@@ -71,6 +82,7 @@ export function KnowledgeDocumentManager() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [reindexingId, setReindexingId] = useState<string | null>(null);
+  const [isReindexingAll, setIsReindexingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canEdit = role === "OWNER" || role === "ADMIN" || role === "AGENT";
@@ -242,6 +254,30 @@ export function KnowledgeDocumentManager() {
       setError(readMessage(reindexError, t.reindexError));
     } finally {
       setReindexingId(null);
+    }
+  }
+
+  async function handleReindexAll() {
+    if (!canDelete || !window.confirm(t.reindexAllConfirm)) {
+      return;
+    }
+
+    setIsReindexingAll(true);
+    setError(null);
+    try {
+      const payload =
+        selectedChannelId === "all"
+          ? { all: true }
+          : { lineChannelId: selectedChannelId };
+      await apiFetch("/api/v1/knowledge/documents/reindex", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      await loadDocuments(selectedChannelId);
+    } catch (reindexError) {
+      setError(readMessage(reindexError, t.reindexError));
+    } finally {
+      setIsReindexingAll(false);
     }
   }
 
@@ -438,9 +474,23 @@ export function KnowledgeDocumentManager() {
       )}
 
       <div className="space-y-3">
-        <h3 className="font-semibold text-[#16182B]">
-          {t.documentCount} ({sortedDocuments.length})
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="font-semibold text-[#16182B]">
+            {t.documentCount} ({sortedDocuments.length})
+          </h3>
+          {canDelete && sortedDocuments.length > 0 ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={isReindexingAll || isLoading}
+              onClick={() => void handleReindexAll()}
+            >
+              <RefreshCw size={14} className="mr-1" />
+              {isReindexingAll ? "..." : t.reindexAll}
+            </Button>
+          ) : null}
+        </div>
         {isLoading ? (
           <p className="text-sm text-[#767A8C]">{t.loading}</p>
         ) : sortedDocuments.length === 0 ? (
@@ -462,17 +512,22 @@ export function KnowledgeDocumentManager() {
                       <span className="text-xs text-[#767A8C]">{document.chunkCount} chunks</span>
                     ) : null}
                   </div>
+                  {canReindexDocument(document.status) ? (
+                    <p className="text-xs text-[#767A8C]">
+                      {t.lastIndexedAt}: {formatLastIndexed(document.updatedAt, locale)}
+                    </p>
+                  ) : null}
                   {document.errorMessage ? (
                     <p className="text-xs text-red-600">{document.errorMessage}</p>
                   ) : null}
                 </div>
-                {canEdit ? (
+                {canEdit && canReindexDocument(document.status) ? (
                   <div className="flex gap-2">
                     <Button
                       type="button"
                       variant="secondary"
                       size="sm"
-                      disabled={reindexingId === document.id}
+                      disabled={reindexingId === document.id || isReindexingAll}
                       onClick={() => void handleReindex(document.id)}
                     >
                       <RefreshCw size={14} className="mr-1" />

@@ -312,9 +312,12 @@ export class AutomationService {
       return [];
     }
 
-    const run = runs[0];
-    await this.automationEngineService.processRunStep(run.id, run.currentStepIndex);
-    return [run.ruleId];
+    const resumedRuleIds: string[] = [];
+    for (const run of runs) {
+      await this.automationEngineService.processRunStep(run.id, run.currentStepIndex);
+      resumedRuleIds.push(run.ruleId);
+    }
+    return resumedRuleIds;
   }
 
   private async listEnabledRules(
