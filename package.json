@@ -21,6 +21,7 @@
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev --name init-stage1",
     "prisma:seed": "prisma db seed",
+    "prisma:resolve:enable-ai-scenarios": "node scripts/resolve-enable-ai-scenarios-migration.mjs",
     "test": "npm run api:test && npm run web:test",
     "test:cov": "npm run api:test:cov",
     "ui:test": "jest --config apps/web/jest.config.cjs packages/ui",

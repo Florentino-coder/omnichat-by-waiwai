@@ -623,31 +623,38 @@ export function AutomationManager() {
           )}
 
           {form.triggerType === "OFF_HOURS" && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="auto-open-start">{t.businessHoursStart}</Label>
-                <Input
-                  id="auto-open-start"
-                  type="number"
-                  min={0}
-                  max={23}
-                  value={form.offHourStart}
-                  onChange={(event) => setForm({ ...form, offHourStart: event.target.value })}
-                  required
-                />
+            <div className="space-y-3">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="auto-open-start">{t.businessHoursStart}</Label>
+                  <Input
+                    id="auto-open-start"
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={form.offHourStart}
+                    onChange={(event) => setForm({ ...form, offHourStart: event.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="auto-open-end">{t.businessHoursEnd}</Label>
+                  <Input
+                    id="auto-open-end"
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={form.offHourEnd}
+                    onChange={(event) => setForm({ ...form, offHourEnd: event.target.value })}
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="auto-open-end">{t.businessHoursEnd}</Label>
-                <Input
-                  id="auto-open-end"
-                  type="number"
-                  min={0}
-                  max={23}
-                  value={form.offHourEnd}
-                  onChange={(event) => setForm({ ...form, offHourEnd: event.target.value })}
-                  required
-                />
-              </div>
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                {t.autoOffHoursHint
+                  .replace("{start}", form.offHourStart || "0")
+                  .replace("{end}", form.offHourEnd || "0")}
+              </p>
             </div>
           )}
 

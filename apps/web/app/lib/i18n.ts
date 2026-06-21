@@ -241,6 +241,8 @@ export const messages = {
     statusLabel: "สถานะ",
     businessHoursStart: "เวลาเปิด (0-23)",
     businessHoursEnd: "เวลาปิด (0-23)",
+    autoOffHoursHint:
+      "กฎนี้ยิงเฉพาะนอกเวลาทำการ (Asia/Bangkok). ไม่ยิงช่วง {start}:00–{end}:59 — ทดสอบกลางวันอาจไม่เห็นผล",
     stepsRunInOrder: "ขั้นตอน (รันตามลำดับ)",
     addStep: "เพิ่มขั้นตอน",
     stepN: "ขั้นตอน",
@@ -583,6 +585,8 @@ export const messages = {
     statusLabel: "Status",
     businessHoursStart: "Business hours start (0-23)",
     businessHoursEnd: "Business hours end (0-23)",
+    autoOffHoursHint:
+      "This rule fires only outside business hours (Asia/Bangkok). It does not fire during {start}:00–{end}:59 — daytime tests may show no effect.",
     stepsRunInOrder: "Steps (run in order)",
     addStep: "Add step",
     stepN: "Step",

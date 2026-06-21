@@ -15,6 +15,7 @@ import { LineReplyService } from "../line/line-reply.service";
 import { parseAutomationSteps } from "./automation-step.parser";
 import { AutomationStep, shouldWaitForCustomerReply } from "./automation-step.types";
 import { AutomationQueueService } from "./automation-queue.service";
+import { buildAutomationAuditLog } from "./automation-audit.util";
 
 @Injectable()
 export class AutomationEngineService {
@@ -61,17 +62,16 @@ export class AutomationEngineService {
 
     if (stepIndex === 0) {
       await this.prisma.auditLog.create({
-        data: {
-          tenantId: run.tenantId,
-          action: AuditAction.AUTOMATION_RUN_STARTED,
-          targetType: "AutomationRun",
-          targetId: run.id,
-          metadata: {
+        data: buildAutomationAuditLog(
+          run.tenantId,
+          AuditAction.AUTOMATION_RUN_STARTED,
+          { targetType: "AutomationRun", targetId: run.id },
+          {
             ruleId: run.ruleId,
             ruleName: run.rule.name,
             conversationId: run.conversationId
           }
-        }
+        )
       });
     }
 
@@ -100,17 +100,16 @@ export class AutomationEngineService {
       await this.executeStep(run.tenantId, run.conversationId, step);
 
       await this.prisma.auditLog.create({
-        data: {
-          tenantId: run.tenantId,
-          action: AuditAction.AUTOMATION_STEP_EXECUTED,
-          targetType: "AutomationRun",
-          targetId: run.id,
-          metadata: {
+        data: buildAutomationAuditLog(
+          run.tenantId,
+          AuditAction.AUTOMATION_STEP_EXECUTED,
+          { targetType: "AutomationRun", targetId: run.id },
+          {
             ruleId: run.ruleId,
             stepIndex,
             stepType: step.type
           }
-        }
+        )
       });
 
       const nextIndex = stepIndex + 1;
@@ -146,17 +145,16 @@ export class AutomationEngineService {
       });
 
       await this.prisma.auditLog.create({
-        data: {
-          tenantId: run.tenantId,
-          action: AuditAction.AUTOMATION_RUN_FAILED,
-          targetType: "AutomationRun",
-          targetId: run.id,
-          metadata: {
+        data: buildAutomationAuditLog(
+          run.tenantId,
+          AuditAction.AUTOMATION_RUN_FAILED,
+          { targetType: "AutomationRun", targetId: run.id },
+          {
             ruleId: run.ruleId,
             stepIndex,
             error: message
           }
-        }
+        )
       });
     }
   }
@@ -186,16 +184,15 @@ export class AutomationEngineService {
     });
 
     await this.prisma.auditLog.create({
-      data: {
+      data: buildAutomationAuditLog(
         tenantId,
-        action: AuditAction.AUTOMATION_RUN_COMPLETED,
-        targetType: "AutomationRun",
-        targetId: runId,
-        metadata: {
+        AuditAction.AUTOMATION_RUN_COMPLETED,
+        { targetType: "AutomationRun", targetId: runId },
+        {
           ruleId,
           conversationId
         }
-      }
+      )
     });
   }
 
@@ -273,17 +270,16 @@ export class AutomationEngineService {
     }
 
     await this.prisma.auditLog.create({
-      data: {
+      data: buildAutomationAuditLog(
         tenantId,
-        action: AuditAction.CONVERSATION_TAG_ADDED,
-        targetType: "Conversation",
-        targetId: conversationId,
-        metadata: {
+        AuditAction.CONVERSATION_TAG_ADDED,
+        { targetType: "Conversation", targetId: conversationId },
+        {
           tagId: tag.id,
           tagName: tag.name,
           source: "automation"
         }
-      }
+      )
     });
   }
 
@@ -318,16 +314,15 @@ export class AutomationEngineService {
     });
 
     await this.prisma.auditLog.create({
-      data: {
+      data: buildAutomationAuditLog(
         tenantId,
-        action: AuditAction.CONVERSATION_ASSIGNED,
-        targetType: "Conversation",
-        targetId: conversation.id,
-        metadata: {
+        AuditAction.CONVERSATION_ASSIGNED,
+        { targetType: "Conversation", targetId: conversation.id },
+        {
           assignedToMemberId: memberId,
           source: "automation"
         }
-      }
+      )
     });
   }
 
@@ -354,17 +349,16 @@ export class AutomationEngineService {
     });
 
     await this.prisma.auditLog.create({
-      data: {
+      data: buildAutomationAuditLog(
         tenantId,
-        action: AuditAction.CONVERSATION_PRIORITY_CHANGED,
-        targetType: "Conversation",
-        targetId: conversation.id,
-        metadata: {
+        AuditAction.CONVERSATION_PRIORITY_CHANGED,
+        { targetType: "Conversation", targetId: conversation.id },
+        {
           previousPriority: conversation.priority,
           priority,
           source: "automation"
         }
-      }
+      )
     });
   }
 
@@ -390,17 +384,16 @@ export class AutomationEngineService {
     });
 
     await this.prisma.auditLog.create({
-      data: {
+      data: buildAutomationAuditLog(
         tenantId,
-        action: AuditAction.CONVERSATION_STATUS_CHANGED,
-        targetType: "Conversation",
-        targetId: conversation.id,
-        metadata: {
+        AuditAction.CONVERSATION_STATUS_CHANGED,
+        { targetType: "Conversation", targetId: conversation.id },
+        {
           previousStatus: conversation.status,
           status: "RESOLVED",
           source: "automation"
         }
-      }
+      )
     });
   }
 
