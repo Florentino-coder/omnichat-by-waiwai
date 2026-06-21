@@ -345,7 +345,28 @@ export const messages = {
     aiPlaceholderScenario: "คำสั่งจาก AI Scenario ที่ match",
     aiPlaceholderHistory: "ประวัติแชทล่าสุด",
     aiPlaceholderDraft: "ข้อความที่พึ่งพิมพ์ร่างอยู่",
-    aiSaveSettings: "บันทึกการตั้งค่า AI"
+    aiSaveSettings: "บันทึกการตั้งค่า AI",
+    aiAutoReplySectionTitle: "AI ตอบแชทอัตโนมัติ (LINE)",
+    aiAutoReplySectionHint:
+      "เมื่อเปิดใช้งาน ระบบจะตอบลูกค้าบน LINE โดยอัตโนมัติโดยไม่ต้องกดปุ่มร่างคำตอบ — ทดสอบ Knowledge และ AI ก่อนเปิดจริง",
+    aiEnableAutoReply: "เปิด AI ตอบแชทอัตโนมัติ",
+    aiAutoReplyWarning:
+      "⚠️ ทดสอบ Knowledge (Re-index) และ AI Test ให้ครบก่อนเปิด — ตรวจสอบคำตอบผิดพลาดและคำขอ escalate เป็นประจำ",
+    aiAutoReplyMode: "โหมดการตอบ",
+    aiAutoReplyModeOffHours: "นอกเวลาทำการเท่านั้น (แนะนำ)",
+    aiAutoReplyModeWhenUnassigned: "เมื่อยังไม่มีแอดมินรับแชท",
+    aiAutoReplyModeAlways: "ตอบทุกข้อความ (เสี่ยง — ใช้เมื่อมั่นใจ)",
+    aiAutoReplyModeOff: "ปิด (ใช้ toggle ด้านบน)",
+    aiAutoReplyBusinessHours: "เวลาทำการ (Bangkok)",
+    aiAutoReplyBusinessHoursHint:
+      "AI จะตอบเฉพาะนอกช่วงเวลานี้ เช่น 08:00–23:00 = AI ตอบช่วง 00:00–07:59",
+    aiAutoReplyHourStart: "เปิด",
+    aiAutoReplyHourEnd: "ปิด",
+    aiAutoReplyInstructions: "คำสั่งเพิ่มเติมสำหรับ AI (ไม่บังคับ)",
+    aiAutoReplyInstructionsHint: "ข้อความนี้จะถูกใส่ใน prompt ทุกครั้งที่ AI ตอบอัตโนมัติ",
+    aiEscalationKeywords: "คำขอ escalate (คั่นด้วย comma)",
+    aiEscalationKeywordsHint:
+      "ถ้าลูกค้าพิมพ์คำเหล่านี้ ระบบจะไม่ส่ง AI ตอบ — ส่งต่อให้แอดมินแทน"
   },
   en: {
     inboxTitle: "Inbox",
@@ -689,7 +710,28 @@ export const messages = {
     aiPlaceholderScenario: "Matched AI Scenario instructions",
     aiPlaceholderHistory: "Recent chat history",
     aiPlaceholderDraft: "Current draft text being composed",
-    aiSaveSettings: "Save AI settings"
+    aiSaveSettings: "Save AI settings",
+    aiAutoReplySectionTitle: "AI auto-reply (LINE)",
+    aiAutoReplySectionHint:
+      "When enabled, the system replies to LINE customers automatically without an agent clicking draft reply — test Knowledge and AI first.",
+    aiEnableAutoReply: "Enable AI auto-reply",
+    aiAutoReplyWarning:
+      "⚠️ Re-index Knowledge and run AI Test before enabling — review wrong answers and escalation keywords regularly.",
+    aiAutoReplyMode: "Reply mode",
+    aiAutoReplyModeOffHours: "Off-hours only (recommended)",
+    aiAutoReplyModeWhenUnassigned: "When conversation is unassigned",
+    aiAutoReplyModeAlways: "Every message (risky — use when confident)",
+    aiAutoReplyModeOff: "Off (use toggle above)",
+    aiAutoReplyBusinessHours: "Business hours (Bangkok)",
+    aiAutoReplyBusinessHoursHint:
+      "AI replies only outside this window, e.g. 08:00–23:00 = AI active 00:00–07:59",
+    aiAutoReplyHourStart: "Open",
+    aiAutoReplyHourEnd: "Close",
+    aiAutoReplyInstructions: "Extra AI instructions (optional)",
+    aiAutoReplyInstructionsHint: "Appended to the prompt on every auto-reply",
+    aiEscalationKeywords: "Escalation keywords (comma-separated)",
+    aiEscalationKeywordsHint:
+      "If the customer message contains these words, AI will not reply — hand off to an agent"
   }
 } as const;
 

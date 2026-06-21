@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException, Logger, HttpExceptio
 import {
   AuditAction,
   AiAgentGender,
+  AiAutoReplyMode,
   Conversation,
   ConversationInternalNote,
   ConversationPriority,
@@ -21,6 +22,14 @@ import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { ConversationStatus } from "./dto/update-conversation-status.dto";
 import { RedisService } from "../redis/redis.service";
 import { AiReplyGeneratorService } from "../ai/ai-reply-generator.service";
+import {
+  DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
+  DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_START,
+  DEFAULT_AI_AUTO_REPLY_MODE,
+  DEFAULT_AI_ESCALATION_KEYWORDS,
+  normalizeEscalationKeywords,
+  resolveEscalationKeywords
+} from "../ai/ai-auto-reply.constants";
 import {
   buildLlmHttpException,
   extractLlmErrorCode,
@@ -79,6 +88,12 @@ export type InboxSettings = {
   enableAiScenarios: boolean;
   aiProvider: string;
   aiAgentGender: AiAgentGender;
+  enableAiAutoReply: boolean;
+  aiAutoReplyMode: AiAutoReplyMode;
+  aiAutoReplyBusinessHourStart: number;
+  aiAutoReplyBusinessHourEnd: number;
+  aiAutoReplyInstructions: string | null;
+  aiEscalationKeywords: string[];
 };
 
 export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
@@ -914,7 +929,13 @@ export class InboxService {
         enableAiSuggest: true,
         enableAiScenarios: true,
         aiProvider: true,
-        aiAgentGender: true
+        aiAgentGender: true,
+        enableAiAutoReply: true,
+        aiAutoReplyMode: true,
+        aiAutoReplyBusinessHourStart: true,
+        aiAutoReplyBusinessHourEnd: true,
+        aiAutoReplyInstructions: true,
+        aiEscalationKeywords: true
       }
     });
 
@@ -923,7 +944,15 @@ export class InboxService {
       enableAiSuggest: settings?.enableAiSuggest ?? true,
       enableAiScenarios: settings?.enableAiScenarios ?? true,
       aiProvider: settings?.aiProvider ?? "gemini",
-      aiAgentGender: settings?.aiAgentGender ?? AiAgentGender.FEMALE
+      aiAgentGender: settings?.aiAgentGender ?? AiAgentGender.FEMALE,
+      enableAiAutoReply: settings?.enableAiAutoReply ?? false,
+      aiAutoReplyMode: settings?.aiAutoReplyMode ?? DEFAULT_AI_AUTO_REPLY_MODE,
+      aiAutoReplyBusinessHourStart:
+        settings?.aiAutoReplyBusinessHourStart ?? DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_START,
+      aiAutoReplyBusinessHourEnd:
+        settings?.aiAutoReplyBusinessHourEnd ?? DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
+      aiAutoReplyInstructions: settings?.aiAutoReplyInstructions ?? null,
+      aiEscalationKeywords: resolveEscalationKeywords(settings?.aiEscalationKeywords)
     };
   }
 
@@ -932,6 +961,11 @@ export class InboxService {
     userId: string,
     dto: UpdateInboxSettingsDto
   ): Promise<InboxSettings> {
+    const normalizedEscalationKeywords =
+      dto.aiEscalationKeywords !== undefined
+        ? normalizeEscalationKeywords(dto.aiEscalationKeywords)
+        : undefined;
+
     const settings = await this.prisma.tenantSettings.upsert({
       where: { tenantId },
       create: {
@@ -940,21 +974,42 @@ export class InboxService {
         enableAiSuggest: dto.enableAiSuggest ?? true,
         enableAiScenarios: dto.enableAiScenarios ?? true,
         aiProvider: dto.aiProvider ?? "gemini",
-        aiAgentGender: dto.aiAgentGender ?? AiAgentGender.FEMALE
+        aiAgentGender: dto.aiAgentGender ?? AiAgentGender.FEMALE,
+        enableAiAutoReply: dto.enableAiAutoReply ?? false,
+        aiAutoReplyMode: dto.aiAutoReplyMode ?? DEFAULT_AI_AUTO_REPLY_MODE,
+        aiAutoReplyBusinessHourStart:
+          dto.aiAutoReplyBusinessHourStart ?? DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_START,
+        aiAutoReplyBusinessHourEnd:
+          dto.aiAutoReplyBusinessHourEnd ?? DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
+        aiAutoReplyInstructions: dto.aiAutoReplyInstructions ?? null,
+        aiEscalationKeywords:
+          normalizedEscalationKeywords ?? [...DEFAULT_AI_ESCALATION_KEYWORDS]
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
         enableAiSuggest: dto.enableAiSuggest,
         enableAiScenarios: dto.enableAiScenarios,
         aiProvider: dto.aiProvider,
-        aiAgentGender: dto.aiAgentGender
+        aiAgentGender: dto.aiAgentGender,
+        enableAiAutoReply: dto.enableAiAutoReply,
+        aiAutoReplyMode: dto.aiAutoReplyMode,
+        aiAutoReplyBusinessHourStart: dto.aiAutoReplyBusinessHourStart,
+        aiAutoReplyBusinessHourEnd: dto.aiAutoReplyBusinessHourEnd,
+        aiAutoReplyInstructions: dto.aiAutoReplyInstructions,
+        aiEscalationKeywords: normalizedEscalationKeywords
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
         enableAiScenarios: true,
         aiProvider: true,
-        aiAgentGender: true
+        aiAgentGender: true,
+        enableAiAutoReply: true,
+        aiAutoReplyMode: true,
+        aiAutoReplyBusinessHourStart: true,
+        aiAutoReplyBusinessHourEnd: true,
+        aiAutoReplyInstructions: true,
+        aiEscalationKeywords: true
       }
     });
 
@@ -970,12 +1025,30 @@ export class InboxService {
           enableAiSuggest: dto.enableAiSuggest,
           enableAiScenarios: dto.enableAiScenarios,
           aiProvider: dto.aiProvider,
-          aiAgentGender: dto.aiAgentGender
+          aiAgentGender: dto.aiAgentGender,
+          enableAiAutoReply: dto.enableAiAutoReply,
+          aiAutoReplyMode: dto.aiAutoReplyMode,
+          aiAutoReplyBusinessHourStart: dto.aiAutoReplyBusinessHourStart,
+          aiAutoReplyBusinessHourEnd: dto.aiAutoReplyBusinessHourEnd,
+          aiAutoReplyInstructions: dto.aiAutoReplyInstructions,
+          aiEscalationKeywords: normalizedEscalationKeywords
         }
       }
     });
 
-    return settings;
+    return {
+      inProgressAlertMinutes: settings.inProgressAlertMinutes,
+      enableAiSuggest: settings.enableAiSuggest,
+      enableAiScenarios: settings.enableAiScenarios,
+      aiProvider: settings.aiProvider,
+      aiAgentGender: settings.aiAgentGender,
+      enableAiAutoReply: settings.enableAiAutoReply,
+      aiAutoReplyMode: settings.aiAutoReplyMode,
+      aiAutoReplyBusinessHourStart: settings.aiAutoReplyBusinessHourStart,
+      aiAutoReplyBusinessHourEnd: settings.aiAutoReplyBusinessHourEnd,
+      aiAutoReplyInstructions: settings.aiAutoReplyInstructions,
+      aiEscalationKeywords: resolveEscalationKeywords(settings.aiEscalationKeywords)
+    };
   }
 
   private async findTenantConversation(

@@ -112,6 +112,11 @@ enum AuditAction {
   AUTOMATION_STEP_EXECUTED
   AUTOMATION_RUN_COMPLETED
   AUTOMATION_RUN_FAILED
+  // AI Auto-Reply
+  AI_AUTO_REPLY_SENT
+  AI_AUTO_REPLY_SKIPPED
+  AI_AUTO_REPLY_ESCALATED
+  AI_AUTO_REPLY_FAILED
 }
 
 enum AutomationTriggerType {
@@ -172,6 +177,13 @@ enum ConversationPriority {
 enum AiAgentGender {
   FEMALE
   MALE
+}
+
+enum AiAutoReplyMode {
+  OFF
+  WHEN_UNASSIGNED
+  ALWAYS
+  OFF_HOURS_ONLY
 }
 
 // ============================================================
@@ -249,6 +261,12 @@ model TenantSettings {
   enableAiScenarios      Boolean       @default(true)   @map("enable_ai_scenarios")
   aiProvider             String        @default("gemini") @map("ai_provider")
   aiAgentGender          AiAgentGender @default(FEMALE)   @map("ai_agent_gender")
+  enableAiAutoReply      Boolean         @default(false)  @map("enable_ai_auto_reply")
+  aiAutoReplyMode        AiAutoReplyMode @default(OFF_HOURS_ONLY) @map("ai_auto_reply_mode")
+  aiAutoReplyBusinessHourStart Int       @default(8)      @map("ai_auto_reply_business_hour_start")
+  aiAutoReplyBusinessHourEnd   Int       @default(23)     @map("ai_auto_reply_business_hour_end")
+  aiAutoReplyInstructions    String?   @map("ai_auto_reply_instructions")
+  aiEscalationKeywords       String[]  @default([])     @map("ai_escalation_keywords")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 

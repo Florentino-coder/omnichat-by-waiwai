@@ -46,14 +46,15 @@ No feature code required; founder/ops tasks + one doc.
 |------|--------|
 | `prisma/schema.prisma` | `enableAiAutoReply`, `aiAutoReplyMode`, `aiAutoReplyBusinessHourStart` (8), `aiAutoReplyBusinessHourEnd` (23), `aiAutoReplyInstructions`, `aiEscalationKeywords`; enum `AiAutoReplyMode`; audit enums |
 | Migration | idempotent pattern |
-| `apps/api/src/tenants/dto/update-tenant-settings.dto.ts` | New fields |
-| `apps/api/src/tenants/tenants.service.ts` | Persist + audit `TENANT_SETTINGS_CHANGED` |
-| `apps/web/app/app/settings/ai-settings.tsx` | Toggle, mode, keywords, instructions + warning copy |
-| `apps/web/app/lib/i18n.ts` | Thai strings |
+| `apps/api/src/inbox/dto/update-inbox-settings.dto.ts` | New fields |
+| `apps/api/src/inbox/inbox.service.ts` | Persist + audit `INBOX_SETTINGS_UPDATED` |
+| `apps/api/src/ai/ai-auto-reply.constants.ts` | Defaults + keyword normalization |
+| `apps/web/app/app/settings/ai-settings.tsx` | Toggle, mode, business hours, keywords, instructions + warning copy |
+| `apps/web/app/lib/i18n.ts` | Thai + English strings |
 
-- [ ] Default `enableAiAutoReply: false`, `aiAutoReplyMode: OFF_HOURS_ONLY`  
-- [ ] Default escalation keywords: `["แอดมิน","คุยกับคน","โทรหา","ติดต่อเจ้าหน้าที่","ขอคุยกับคน","พูดกับคน","ฝ่ายบริการ","โทร"]`  
-- [ ] Tests for settings PATCH validation  
+- [x] Default `enableAiAutoReply: false`, `aiAutoReplyMode: OFF_HOURS_ONLY`  
+- [x] Default escalation keywords: `["แอดมิน","คุยกับคน","โทรหา","ติดต่อเจ้าหน้าที่","ขอคุยกับคน","พูดกับคน","ฝ่ายบริการ","โทร"]`  
+- [x] Tests for settings PATCH validation  
 
 ---
 

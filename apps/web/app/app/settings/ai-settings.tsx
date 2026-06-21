@@ -6,7 +6,7 @@ import { Button } from "@omnichat/ui";
 import { getAiCreditStatusMessage, type AiCreditBlockReason } from "../../lib/ai-credit-status";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages, type Locale } from "../../lib/i18n";
-import { Sparkles, GitBranch, Cpu, User, Clock } from "lucide-react";
+import { Sparkles, GitBranch, Cpu, User, Clock, MessageCircle } from "lucide-react";
 
 interface ToggleSwitchProps {
   checked: boolean;
@@ -33,12 +33,20 @@ function ToggleSwitch({ checked, onChange, disabled }: ToggleSwitchProps) {
   );
 }
 
+type AiAutoReplyMode = "OFF" | "WHEN_UNASSIGNED" | "ALWAYS" | "OFF_HOURS_ONLY";
+
 type AiSettingsData = {
   inProgressAlertMinutes: number;
   enableAiSuggest: boolean;
   enableAiScenarios: boolean;
   aiProvider: string;
   aiAgentGender: "FEMALE" | "MALE";
+  enableAiAutoReply: boolean;
+  aiAutoReplyMode: AiAutoReplyMode;
+  aiAutoReplyBusinessHourStart: number;
+  aiAutoReplyBusinessHourEnd: number;
+  aiAutoReplyInstructions: string | null;
+  aiEscalationKeywords: string[];
 };
 
 type PromptTemplateData = {
@@ -101,8 +109,15 @@ export function AiSettings() {
     enableAiSuggest: true,
     enableAiScenarios: true,
     aiProvider: "gemini",
-    aiAgentGender: "FEMALE"
+    aiAgentGender: "FEMALE",
+    enableAiAutoReply: false,
+    aiAutoReplyMode: "OFF_HOURS_ONLY",
+    aiAutoReplyBusinessHourStart: 8,
+    aiAutoReplyBusinessHourEnd: 23,
+    aiAutoReplyInstructions: null,
+    aiEscalationKeywords: []
   });
+  const [escalationKeywordsText, setEscalationKeywordsText] = useState("");
   const [promptTemplate, setPromptTemplate] = useState<PromptTemplateData | null>(null);
   const [usage, setUsage] = useState<AiUsageData | null>(null);
 
@@ -162,6 +177,7 @@ export function AiSettings() {
 
         if (isCurrent) {
           setSettings(settingsData);
+          setEscalationKeywordsText(settingsData.aiEscalationKeywords.join(", "));
           setPromptTemplate(templateData);
           setUsage(usageData);
         }
@@ -194,7 +210,16 @@ export function AiSettings() {
           enableAiSuggest: settings.enableAiSuggest,
           enableAiScenarios: settings.enableAiScenarios,
           aiProvider: settings.aiProvider,
-          aiAgentGender: settings.aiAgentGender
+          aiAgentGender: settings.aiAgentGender,
+          enableAiAutoReply: settings.enableAiAutoReply,
+          aiAutoReplyMode: settings.aiAutoReplyMode,
+          aiAutoReplyBusinessHourStart: settings.aiAutoReplyBusinessHourStart,
+          aiAutoReplyBusinessHourEnd: settings.aiAutoReplyBusinessHourEnd,
+          aiAutoReplyInstructions: settings.aiAutoReplyInstructions,
+          aiEscalationKeywords: escalationKeywordsText
+            .split(",")
+            .map((keyword) => keyword.trim())
+            .filter(Boolean)
         })
       });
 
@@ -426,6 +451,140 @@ export function AiSettings() {
             </div>
           </div>
           <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiSlowReplyHint}</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm space-y-5">
+        <div className="flex items-start justify-between gap-4 border-b border-[#F5F4F7] pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <MessageCircle size={16} />
+              </div>
+              <h3 className="text-sm font-bold text-[#16182B]">{t.aiAutoReplySectionTitle}</h3>
+            </div>
+            <p className="mt-2 text-xs text-[#767A8C] leading-relaxed">{t.aiAutoReplySectionHint}</p>
+          </div>
+          <ToggleSwitch
+            checked={settings.enableAiAutoReply}
+            onChange={(val) => setSettings({ ...settings, enableAiAutoReply: val })}
+          />
+        </div>
+
+        {settings.enableAiAutoReply && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+            {t.aiAutoReplyWarning}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <label htmlFor="ai-auto-reply-mode" className="text-sm font-semibold text-[#16182B]">
+              {t.aiAutoReplyMode}
+            </label>
+            <select
+              id="ai-auto-reply-mode"
+              value={settings.aiAutoReplyMode}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  aiAutoReplyMode: e.target.value as AiAutoReplyMode
+                })
+              }
+              className="mt-2 w-full rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+            >
+              <option value="OFF_HOURS_ONLY">{t.aiAutoReplyModeOffHours}</option>
+              <option value="WHEN_UNASSIGNED">{t.aiAutoReplyModeWhenUnassigned}</option>
+              <option value="ALWAYS">{t.aiAutoReplyModeAlways}</option>
+              <option value="OFF">{t.aiAutoReplyModeOff}</option>
+            </select>
+          </div>
+
+          <div>
+            <p className="text-sm font-semibold text-[#16182B]">{t.aiAutoReplyBusinessHours}</p>
+            <p className="mt-1 text-xs text-[#767A8C]">{t.aiAutoReplyBusinessHoursHint}</p>
+            <div className="mt-2 flex items-center gap-3">
+              <div>
+                <label htmlFor="ai-hour-start" className="text-xs text-[#767A8C]">
+                  {t.aiAutoReplyHourStart}
+                </label>
+                <input
+                  id="ai-hour-start"
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={settings.aiAutoReplyBusinessHourStart}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      aiAutoReplyBusinessHourStart: Math.min(
+                        23,
+                        Math.max(0, parseInt(e.target.value, 10) || 0)
+                      )
+                    })
+                  }
+                  className="mt-1 w-20 rounded-lg border border-[#DEDDE6] p-2 text-sm font-semibold text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+                />
+              </div>
+              <span className="pt-5 text-sm text-[#767A8C]">–</span>
+              <div>
+                <label htmlFor="ai-hour-end" className="text-xs text-[#767A8C]">
+                  {t.aiAutoReplyHourEnd}
+                </label>
+                <input
+                  id="ai-hour-end"
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={settings.aiAutoReplyBusinessHourEnd}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      aiAutoReplyBusinessHourEnd: Math.min(
+                        23,
+                        Math.max(0, parseInt(e.target.value, 10) || 0)
+                      )
+                    })
+                  }
+                  className="mt-1 w-20 rounded-lg border border-[#DEDDE6] p-2 text-sm font-semibold text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="ai-escalation-keywords" className="text-sm font-semibold text-[#16182B]">
+            {t.aiEscalationKeywords}
+          </label>
+          <p className="mt-1 text-xs text-[#767A8C]">{t.aiEscalationKeywordsHint}</p>
+          <input
+            id="ai-escalation-keywords"
+            type="text"
+            value={escalationKeywordsText}
+            onChange={(e) => setEscalationKeywordsText(e.target.value)}
+            className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+            placeholder="แอดมิน, คุยกับคน, โทรหา"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="ai-auto-reply-instructions" className="text-sm font-semibold text-[#16182B]">
+            {t.aiAutoReplyInstructions}
+          </label>
+          <p className="mt-1 text-xs text-[#767A8C]">{t.aiAutoReplyInstructionsHint}</p>
+          <textarea
+            id="ai-auto-reply-instructions"
+            rows={4}
+            value={settings.aiAutoReplyInstructions ?? ""}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                aiAutoReplyInstructions: e.target.value.trim() ? e.target.value : null
+              })
+            }
+            className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+          />
         </div>
       </div>
 

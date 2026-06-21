@@ -1,5 +1,16 @@
-import { IsBoolean, IsEnum, IsInt, IsOptional, Max, Min } from "class-validator";
-import { AiAgentGender } from "@prisma/client";
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min
+} from "class-validator";
+import { AiAgentGender, AiAutoReplyMode } from "@prisma/client";
 
 export class UpdateInboxSettingsDto {
   @IsInt()
@@ -23,4 +34,36 @@ export class UpdateInboxSettingsDto {
   @IsEnum(AiAgentGender)
   @IsOptional()
   aiAgentGender?: AiAgentGender;
+
+  @IsBoolean()
+  @IsOptional()
+  enableAiAutoReply?: boolean;
+
+  @IsEnum(AiAutoReplyMode)
+  @IsOptional()
+  aiAutoReplyMode?: AiAutoReplyMode;
+
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  @IsOptional()
+  aiAutoReplyBusinessHourStart?: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(23)
+  @IsOptional()
+  aiAutoReplyBusinessHourEnd?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  aiAutoReplyInstructions?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  aiEscalationKeywords?: string[];
 }

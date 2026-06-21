@@ -477,14 +477,26 @@ describe("InboxService", () => {
       enableAiSuggest: true,
       enableAiScenarios: true,
       aiProvider: "gemini",
-      aiAgentGender: "FEMALE"
+      aiAgentGender: "FEMALE",
+      enableAiAutoReply: false,
+      aiAutoReplyMode: "OFF_HOURS_ONLY",
+      aiAutoReplyBusinessHourStart: 8,
+      aiAutoReplyBusinessHourEnd: 23,
+      aiAutoReplyInstructions: null,
+      aiEscalationKeywords: ["แอดมิน", "คุยกับคน"]
     });
     prisma.tenantSettings.upsert.mockResolvedValue({
       inProgressAlertMinutes: 5,
       enableAiSuggest: true,
       enableAiScenarios: true,
       aiProvider: "gemini",
-      aiAgentGender: "FEMALE"
+      aiAgentGender: "FEMALE",
+      enableAiAutoReply: true,
+      aiAutoReplyMode: "WHEN_UNASSIGNED",
+      aiAutoReplyBusinessHourStart: 9,
+      aiAutoReplyBusinessHourEnd: 22,
+      aiAutoReplyInstructions: "ตอบสั้นๆ",
+      aiEscalationKeywords: ["แอดมิน"]
     });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
@@ -493,9 +505,24 @@ describe("InboxService", () => {
       enableAiSuggest: true,
       enableAiScenarios: true,
       aiProvider: "gemini",
-      aiAgentGender: "FEMALE"
+      aiAgentGender: "FEMALE",
+      enableAiAutoReply: false,
+      aiAutoReplyMode: "OFF_HOURS_ONLY",
+      aiAutoReplyBusinessHourStart: 8,
+      aiAutoReplyBusinessHourEnd: 23,
+      aiAutoReplyInstructions: null,
+      aiEscalationKeywords: ["แอดมิน", "คุยกับคน"]
     });
-    await createService(prisma).updateSettings("tenant-1", "user-1", { inProgressAlertMinutes: 5 });
+
+    await createService(prisma).updateSettings("tenant-1", "user-1", {
+      inProgressAlertMinutes: 5,
+      enableAiAutoReply: true,
+      aiAutoReplyMode: "WHEN_UNASSIGNED" as const,
+      aiAutoReplyBusinessHourStart: 9,
+      aiAutoReplyBusinessHourEnd: 22,
+      aiAutoReplyInstructions: "ตอบสั้นๆ",
+      aiEscalationKeywords: [" แอดมิน ", "แอดมิน"]
+    });
 
     expect(prisma.tenantSettings.upsert).toHaveBeenCalledWith({
       where: { tenantId: "tenant-1" },
@@ -505,21 +532,39 @@ describe("InboxService", () => {
         enableAiSuggest: true,
         enableAiScenarios: true,
         aiProvider: "gemini",
-        aiAgentGender: "FEMALE"
+        aiAgentGender: "FEMALE",
+        enableAiAutoReply: true,
+        aiAutoReplyMode: "WHEN_UNASSIGNED",
+        aiAutoReplyBusinessHourStart: 9,
+        aiAutoReplyBusinessHourEnd: 22,
+        aiAutoReplyInstructions: "ตอบสั้นๆ",
+        aiEscalationKeywords: ["แอดมิน"]
       },
       update: {
         inProgressAlertMinutes: 5,
         enableAiSuggest: undefined,
         enableAiScenarios: undefined,
         aiProvider: undefined,
-        aiAgentGender: undefined
+        aiAgentGender: undefined,
+        enableAiAutoReply: true,
+        aiAutoReplyMode: "WHEN_UNASSIGNED",
+        aiAutoReplyBusinessHourStart: 9,
+        aiAutoReplyBusinessHourEnd: 22,
+        aiAutoReplyInstructions: "ตอบสั้นๆ",
+        aiEscalationKeywords: ["แอดมิน"]
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
         enableAiScenarios: true,
         aiProvider: true,
-        aiAgentGender: true
+        aiAgentGender: true,
+        enableAiAutoReply: true,
+        aiAutoReplyMode: true,
+        aiAutoReplyBusinessHourStart: true,
+        aiAutoReplyBusinessHourEnd: true,
+        aiAutoReplyInstructions: true,
+        aiEscalationKeywords: true
       }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
@@ -529,7 +574,19 @@ describe("InboxService", () => {
         action: AuditAction.INBOX_SETTINGS_UPDATED,
         targetType: "TenantSettings",
         targetId: "tenant-1",
-        metadata: { inProgressAlertMinutes: 5 }
+        metadata: {
+          inProgressAlertMinutes: 5,
+          enableAiSuggest: undefined,
+          enableAiScenarios: undefined,
+          aiProvider: undefined,
+          aiAgentGender: undefined,
+          enableAiAutoReply: true,
+          aiAutoReplyMode: "WHEN_UNASSIGNED",
+          aiAutoReplyBusinessHourStart: 9,
+          aiAutoReplyBusinessHourEnd: 22,
+          aiAutoReplyInstructions: "ตอบสั้นๆ",
+          aiEscalationKeywords: ["แอดมิน"]
+        }
       })
     });
   });
