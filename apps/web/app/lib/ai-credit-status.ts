@@ -33,5 +33,18 @@ export function getAiCreditErrorMessage(message: string, locale?: Locale): strin
   if (message.includes("PLAN_LIMIT_EXCEEDED")) {
     return getMessages(locale).aiCreditSettingsHint;
   }
+  if (
+    message.includes("AI_PROVIDER_RATE_LIMITED") ||
+    message.includes("quota exceeded") ||
+    message.includes("status 429")
+  ) {
+    return getMessages(locale).aiProviderRateLimited;
+  }
+  if (
+    message.includes("AI_PROVIDER_NOT_CONFIGURED") ||
+    message.includes("API key is not configured")
+  ) {
+    return getMessages(locale).aiProviderNotConfigured;
+  }
   return null;
 }

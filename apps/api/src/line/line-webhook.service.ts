@@ -357,6 +357,16 @@ export class LineWebhookService {
         }
 
         if (messageType === MessageType.TEXT && lineMessage.text?.trim()) {
+          const resumedRuleIds = await this.automationService
+            .resumeWaitingRuns(channel.tenantId, conversation.id, message.id)
+            .catch((error: unknown) => {
+              this.logger.error(
+                "Failed to resume waiting automation runs",
+                error instanceof Error ? error.stack : error
+              );
+              return [] as string[];
+            });
+
           await this.automationService
             .dispatchEvent(
               channel.tenantId,
@@ -364,7 +374,8 @@ export class LineWebhookService {
               AutomationTriggerType.MESSAGE_RECEIVED,
               {
                 lineChannelId: channel.id,
-                messageText: lineMessage.text
+                messageText: lineMessage.text,
+                skipRuleIds: resumedRuleIds
               }
             )
             .catch((error: unknown) => {

@@ -202,6 +202,10 @@ export function ReplyComposer({
         setError("ไม่พบข้อมูลลูกค้า ต้องเชื่อม CRM ก่อนใช้ AI");
       } else if (message.includes("AI generation failed") || message.includes("AI_GENERATION_FAILED")) {
         setError("สร้างคำตอบไม่สำเร็จ ตรวจสอบ API key แล้วลองใหม่");
+      } else if (message.includes("AI_PROVIDER_RATE_LIMITED") || message.includes("quota exceeded")) {
+        setError(t.aiProviderRateLimited);
+      } else if (message.includes("AI_PROVIDER_NOT_CONFIGURED")) {
+        setError(t.aiProviderNotConfigured);
       } else {
         setError(message || "เกิดข้อผิดพลาดในการเรียก AI");
       }

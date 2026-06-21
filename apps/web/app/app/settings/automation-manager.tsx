@@ -35,6 +35,7 @@ type StepType =
   | "ASSIGN_AGENT"
   | "SET_PRIORITY"
   | "SEND_TEXT_REPLY"
+  | "SEND_IMAGE_REPLY"
   | "SEND_SAVED_REPLY"
   | "WAIT"
   | "CLOSE_CONVERSATION"
@@ -47,8 +48,10 @@ type StepDraft = {
   memberId: string;
   priority: string;
   text: string;
+  imageUrl: string;
   savedReplyId: string;
   delaySeconds: string;
+  waitForCustomerReply: boolean;
 };
 
 type AutomationRule = {
@@ -87,8 +90,10 @@ const emptyStep = (): StepDraft => ({
   memberId: "",
   priority: "NORMAL",
   text: "",
+  imageUrl: "",
   savedReplyId: "",
-  delaySeconds: "60"
+  delaySeconds: "60",
+  waitForCustomerReply: false
 });
 
 const emptyForm: FormState = {
@@ -119,6 +124,29 @@ function parseCommaList(value: string): string[] {
     .filter(Boolean);
 }
 
+function ruleHasReplyDrivenSteps(steps: unknown[]): boolean {
+  if (!Array.isArray(steps)) {
+    return false;
+  }
+  return steps.some((raw, index) => {
+    if (index === 0 || !raw || typeof raw !== "object") {
+      return false;
+    }
+    return (raw as Record<string, unknown>).runAfter === "customer_reply";
+  });
+}
+
+function appendRunAfter(
+  payload: Record<string, unknown>,
+  index: number,
+  waitForCustomerReply: boolean
+): Record<string, unknown> {
+  if (index > 0 && waitForCustomerReply) {
+    return { ...payload, runAfter: "customer_reply" };
+  }
+  return payload;
+}
+
 function stepsToDraft(steps: unknown[]): StepDraft[] {
   if (!Array.isArray(steps) || steps.length === 0) {
     return [emptyStep()];
@@ -134,33 +162,69 @@ function stepsToDraft(steps: unknown[]): StepDraft[] {
       memberId: typeof step.memberId === "string" ? step.memberId : "",
       priority: typeof step.priority === "string" ? step.priority : "NORMAL",
       text: typeof step.text === "string" ? step.text : "",
+      imageUrl: typeof step.imageUrl === "string" ? step.imageUrl : "",
       savedReplyId: typeof step.savedReplyId === "string" ? step.savedReplyId : "",
       delaySeconds:
-        typeof step.delaySeconds === "number" ? String(step.delaySeconds) : "60"
+        typeof step.delaySeconds === "number" ? String(step.delaySeconds) : "60",
+      waitForCustomerReply: step.runAfter === "customer_reply"
     };
   });
 }
 
 function draftToPayload(steps: StepDraft[]): unknown[] {
-  return steps.map((step) => {
+  return steps.map((step, index) => {
     switch (step.type) {
       case "ADD_TAG":
-        return { type: step.type, tagName: step.tagName.trim() };
+        return appendRunAfter(
+          { type: step.type, tagName: step.tagName.trim() },
+          index,
+          step.waitForCustomerReply
+        );
       case "ASSIGN_AGENT":
-        return { type: step.type, memberId: step.memberId };
+        return appendRunAfter(
+          { type: step.type, memberId: step.memberId },
+          index,
+          step.waitForCustomerReply
+        );
       case "SET_PRIORITY":
-        return { type: step.type, priority: step.priority };
+        return appendRunAfter(
+          { type: step.type, priority: step.priority },
+          index,
+          step.waitForCustomerReply
+        );
       case "SEND_TEXT_REPLY":
-        return { type: step.type, text: step.text.trim() };
+        return appendRunAfter(
+          { type: step.type, text: step.text.trim() },
+          index,
+          step.waitForCustomerReply
+        );
+      case "SEND_IMAGE_REPLY":
+        return appendRunAfter(
+          { type: step.type, imageUrl: step.imageUrl.trim() },
+          index,
+          step.waitForCustomerReply
+        );
       case "SEND_SAVED_REPLY":
-        return { type: step.type, savedReplyId: step.savedReplyId };
+        return appendRunAfter(
+          { type: step.type, savedReplyId: step.savedReplyId },
+          index,
+          step.waitForCustomerReply
+        );
       case "WAIT":
-        return { type: step.type, delaySeconds: Number(step.delaySeconds) || 60 };
+        return appendRunAfter(
+          { type: step.type, delaySeconds: Number(step.delaySeconds) || 60 },
+          index,
+          step.waitForCustomerReply
+        );
       case "CLOSE_CONVERSATION":
       case "ESCALATE":
-        return { type: step.type };
+        return appendRunAfter({ type: step.type }, index, step.waitForCustomerReply);
       default:
-        return { type: "SEND_TEXT_REPLY", text: step.text.trim() };
+        return appendRunAfter(
+          { type: "SEND_TEXT_REPLY", text: step.text.trim() },
+          index,
+          step.waitForCustomerReply
+        );
     }
   });
 }
@@ -428,7 +492,11 @@ export function AutomationManager() {
                   <span className="text-xs text-[#767A8C]">#{rule.priority}</span>
                 </p>
                 <p className="text-xs text-[#767A8C]">
-                  {t.triggerSummary}: {rule.triggerType} · {t.stepsSummary}: {Array.isArray(rule.steps) ? rule.steps.length : 0}
+                  {t.triggerSummary}: {rule.triggerType} · {t.stepsSummary}:{" "}
+                  {Array.isArray(rule.steps) ? rule.steps.length : 0}
+                  {ruleHasReplyDrivenSteps(rule.steps)
+                    ? ` · ${t.automationReplyDrivenBadge}`
+                    : ""}
                   {!rule.isEnabled ? ` · ${t.disabled}` : ""}
                 </p>
               </div>
@@ -585,7 +653,10 @@ export function AutomationManager() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label>{t.stepsRunInOrder}</Label>
+              <div>
+                <Label>{t.stepsRunInOrder}</Label>
+                <p className="mt-1 text-xs text-[#767A8C]">{t.automationStepsHint}</p>
+              </div>
               <Button
                 type="button"
                 variant="secondary"
@@ -639,6 +710,16 @@ export function AutomationManager() {
                     onChange={(event) => updateStep(step.id, { text: event.target.value })}
                     className="min-h-[80px] w-full rounded-lg border border-[#DEDDE6] px-3 py-2 text-sm"
                     placeholder={t.replyTextPlaceholder}
+                    required
+                  />
+                )}
+
+                {step.type === "SEND_IMAGE_REPLY" && (
+                  <Input
+                    value={step.imageUrl}
+                    onChange={(event) => updateStep(step.id, { imageUrl: event.target.value })}
+                    placeholder={t.imageUrlPlaceholder}
+                    type="url"
                     required
                   />
                 )}
@@ -700,18 +781,43 @@ export function AutomationManager() {
                 )}
 
                 {step.type === "WAIT" && (
-                  <Input
-                    type="number"
-                    min={1}
-                    max={86400}
-                    value={step.delaySeconds}
-                    onChange={(event) =>
-                      updateStep(step.id, { delaySeconds: event.target.value })
-                    }
-                    placeholder={t.delaySecondsPlaceholder}
-                    required
-                  />
+                  <>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={86400}
+                      value={step.delaySeconds}
+                      onChange={(event) =>
+                        updateStep(step.id, { delaySeconds: event.target.value })
+                      }
+                      placeholder={t.delaySecondsPlaceholder}
+                      required
+                    />
+                    <p className="text-xs text-[#767A8C]">{t.automationWaitStepHint}</p>
+                  </>
                 )}
+
+                {index > 0 ? (
+                  <div className="space-y-1 rounded-lg bg-[#F8F7FB] px-3 py-2">
+                    <label className="flex items-center gap-2 text-sm text-[#16182B]">
+                      <input
+                        type="checkbox"
+                        checked={step.waitForCustomerReply}
+                        onChange={(event) =>
+                          updateStep(step.id, {
+                            waitForCustomerReply: event.target.checked
+                          })
+                        }
+                      />
+                      {t.automationStepWaitForReplyLabel}
+                    </label>
+                    <p className="text-xs text-[#767A8C]">
+                      {step.waitForCustomerReply
+                        ? t.automationStepWaitForReplyHint
+                        : t.automationStepImmediateHint}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ))}
           </div>

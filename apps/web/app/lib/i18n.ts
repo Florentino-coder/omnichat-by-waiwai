@@ -214,7 +214,18 @@ export const messages = {
       "Trigger → chain action สำหรับตอบนอกเวลา แท็ก มอบหมาย และอื่นๆ",
     automationRulesTitle: "กฎ Automation",
     automationRulesHint:
-      " chain action เมื่อมีข้อความ แท็กเปลี่ยน หรือนอกเวลาทำการ รันตามลำดับผ่าน queue",
+      "เมื่อ trigger ตรง ระบบรันขั้นตอนตามลำดับ — ขั้นตอนแรกส่งทันที ขั้นถัดไปสามารถเลือก \"รอลูกค้าตอบ\" ได้",
+    automationStepsHint:
+      "ขั้นตอน 1 ส่งทันทีหลัง trigger ขั้นตอน 2+ ส่งทันทีต่อเนื่องหรือเลือกรอลูกค้าตอบก่อนส่ง ใช้ \"หน่วงเวลา\" ถ้าต้องการเว้นช่วง",
+    automationStepImmediateHint:
+      "ส่งทันทีหลังขั้นตอนก่อนหน้าเสร็จ",
+    automationStepWaitForReplyLabel: "รอลูกค้าตอบก่อนส่งขั้นตอนนี้",
+    automationStepWaitForReplyHint:
+      "เมื่อลูกค้าพิมพ์ข้อความถัดไป ระบบจะส่งขั้นตอนนี้แล้วดำเนินต่อ",
+    automationReplyDrivenBadge: "มีขั้นตอนรอลูกค้าตอบ",
+    imageUrlPlaceholder: "https://example.com/image.jpg",
+    automationWaitStepHint:
+      "หน่วงก่อนรันขั้นตอนถัดไป (วินาที)",
     loadingRules: "กำลังโหลดกฎ...",
     newAutomationRule: "กฎ automation ใหม่",
     editAutomationRule: "แก้ไขกฎ",
@@ -246,6 +257,7 @@ export const messages = {
     autoTriggerStatusChanged: "สถานะเปลี่ยน",
     autoTriggerOffHours: "นอกเวลาทำการ",
     autoStepSendText: "ส่งข้อความตอบ",
+    autoStepSendImage: "ส่งรูปภาพ (ลิงก์)",
     autoStepSendSavedReply: "ส่งคำตอบด่วน",
     autoStepAddTag: "เพิ่มแท็ก",
     autoStepAssignAgent: "มอบหมายแอดมิน",
@@ -274,6 +286,10 @@ export const messages = {
       "แผนปัจจุบันยังไม่เปิดโควต้า AI (0 ครั้ง) ติดต่อผู้ดูแลระบบเพื่ออัปเกรดแผน",
     aiCreditMonthlyLimit:
       "ใช้โควต้า AI ครบแล้วในรอบเดือนนี้ รอรอบ billing ถัดไปหรือติดต่อผู้ดูแลระบบ",
+    aiProviderRateLimited:
+      "โควต้า AI ของ Google Gemini วันนี้เต็มแล้ว (free tier ~20 ครั้ง/วัน) ลองพรุ่งนี้หรือเปิด billing ที่ Google AI",
+    aiProviderNotConfigured:
+      "ยังไม่ได้ตั้งค่า AI API key บนเซิร์ฟเวอร์ ติดต่อผู้ดูแลระบบ",
     aiCreditSettingsHint:
       "โควต้า AI ไม่พร้อมใช้งาน ตรวจสอบแผนและการใช้งานใน Settings > AI",
     aiSuggestedReplySystem: "ระบบร่างคำตอบอัจฉริยะ",
@@ -530,7 +546,18 @@ export const messages = {
       "Trigger → action chains for off-hours replies, tagging, assignment, and more.",
     automationRulesTitle: "Automation Rules",
     automationRulesHint:
-      "Chain actions when messages arrive, tags change, or outside business hours. Steps run in order via background queue.",
+      "When a trigger matches, steps run in order — step 1 sends immediately; later steps can wait for the customer's next message.",
+    automationStepsHint:
+      "Step 1 runs right after the trigger. Steps 2+ run immediately or after the customer replies. Use Wait for timed delays.",
+    automationStepImmediateHint:
+      "Sends as soon as the previous step finishes",
+    automationStepWaitForReplyLabel: "Wait for customer reply before this step",
+    automationStepWaitForReplyHint:
+      "When the customer sends their next message, this step runs and the chain continues.",
+    automationReplyDrivenBadge: "Has reply-driven steps",
+    imageUrlPlaceholder: "https://example.com/image.jpg",
+    automationWaitStepHint:
+      "Pause before the next step runs (seconds).",
     loadingRules: "Loading rules...",
     newAutomationRule: "New automation rule",
     editAutomationRule: "Edit rule",
@@ -562,6 +589,7 @@ export const messages = {
     autoTriggerStatusChanged: "Status changed",
     autoTriggerOffHours: "Off-hours message",
     autoStepSendText: "Send text reply",
+    autoStepSendImage: "Send image (URL)",
     autoStepSendSavedReply: "Send saved reply",
     autoStepAddTag: "Add tag",
     autoStepAssignAgent: "Assign agent",
@@ -590,6 +618,10 @@ export const messages = {
       "Your current plan does not include AI credits (0 uses). Contact your administrator to upgrade.",
     aiCreditMonthlyLimit:
       "Monthly AI credit limit reached. Wait for the next billing cycle or contact your administrator.",
+    aiProviderRateLimited:
+      "Google Gemini daily quota is exhausted (free tier ~20 requests/day). Try again tomorrow or enable billing.",
+    aiProviderNotConfigured:
+      "AI API key is not configured on the server. Contact your administrator.",
     aiCreditSettingsHint:
       "AI credits unavailable. Check your plan and usage in Settings > AI.",
     aiSuggestedReplySystem: "Smart reply drafting",
@@ -652,6 +684,7 @@ type AutomationTriggerValue =
 
 type AutomationStepValue =
   | "SEND_TEXT_REPLY"
+  | "SEND_IMAGE_REPLY"
   | "SEND_SAVED_REPLY"
   | "ADD_TAG"
   | "ASSIGN_AGENT"
@@ -675,6 +708,7 @@ export function getAutomationStepOptions(locale: Locale = defaultLocale) {
   const t = getMessages(locale);
   return [
     { value: "SEND_TEXT_REPLY" as const, label: t.autoStepSendText },
+    { value: "SEND_IMAGE_REPLY" as const, label: t.autoStepSendImage },
     { value: "SEND_SAVED_REPLY" as const, label: t.autoStepSendSavedReply },
     { value: "ADD_TAG" as const, label: t.autoStepAddTag },
     { value: "ASSIGN_AGENT" as const, label: t.autoStepAssignAgent },

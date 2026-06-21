@@ -3,10 +3,13 @@ import { ConversationPriority } from "@prisma/client";
 import {
   AUTOMATION_STEP_TYPES,
   AutomationStep,
-  AutomationStepType
+  AutomationStepType,
+  StepRunAfter
 } from "./automation-step.types";
 
 const PRIORITY_VALUES = new Set<string>(Object.values(ConversationPriority));
+const RUN_AFTER_VALUES = new Set<StepRunAfter>(["immediate", "customer_reply"]);
+const IMAGE_URL_PATTERN = /^https?:\/\/.+/i;
 
 function readString(value: unknown, field: string): string {
   if (typeof value !== "string" || !value.trim()) {
@@ -27,6 +30,41 @@ function readNumber(value: unknown, field: string, min: number, max: number): nu
   return value;
 }
 
+function readImageUrl(value: unknown, stepNumber: number): string {
+  const imageUrl = readString(value, "imageUrl");
+  if (!IMAGE_URL_PATTERN.test(imageUrl)) {
+    throw new BadRequestException(
+      `Step ${stepNumber} imageUrl must be an http or https URL`
+    );
+  }
+  return imageUrl;
+}
+
+function readRunAfter(value: unknown, index: number): StepRunAfter | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+  if (typeof value !== "string" || !RUN_AFTER_VALUES.has(value as StepRunAfter)) {
+    throw new BadRequestException(
+      `Step ${index + 1} runAfter must be "immediate" or "customer_reply"`
+    );
+  }
+  if (index === 0) {
+    throw new BadRequestException(`Step 1 cannot use runAfter`);
+  }
+  return value as StepRunAfter;
+}
+
+function attachRunAfter<T extends AutomationStep>(
+  step: T,
+  runAfter: StepRunAfter | undefined
+): T {
+  if (!runAfter) {
+    return step;
+  }
+  return { ...step, runAfter };
+}
+
 function parseSingleStep(raw: unknown, index: number): AutomationStep {
   if (!raw || typeof raw !== "object") {
     throw new BadRequestException(`Step ${index + 1} must be an object`);
@@ -41,32 +79,56 @@ function parseSingleStep(raw: unknown, index: number): AutomationStep {
   }
 
   const stepType = rawType as AutomationStepType;
+  const runAfter = readRunAfter(step.runAfter, index);
 
   switch (stepType) {
     case "ADD_TAG":
-      return { type: stepType, tagName: readString(step.tagName, "tagName") };
+      return attachRunAfter({ type: stepType, tagName: readString(step.tagName, "tagName") }, runAfter);
     case "ASSIGN_AGENT":
-      return { type: stepType, memberId: readString(step.memberId, "memberId") };
+      return attachRunAfter(
+        { type: stepType, memberId: readString(step.memberId, "memberId") },
+        runAfter
+      );
     case "SET_PRIORITY": {
       const priority = readString(step.priority, "priority");
       if (!PRIORITY_VALUES.has(priority)) {
         throw new BadRequestException(`Step ${index + 1} has invalid priority`);
       }
-      return { type: stepType, priority: priority as ConversationPriority };
+      return attachRunAfter(
+        { type: stepType, priority: priority as ConversationPriority },
+        runAfter
+      );
     }
     case "SEND_TEXT_REPLY":
-      return { type: stepType, text: readString(step.text, "text") };
+      return attachRunAfter(
+        { type: stepType, text: readString(step.text, "text") },
+        runAfter
+      );
+    case "SEND_IMAGE_REPLY":
+      return attachRunAfter(
+        {
+          type: stepType,
+          imageUrl: readImageUrl(step.imageUrl, index + 1)
+        },
+        runAfter
+      );
     case "SEND_SAVED_REPLY":
-      return { type: stepType, savedReplyId: readString(step.savedReplyId, "savedReplyId") };
+      return attachRunAfter(
+        { type: stepType, savedReplyId: readString(step.savedReplyId, "savedReplyId") },
+        runAfter
+      );
     case "WAIT":
-      return {
-        type: stepType,
-        delaySeconds: readNumber(step.delaySeconds, "delaySeconds", 1, 86400)
-      };
+      return attachRunAfter(
+        {
+          type: stepType,
+          delaySeconds: readNumber(step.delaySeconds, "delaySeconds", 1, 86400)
+        },
+        runAfter
+      );
     case "CLOSE_CONVERSATION":
-      return { type: stepType };
+      return attachRunAfter({ type: stepType }, runAfter);
     case "ESCALATE":
-      return { type: stepType };
+      return attachRunAfter({ type: stepType }, runAfter);
     default:
       throw new BadRequestException(`Step ${index + 1} has unsupported type`);
   }

@@ -13,7 +13,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { LineReplyService } from "../line/line-reply.service";
 import { parseAutomationSteps } from "./automation-step.parser";
-import { AutomationStep } from "./automation-step.types";
+import { AutomationStep, shouldWaitForCustomerReply } from "./automation-step.types";
 import { AutomationQueueService } from "./automation-queue.service";
 
 @Injectable()
@@ -119,6 +119,12 @@ export class AutomationEngineService {
         return;
       }
 
+      const nextStep = steps[nextIndex];
+      if (shouldWaitForCustomerReply(nextStep, nextIndex)) {
+        await this.pauseForCustomerReply(run.id, nextIndex);
+        return;
+      }
+
       await this.automationQueueService.enqueueStep({
         runId: run.id,
         tenantId: run.tenantId,
@@ -153,6 +159,16 @@ export class AutomationEngineService {
         }
       });
     }
+  }
+
+  private async pauseForCustomerReply(runId: string, nextStepIndex: number): Promise<void> {
+    await this.prisma.automationRun.update({
+      where: { id: runId },
+      data: {
+        status: AutomationRunStatus.WAITING_FOR_REPLY,
+        currentStepIndex: nextStepIndex
+      }
+    });
   }
 
   private async markRunCompleted(
@@ -201,6 +217,11 @@ export class AutomationEngineService {
       case "SEND_TEXT_REPLY":
         await this.lineReplyService.replyText(tenantId, "automation", conversationId, {
           text: step.text
+        });
+        return;
+      case "SEND_IMAGE_REPLY":
+        await this.lineReplyService.replyText(tenantId, "automation", conversationId, {
+          imageUrl: step.imageUrl
         });
         return;
       case "SEND_SAVED_REPLY":

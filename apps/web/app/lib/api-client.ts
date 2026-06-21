@@ -8,6 +8,7 @@ type ApiEnvelope<T> =
   | {
       success: false;
       error?: {
+        code?: string;
         message?: string;
       };
     };
@@ -130,10 +131,15 @@ function isEnvelope<T>(body: ApiEnvelope<T> | T | null): body is ApiEnvelope<T> 
 
 function readErrorMessage<T>(body: ApiEnvelope<T> | T | null): string | null {
   if (isEnvelope<T>(body) && !body.success) {
+    const code = body.error?.code;
     const message = body.error?.message ?? null;
     const details = (body.error as { details?: unknown } | undefined)?.details;
     if (Array.isArray(details) && details.length > 0) {
-      return details.map(String).join("; ");
+      const detailText = details.map(String).join("; ");
+      return code ? `${code}: ${detailText}` : detailText;
+    }
+    if (code && message) {
+      return `${code}: ${message}`;
     }
     return message;
   }

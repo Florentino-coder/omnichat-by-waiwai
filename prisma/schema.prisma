@@ -125,6 +125,7 @@ enum AutomationRunStatus {
   PENDING
   RUNNING
   WAITING
+  WAITING_FOR_REPLY
   COMPLETED
   FAILED
 }

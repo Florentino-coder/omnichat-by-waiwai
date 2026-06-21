@@ -1,6 +1,7 @@
 import { AuditAction, AutomationTriggerType, Role } from "@prisma/client";
 import { AutomationService } from "./automation.service";
 import { AutomationQueueService } from "./automation-queue.service";
+import { AutomationEngineService } from "./automation-engine.service";
 
 describe("AutomationService", () => {
   const prisma = {
@@ -31,9 +32,14 @@ describe("AutomationService", () => {
     enqueueStep: jest.fn()
   };
 
+  const automationEngineService = {
+    processRunStep: jest.fn()
+  };
+
   const service = new AutomationService(
     prisma as any,
-    automationQueueService as unknown as AutomationQueueService
+    automationQueueService as unknown as AutomationQueueService,
+    automationEngineService as unknown as AutomationEngineService
   );
 
   beforeEach(() => {

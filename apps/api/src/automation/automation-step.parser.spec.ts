@@ -15,4 +15,35 @@ describe("automation-step.parser", () => {
   it("rejects empty steps", () => {
     expect(() => parseAutomationSteps([])).toThrow("At least one automation step");
   });
+
+  it("parses runAfter and SEND_IMAGE_REPLY", () => {
+    const steps = parseAutomationSteps([
+      { type: "SEND_TEXT_REPLY", text: "hello" },
+      {
+        type: "SEND_IMAGE_REPLY",
+        imageUrl: "https://cdn.example.com/a.jpg",
+        runAfter: "customer_reply"
+      }
+    ]);
+
+    expect(steps[1]).toEqual({
+      type: "SEND_IMAGE_REPLY",
+      imageUrl: "https://cdn.example.com/a.jpg",
+      runAfter: "customer_reply"
+    });
+  });
+
+  it("rejects runAfter on step 1", () => {
+    expect(() =>
+      parseAutomationSteps([
+        { type: "SEND_TEXT_REPLY", text: "hello", runAfter: "customer_reply" }
+      ])
+    ).toThrow("Step 1 cannot use runAfter");
+  });
+
+  it("rejects invalid image URLs", () => {
+    expect(() =>
+      parseAutomationSteps([{ type: "SEND_IMAGE_REPLY", imageUrl: "ftp://bad" }])
+    ).toThrow("imageUrl must be an http or https URL");
+  });
 });

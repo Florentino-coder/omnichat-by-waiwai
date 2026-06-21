@@ -1861,9 +1861,17 @@ export class InboxService {
     const code = this.extractLlmErrorCode(llmError);
     const messageByCode: Record<string, string> = {
       AI_PROVIDER_NOT_CONFIGURED: "AI provider API key is not configured on the server.",
-      AI_PROVIDER_RATE_LIMITED: "AI provider is temporarily busy. Please try again shortly.",
+      AI_PROVIDER_RATE_LIMITED:
+        "AI provider daily quota exceeded. Try again tomorrow or upgrade your API plan.",
       AI_PROVIDER_TIMEOUT: "AI provider took too long to respond. Please try again.",
       AI_GENERATION_FAILED: "AI generation failed. Please try again."
+    };
+
+    const statusByCode: Record<string, HttpStatus> = {
+      AI_PROVIDER_NOT_CONFIGURED: HttpStatus.SERVICE_UNAVAILABLE,
+      AI_PROVIDER_RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
+      AI_PROVIDER_TIMEOUT: HttpStatus.GATEWAY_TIMEOUT,
+      AI_GENERATION_FAILED: HttpStatus.BAD_GATEWAY
     };
 
     return new HttpException(
@@ -1874,7 +1882,7 @@ export class InboxService {
           message: messageByCode[code] ?? messageByCode.AI_GENERATION_FAILED
         }
       },
-      HttpStatus.BAD_GATEWAY
+      statusByCode[code] ?? HttpStatus.BAD_GATEWAY
     );
   }
 

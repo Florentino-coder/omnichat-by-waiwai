@@ -24,6 +24,7 @@ import {
   pickMatchingAutomationRules
 } from "./automation-match.util";
 import { AutomationQueueService } from "./automation-queue.service";
+import { AutomationEngineService } from "./automation-engine.service";
 
 @Injectable()
 export class AutomationService {
@@ -31,7 +32,8 @@ export class AutomationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly automationQueueService: AutomationQueueService
+    private readonly automationQueueService: AutomationQueueService,
+    private readonly automationEngineService: AutomationEngineService
   ) {}
 
   listRules(tenantId: string, lineChannelId?: string): Promise<AutomationRule[]> {
@@ -242,6 +244,9 @@ export class AutomationService {
     );
 
     for (const rule of matching) {
+      if (context.skipRuleIds?.includes(rule.id)) {
+        continue;
+      }
       await this.startRun(tenantId, conversationId, rule.id).catch((error: unknown) => {
         this.logger.error(
           `Failed to start automation run for rule ${rule.id}`,
@@ -280,6 +285,36 @@ export class AutomationService {
       ruleId: rule.id,
       stepIndex: 0
     });
+  }
+
+  async resumeWaitingRuns(
+    tenantId: string,
+    conversationId: string,
+    _inboundMessageId?: string
+  ): Promise<string[]> {
+    const runs = await this.prisma.automationRun.findMany({
+      where: {
+        tenantId,
+        conversationId,
+        status: AutomationRunStatus.WAITING_FOR_REPLY,
+        rule: {
+          isEnabled: true,
+          deletedAt: null
+        }
+      },
+      include: {
+        rule: true
+      },
+      orderBy: [{ rule: { priority: "asc" } }, { createdAt: "asc" }]
+    });
+
+    if (runs.length === 0) {
+      return [];
+    }
+
+    const run = runs[0];
+    await this.automationEngineService.processRunStep(run.id, run.currentStepIndex);
+    return [run.ruleId];
   }
 
   private async listEnabledRules(

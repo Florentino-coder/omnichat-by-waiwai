@@ -48,8 +48,14 @@ export const createInlineAutomationQueue = (
   async add(
     _name: string,
     data: AutomationJobData,
-    _options: AutomationQueueOptions
+    options: AutomationQueueOptions
   ): Promise<unknown> {
+    const delayMs = options.delay ?? 0;
+    if (delayMs > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, delayMs);
+      });
+    }
     await processor.processStep(data);
     return { id: "inline-automation-job" };
   }

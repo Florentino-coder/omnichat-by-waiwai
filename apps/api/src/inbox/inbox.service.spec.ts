@@ -175,7 +175,11 @@ function mockAiCreditsAvailable(prisma: MockPrisma): void {
 }
 
 const mockKnowledgeService = {
-  buildKnowledgeContext: jest.fn().mockResolvedValue("ไม่มี")
+  buildKnowledgeContext: jest.fn().mockResolvedValue("ไม่มี"),
+  buildKnowledgeContextWithCitations: jest.fn().mockResolvedValue({
+    context: "ไม่มี",
+    citations: []
+  })
 };
 
 const mockScenarioService = {
@@ -1062,7 +1066,8 @@ describe("InboxService", () => {
 
       expect(result).toEqual({
         suggestion_id: "sug-1",
-        suggestion_text: "AI Suggested Answer"
+        suggestion_text: "AI Suggested Answer",
+        knowledge_citations: []
       });
 
       expect(mockLlmClient.generateReply).toHaveBeenCalledWith(
@@ -1186,7 +1191,7 @@ describe("InboxService", () => {
       const service = createService(prisma);
       await expect(service.aiSuggest("tenant-1", "user-1", "conv-1", { action_type: "generate" as any })).rejects.toThrow(
         expect.objectContaining({
-          status: 502
+          status: 504
         })
       );
 
@@ -1279,7 +1284,8 @@ describe("InboxService", () => {
 
       expect(result).toEqual({
         suggestion_id: "sug-2",
-        suggestion_text: "Shorter answer"
+        suggestion_text: "Shorter answer",
+        knowledge_citations: []
       });
 
       expect(prisma.aiSuggestion.updateMany).toHaveBeenCalledWith({
