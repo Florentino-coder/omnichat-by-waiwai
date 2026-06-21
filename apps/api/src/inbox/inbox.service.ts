@@ -20,7 +20,12 @@ import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { ConversationStatus } from "./dto/update-conversation-status.dto";
 import { RedisService } from "../redis/redis.service";
-import { LLMClient } from "../common/llm/llm.interface";
+import { AiReplyGeneratorService } from "../ai/ai-reply-generator.service";
+import {
+  buildLlmHttpException,
+  extractLlmErrorCode,
+  resolveLlmClient
+} from "../ai/ai-llm.util";
 import { GeminiClient } from "../common/llm/gemini.client";
 import { OpenAIClient } from "../common/llm/openai.client";
 import { ClaudeClient } from "../common/llm/claude.client";
@@ -151,7 +156,8 @@ export class InboxService {
     private readonly claudeClient: ClaudeClient,
     private readonly knowledgeService: KnowledgeService,
     private readonly scenarioService: ScenarioService,
-    private readonly automationService: AutomationService
+    private readonly automationService: AutomationService,
+    private readonly aiReplyGenerator: AiReplyGeneratorService
   ) { }
 
   async listConversations(
@@ -1230,242 +1236,46 @@ export class InboxService {
 
     const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
 
-    const activeLlmClient = this.resolveLlmClient(provider);
-
-    // 2. Fetch conversation with customer (ensure customer.deletedAt: null)
-    const conversation = await this.prisma.conversation.findFirst({
-      where: {
-        id: conversationId,
-        tenantId,
-        deletedAt: null
-      },
-      include: {
-        customer: true
-      }
-    });
-
-    if (!conversation) {
-      throw new NotFoundException("Conversation not found");
-    }
-
-    if (!conversation.customerId || !conversation.customer || conversation.customer.deletedAt !== null) {
-      throw new NotFoundException("Customer not found or has been deleted");
-    }
-
-    const customer = conversation.customer;
-
-    // 3. Fetch recent 10-15 messages
-    const messages = await this.prisma.message.findMany({
-      where: {
-        conversationId,
-        tenantId,
-        deletedAt: null
-      },
-      orderBy: { createdAt: "desc" },
-      take: 15
-    });
-
-    // Order message history chronologically (asc)
-    const history = messages.reverse();
-
-    // Compile tags & notes for this customer
-    const customerConvs = await this.prisma.conversation.findMany({
-      where: {
-        customerId: customer.id,
-        tenantId,
-        deletedAt: null
-      },
-      include: {
-        tagLinks: {
-          where: { deletedAt: null },
-          include: { tag: true }
-        },
-        internalNotes: {
-          where: { deletedAt: null },
-          orderBy: { createdAt: "desc" }
-        }
-      }
-    });
-
-    const tagsMap = new Set<string>();
-    for (const c of customerConvs) {
-      for (const link of c.tagLinks) {
-        if (link.tag && !link.tag.deletedAt) {
-          tagsMap.add(link.tag.name);
-        }
-      }
-    }
-    const tagsStr = Array.from(tagsMap).join(", ") || "ไม่มี";
-
-    // Notes must ignore soft deleted entries (already handled in where condition)
-    const notesList = customerConvs
-      .flatMap((c) => c.internalNotes.map((n) => n.body))
-      .filter((body) => body.trim().length > 0);
-    const notesStr = notesList.join("\n- ") ? `\n- ${notesList.join("\n- ")}` : "ไม่มี";
-
-    // 4. Mapped history text helper
-    const conversationHistoryText = history
-      .map((msg) => {
-        const sender = msg.direction === "INBOUND" ? (customer.displayName || "Customer") : "Agent";
-        return `${sender}: ${msg.text || "[Media/Attachment]"}`;
-      })
-      .join("\n");
-
-    const knowledgeQueryText = [
-      ...history
-        .filter((msg) => msg.direction === "INBOUND")
-        .slice(-3)
-        .map((msg) => msg.text || ""),
-      dto.current_text || ""
-    ]
-      .join(" ")
-      .trim();
-
-    const knowledgeResult = await this.knowledgeService.buildKnowledgeContextWithCitations(
+    const generateResult = await this.aiReplyGenerator.generate({
       tenantId,
-      knowledgeQueryText || conversationHistoryText,
-      conversation.lineChannelId
-    );
-    const knowledgeContext = knowledgeResult.context;
-
-    const scenarioMatch = await this.scenarioService.buildScenarioInstructions(
-      tenantId,
-      knowledgeQueryText || conversationHistoryText,
-      Array.from(tagsMap),
-      conversation.lineChannelId
-    );
-
-    if (scenarioMatch.scenario) {
-      await this.scenarioService.applyScenarioActions({
-        tenantId,
-        conversationId,
-        scenario: scenarioMatch.scenario,
-        userId,
-        source: "ai_suggest"
-      });
-    }
-
-    const scenarioInstructions = scenarioMatch.instructions;
-
-    // 5. Load prompt template
-    let template = await this.prisma.promptTemplate.findFirst({
-      where: {
-        tenantId,
-        name: "suggested_reply_default"
-      }
+      conversationId,
+      userId,
+      actionType,
+      currentText: dto.current_text,
+      aiAgentGender,
+      provider,
+      applyScenarioActions: true
     });
 
-    if (!template) {
-      template = await this.prisma.promptTemplate.findFirst({
-        where: {
-          tenantId: null,
-          name: "suggested_reply_default"
-        }
-      });
-    }
-
-    const systemPromptTemplate = template
-      ? template.systemPrompt
-      : `คุณเป็นผู้ช่วย Agent ร้านค้าที่กำลังตอบแชทลูกค้าผ่าน LINE OA
-
-{{agent_gender_instruction}}
-
-ชื่อลูกค้า: {{customer_name}}
-แท็กลูกค้า: {{tags}}
-โน้ตภายในทีม (ข้อมูลสำคัญ ห้ามฝ่าฝืนเด็ดขาด): {{notes}}
-
-ข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):
-{{knowledge_context}}
-
-คำสั่ง Scenario ที่ match (ให้ความสำคัญสูงกว่าคำสั่งทั่วไป):
-{{scenario_instructions}}
-
-ประวัติการสนทนาล่าสุด:
-{{conversation_history}}
-
-ข้อความร่างล่าสุดของ Agent:
-{{current_draft}}
-
-คำสั่งสำหรับ action_type = {{action_type}}:
-- generate: ร่างคำตอบใหม่ สุภาพ กระชับ ตรงประเด็น
-- rewrite: เขียนใหม่ข้อความร่างล่าสุดของ Agent ให้ความหมายเดิมแต่สำนวนต่างออกไป
-- shorter: ย่อข้อความร่างล่าสุดของ Agent ให้สั้นลงและกระชับขึ้น
-- polite: ปรับข้อความร่างล่าสุดของ Agent ให้สุภาพขึ้น
-- friendly: ปรับข้อความร่างล่าสุดของ Agent ให้เป็นกันเองขึ้น
-
-ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
-
-    const agentGenderInstruction = buildAgentGenderInstruction(aiAgentGender);
-
-    // 6. Build prompt by replacing placeholders
-    const compiledPromptBase = systemPromptTemplate
-      .replace("{{agent_gender_instruction}}", agentGenderInstruction)
-      .replace("{{customer_name}}", customer.displayName || "ลูกค้า")
-      .replace("{{tags}}", tagsStr)
-      .replace("{{notes}}", notesStr)
-      .replace("{{knowledge_context}}", knowledgeContext)
-      .replace("{{scenario_instructions}}", scenarioInstructions)
-      .replace("{{action_type}}", actionType)
-      .replace("{{conversation_history}}", conversationHistoryText)
-      .replace("{{current_draft}}", dto.current_text || "ไม่มี");
-
-    const promptWithKnowledge = systemPromptTemplate.includes("{{knowledge_context}}")
-      ? compiledPromptBase
-      : `${compiledPromptBase}\n\nข้อมูลจาก Knowledge Base (ใช้เป็นข้อมูลอ้างอิง ห้ามแต่งเพิ่ม):\n${knowledgeContext}`;
-
-    const promptWithScenario = systemPromptTemplate.includes("{{scenario_instructions}}")
-      ? promptWithKnowledge
-      : `${promptWithKnowledge}\n\nคำสั่ง Scenario ที่ match:\n${scenarioInstructions}`;
-
-    const compiledPrompt = systemPromptTemplate.includes("{{agent_gender_instruction}}")
-      ? promptWithScenario
-      : `${agentGenderInstruction}\n\n${promptWithScenario}`;
-
-    const historyForLlm = history.map((msg) => ({
-      role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
-      text: msg.text || ""
-    }));
-
-    let suggestionText = "";
-    const llmStartedAt = Date.now();
-    try {
-      const rawSuggestion = await activeLlmClient.generateReply({
-        systemPrompt: compiledPrompt,
-        conversationHistory: historyForLlm
-      });
-      suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
-    } catch (llmError) {
-      const errorCode = this.extractLlmErrorCode(llmError);
-      if (
-        this.shouldOfferKnowledgeOnlyFallback(errorCode) &&
-        knowledgeResult.citations.length > 0
-      ) {
-        await this.logAiSuggestFailure(tenantId, userId, {
-          conversationId,
-          actionType,
-          provider,
-          errorCode,
-          mode: "knowledge_only"
-        });
-
-        return {
-          mode: "knowledge_only" as const,
-          suggestion_id: null,
-          suggestion_text: null,
-          knowledge_citations: knowledgeResult.citations
-        };
-      }
-
+    if (generateResult.outcome === "knowledge_only") {
       await this.logAiSuggestFailure(tenantId, userId, {
         conversationId,
         actionType,
-        provider,
-        errorCode,
+        provider: generateResult.provider,
+        errorCode: generateResult.errorCode,
+        mode: "knowledge_only"
+      });
+
+      return {
+        mode: "knowledge_only" as const,
+        suggestion_id: null,
+        suggestion_text: null,
+        knowledge_citations: generateResult.knowledgeCitations
+      };
+    }
+
+    if (generateResult.outcome === "llm_failed") {
+      await this.logAiSuggestFailure(tenantId, userId, {
+        conversationId,
+        actionType,
+        provider: generateResult.provider,
+        errorCode: generateResult.errorCode,
         mode: "suggest"
       });
-      throw this.buildLlmHttpException(llmError);
+      throw buildLlmHttpException(generateResult.llmError);
     }
-    const latencyMs = Date.now() - llmStartedAt;
+
+    const { suggestionText, compiledPrompt, knowledgeCitations, latencyMs } = generateResult;
 
     // 7. Save suggestion if LLM succeeded (Addendum 2 requirement: DO NOT save row if LLM call failed)
     if (dto.previous_suggestion_id) {
@@ -1516,7 +1326,7 @@ export class InboxService {
       mode: "llm" as const,
       suggestion_id: suggestion.id,
       suggestion_text: suggestionText,
-      knowledge_citations: knowledgeResult.citations
+      knowledge_citations: knowledgeCitations
     };
   }
 
@@ -1611,7 +1421,11 @@ export class InboxService {
     await this.assertAiCreditAvailable(tenantId, userId);
 
     const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
-    const activeLlmClient = this.resolveLlmClient(provider);
+    const activeLlmClient = resolveLlmClient(provider, {
+      gemini: this.geminiClient,
+      openai: this.openaiClient,
+      claude: this.claudeClient
+    });
     const sampleMessage = dto.sample_message?.trim() || "สวัสดีครับ มีสินค้าอะไรบ้างคะ";
     const agentGenderInstruction = buildAgentGenderInstruction(aiAgentGender);
 
@@ -1703,13 +1517,13 @@ export class InboxService {
       });
       suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
     } catch (llmError) {
-      const errorCode = this.extractLlmErrorCode(llmError);
+      const errorCode = extractLlmErrorCode(llmError);
       await this.logAiSuggestFailure(tenantId, userId, {
         provider,
         errorCode,
         mode: "test"
       });
-      throw this.buildLlmHttpException(llmError);
+      throw buildLlmHttpException(llmError);
     }
 
     const latencyMs = Date.now() - startedAt;
@@ -1849,17 +1663,6 @@ export class InboxService {
     return template;
   }
 
-  private resolveLlmClient(provider: string): LLMClient {
-    const normalized = provider.toLowerCase();
-    if (normalized === "openai") {
-      return this.openaiClient;
-    }
-    if (normalized === "claude") {
-      return this.claudeClient;
-    }
-    return this.geminiClient;
-  }
-
   private getProviderLabel(provider: string): string {
     const normalized = provider.toLowerCase();
     if (normalized === "openai") {
@@ -1880,59 +1683,6 @@ export class InboxService {
       return process.env.CLAUDE_MODEL || "claude-3-5-haiku-20241022";
     }
     return process.env.GEMINI_MODEL || "gemini-2.5-flash";
-  }
-
-  private shouldOfferKnowledgeOnlyFallback(errorCode: string): boolean {
-    return (
-      errorCode === "AI_PROVIDER_RATE_LIMITED" || errorCode === "AI_PROVIDER_NOT_CONFIGURED"
-    );
-  }
-
-  private buildLlmHttpException(llmError: unknown): HttpException {
-    const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
-    this.logger.error(`LLM Generation failed: ${errorMessage}`);
-
-    const code = this.extractLlmErrorCode(llmError);
-    const messageByCode: Record<string, string> = {
-      AI_PROVIDER_NOT_CONFIGURED: "AI provider API key is not configured on the server.",
-      AI_PROVIDER_RATE_LIMITED:
-        "AI provider daily quota exceeded. Try again tomorrow or upgrade your API plan.",
-      AI_PROVIDER_TIMEOUT: "AI provider took too long to respond. Please try again.",
-      AI_GENERATION_FAILED: "AI generation failed. Please try again."
-    };
-
-    const statusByCode: Record<string, HttpStatus> = {
-      AI_PROVIDER_NOT_CONFIGURED: HttpStatus.SERVICE_UNAVAILABLE,
-      AI_PROVIDER_RATE_LIMITED: HttpStatus.TOO_MANY_REQUESTS,
-      AI_PROVIDER_TIMEOUT: HttpStatus.GATEWAY_TIMEOUT,
-      AI_GENERATION_FAILED: HttpStatus.BAD_GATEWAY
-    };
-
-    return new HttpException(
-      {
-        success: false,
-        error: {
-          code,
-          message: messageByCode[code] ?? messageByCode.AI_GENERATION_FAILED
-        }
-      },
-      statusByCode[code] ?? HttpStatus.BAD_GATEWAY
-    );
-  }
-
-  private extractLlmErrorCode(llmError: unknown): string {
-    const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
-
-    if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY/i.test(errorMessage)) {
-      return "AI_PROVIDER_NOT_CONFIGURED";
-    }
-    if (/status 429|rate limit|quota/i.test(errorMessage)) {
-      return "AI_PROVIDER_RATE_LIMITED";
-    }
-    if (/timeout|ETIMEDOUT|ECONNRESET/i.test(errorMessage)) {
-      return "AI_PROVIDER_TIMEOUT";
-    }
-    return "AI_GENERATION_FAILED";
   }
 
   private async logAiSuggestFailure(

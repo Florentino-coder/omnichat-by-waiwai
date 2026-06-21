@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
+import { AiModule } from "../ai/ai.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { RedisModule } from "../redis/redis.module";
 import { LlmModule } from "../common/llm/llm.module";
@@ -17,7 +18,8 @@ import { InboxService } from "./inbox.service";
     LlmModule,
     KnowledgeModule,
     ScenarioModule,
-    AutomationModule
+    AutomationModule,
+    AiModule
   ],
   controllers: [InboxController],
   providers: [InboxService]

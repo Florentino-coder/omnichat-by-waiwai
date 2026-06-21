@@ -8,6 +8,7 @@ import {
   Role
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { AiReplyGeneratorService } from "../ai/ai-reply-generator.service";
 import { InboxService } from "./inbox.service";
 import { AiSuggestionStatus } from "./dto/update-ai-suggestion.dto";
 
@@ -194,8 +195,17 @@ const mockAutomationService = {
   dispatchEvent: jest.fn().mockResolvedValue(undefined)
 };
 
-const createService = (prisma: MockPrisma): InboxService =>
-  new InboxService(
+const createService = (prisma: MockPrisma): InboxService => {
+  const aiReplyGenerator = new AiReplyGeneratorService(
+    prisma as unknown as PrismaService,
+    mockLlmClient as any,
+    mockLlmClient as any,
+    mockLlmClient as any,
+    mockKnowledgeService as any,
+    mockScenarioService as any
+  );
+
+  return new InboxService(
     prisma as unknown as PrismaService,
     mockCryptoSecretService,
     mockRedisService as any,
@@ -204,8 +214,10 @@ const createService = (prisma: MockPrisma): InboxService =>
     mockLlmClient as any,
     mockKnowledgeService as any,
     mockScenarioService as any,
-    mockAutomationService as any
+    mockAutomationService as any,
+    aiReplyGenerator
   );
+};
 
 type Stage3BInboxService = InboxService & {
   assignConversation: (
