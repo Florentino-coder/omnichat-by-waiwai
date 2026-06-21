@@ -16,8 +16,10 @@ import {
   AI_AUTO_REPLY_DEBOUNCE_MS,
   AI_AUTO_REPLY_TENANT_RATE_LIMIT,
   AI_AUTO_REPLY_TENANT_RATE_TTL_SECONDS,
+  AI_ESCALATED_TAG_COLOR,
   AI_ESCALATED_TAG_NAME,
   AiAutoReplySkipReason,
+  getMatchedEscalationKeywords,
   DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
   DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_START,
   getEscalationKeywordsForMatching,
@@ -121,7 +123,8 @@ export class AiAutoReplyService {
 
     const escalationKeywords = getEscalationKeywordsForMatching(settings.aiEscalationKeywords);
     if (matchesEscalationKeyword(trimmedText, escalationKeywords)) {
-      await this.handleEscalation(input, trimmedText, escalationKeywords);
+      const matchedKeywords = getMatchedEscalationKeywords(trimmedText, escalationKeywords);
+      await this.handleEscalation(input, trimmedText, matchedKeywords);
       return;
     }
 
@@ -258,6 +261,11 @@ export class AiAutoReplyService {
     matchedKeywords: string[]
   ): Promise<void> {
     await this.addTagByName(input.tenantId, input.conversationId, AI_ESCALATED_TAG_NAME);
+    await this.markInboundMessageEscalated(
+      input.tenantId,
+      input.inboundMessageId,
+      matchedKeywords
+    );
 
     const conversation = await this.prisma.conversation.findFirst({
       where: {
@@ -301,7 +309,11 @@ export class AiAutoReplyService {
 
     if (!tag) {
       tag = await this.prisma.conversationTag.create({
-        data: { tenantId, name: tagName }
+        data: {
+          tenantId,
+          name: tagName,
+          ...(tagName === AI_ESCALATED_TAG_NAME ? { color: AI_ESCALATED_TAG_COLOR } : {})
+        }
       });
     }
 
@@ -323,6 +335,48 @@ export class AiAutoReplyService {
 
     await this.prisma.conversationTagLink.create({
       data: { tenantId, conversationId, tagId: tag.id }
+    });
+  }
+
+  private async markInboundMessageEscalated(
+    tenantId: string,
+    inboundMessageId: string,
+    matchedKeywords: string[]
+  ): Promise<void> {
+    const message = await this.prisma.message.findFirst({
+      where: { id: inboundMessageId, tenantId, deletedAt: null },
+      select: { id: true, rawPayload: true }
+    });
+
+    if (!message) {
+      return;
+    }
+
+    const existing =
+      message.rawPayload &&
+      typeof message.rawPayload === "object" &&
+      !Array.isArray(message.rawPayload)
+        ? (message.rawPayload as Record<string, unknown>)
+        : {};
+    const existingMeta =
+      existing.omnichatMeta &&
+      typeof existing.omnichatMeta === "object" &&
+      !Array.isArray(existing.omnichatMeta)
+        ? (existing.omnichatMeta as Record<string, unknown>)
+        : {};
+
+    await this.prisma.message.update({
+      where: { id: message.id },
+      data: {
+        rawPayload: {
+          ...existing,
+          omnichatMeta: {
+            ...existingMeta,
+            escalation: true,
+            matchedKeywords
+          }
+        }
+      }
     });
   }
 

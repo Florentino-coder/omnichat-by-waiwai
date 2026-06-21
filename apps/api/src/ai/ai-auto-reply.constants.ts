@@ -35,6 +35,7 @@ export const AI_AUTO_REPLY_TENANT_RATE_TTL_SECONDS = 24 * 60 * 60;
 export const AI_AUTO_REPLY_DEBOUNCE_MS = 3000;
 export const AI_AUTO_REPLY_MAX_TEXT_LENGTH = 5000;
 export const AI_ESCALATED_TAG_NAME = "ai-escalated";
+export const AI_ESCALATED_TAG_COLOR = "#F59E0B";
 
 export type AiAutoReplySkipReason =
   | "disabled"
@@ -69,12 +70,18 @@ export function getEscalationKeywordsForMatching(stored: string[] | null | undef
   return normalizeEscalationKeywords(stored);
 }
 
-export function matchesEscalationKeyword(messageText: string, keywords: string[]): boolean {
+export function getMatchedEscalationKeywords(messageText: string, keywords: string[]): string[] {
   if (keywords.length === 0) {
-    return false;
+    return [];
   }
   const normalizedMessage = messageText.trim().toLowerCase();
-  return keywords.some((keyword) => normalizedMessage.includes(keyword.trim().toLowerCase()));
+  return keywords.filter((keyword) =>
+    normalizedMessage.includes(keyword.trim().toLowerCase())
+  );
+}
+
+export function matchesEscalationKeyword(messageText: string, keywords: string[]): boolean {
+  return getMatchedEscalationKeywords(messageText, keywords).length > 0;
 }
 
 export function passesAutoReplyModeGuard(input: {

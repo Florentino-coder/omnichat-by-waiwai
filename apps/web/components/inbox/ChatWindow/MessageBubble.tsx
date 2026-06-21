@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { LockKeyhole, FileDown, X } from "lucide-react";
 
-export type MessageVariant = "outbound" | "inbound" | "note" | "system";
+export type MessageVariant = "outbound" | "inbound" | "inbound-escalation" | "note" | "system";
 
 function getStickerUrl(rawPayload: unknown): string | null {
   if (!rawPayload || typeof rawPayload !== "object") return null;
@@ -29,6 +29,7 @@ interface MessageBubbleProps {
   mediaR2Key?: string | null;
   mediaFileName?: string | null;
   rawPayload?: unknown;
+  escalationLabel?: string;
 }
 
 export function MessageBubble({
@@ -42,7 +43,8 @@ export function MessageBubble({
   mediaSize,
   mediaR2Key: _mediaR2Key,
   mediaFileName,
-  rawPayload
+  rawPayload,
+  escalationLabel
 }: MessageBubbleProps) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
@@ -58,6 +60,7 @@ export function MessageBubble({
 
   const isOutbound = variant === "outbound";
   const isNote = variant === "note";
+  const isEscalation = variant === "inbound-escalation";
   const stickerUrl = type === "STICKER" ? getStickerUrl(rawPayload) : null;
   const isMedia = ["IMAGE", "VIDEO", "AUDIO", "FILE"].includes(type || "") || !!stickerUrl;
 
@@ -82,6 +85,8 @@ export function MessageBubble({
                 : "rounded-[18px_18px_4px_18px] bg-primary text-white"
               : isNote
                 ? "rounded-[14px] border-2 border-[#F2C94C] bg-[#FFF9E8] text-[#8B4C11]"
+                : isEscalation
+                  ? "rounded-[18px_18px_18px_4px] border-2 border-amber-300 bg-amber-50 text-amber-950"
                 : isMedia
                   ? "bg-transparent text-foreground"
                   : "rounded-[18px_18px_18px_4px] border border-[#DCD9E3] bg-white text-foreground"
@@ -91,6 +96,11 @@ export function MessageBubble({
             <span className="mb-1 flex items-center gap-2 text-sm font-semibold px-4 pt-3">
               <LockKeyhole size={14} aria-hidden="true" />
               โน้ตทีม
+            </span>
+          ) : null}
+          {isEscalation && escalationLabel ? (
+            <span className="mb-1 flex items-center gap-2 px-4 pt-3 text-sm font-semibold text-amber-900">
+              {escalationLabel}
             </span>
           ) : null}
 

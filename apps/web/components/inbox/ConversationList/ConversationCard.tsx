@@ -13,6 +13,8 @@ export interface ConversationCardProps {
   status: Extract<ConvStatus, "OPEN" | "PENDING" | "RESOLVED" | "UNREAD">;
   unreadCount?: number;
   aiAutoReplyBadge?: string;
+  escalationBadge?: string;
+  needsAdminHighlight?: boolean;
   isActive?: boolean;
   onSelect?: (id: string) => void;
 }
@@ -29,16 +31,31 @@ export function ConversationCard({
   status,
   unreadCount,
   aiAutoReplyBadge,
+  escalationBadge,
+  needsAdminHighlight = false,
   isActive = false,
   onSelect
 }: ConversationCardProps) {
   const config = STATUS_CONFIG[status];
+  const leftBorderClass = needsAdminHighlight
+    ? "border-l-[3px] border-l-amber-500"
+    : isActive
+      ? "border-l-[3px] border-l-primary"
+      : "border-l-[3px] border-l-transparent";
+  const backgroundClass = needsAdminHighlight
+    ? isActive
+      ? "bg-[#FFFBEB]"
+      : "bg-[#FFFDF7] hover:bg-[#FFFBEB]"
+    : isActive
+      ? "bg-[#EEF1FF]"
+      : "bg-white hover:bg-[#F7F7FF]";
   return (
     <button
       aria-label={`Open conversation ${customerName}`}
       className={[
-        "grid min-h-[120px] w-full grid-cols-[54px_minmax(0,1fr)] gap-3 border-b border-border px-5 py-4 text-left transition-colors hover:bg-[#F7F7FF]",
-        isActive ? "border-l-[3px] border-l-primary bg-[#EEF1FF]" : "border-l-[3px] border-l-transparent bg-white"
+        "grid min-h-[120px] w-full grid-cols-[54px_minmax(0,1fr)] gap-3 border-b border-border px-5 py-4 text-left transition-colors",
+        leftBorderClass,
+        backgroundClass
       ].join(" ")}
       onClick={() => onSelect?.(id)}
       type="button"
@@ -81,6 +98,11 @@ export function ConversationCard({
             {aiAutoReplyBadge ? (
               <span className="inline-flex rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">
                 {aiAutoReplyBadge}
+              </span>
+            ) : null}
+            {escalationBadge ? (
+              <span className="inline-flex rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                {escalationBadge}
               </span>
             ) : null}
           </span>

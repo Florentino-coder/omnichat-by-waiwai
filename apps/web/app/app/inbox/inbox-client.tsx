@@ -124,6 +124,8 @@ type InboxMessage = {
 type LineMessagePayload = {
   omnichatMeta?: {
     triggeredBy?: string;
+    escalation?: boolean;
+    matchedKeywords?: string[];
   };
   source?: {
     type?: string;
@@ -288,6 +290,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       ),
     [conversations, inProgressAlertMinutes, now]
   );
+  const needsAdminCount = useMemo(
+    () => conversations.filter((conversation) => conversationHasEscalation(conversation)).length,
+    [conversations]
+  );
 
   const filteredConversations = useMemo(() => {
     const byText = conversations.filter((conversation) => {
@@ -315,6 +321,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
     if (activeFilter === "resolved") {
       return byText.filter((conversation) => conversationStatus(conversation) === "RESOLVED");
+    }
+    if (activeFilter === "needs-admin") {
+      return byText.filter((conversation) => conversationHasEscalation(conversation));
     }
     return byText;
   }, [activeFilter, conversations, searchQuery, selectedId]);
@@ -1174,11 +1183,17 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       id: "resolved",
       label: t.filterClosed,
       count: conversations.filter((conversation) => conversationStatus(conversation) === "RESOLVED").length
+    },
+    {
+      id: "needs-admin",
+      label: t.filterNeedsAdmin,
+      count: needsAdminCount
     }
   ];
   const cards = filteredConversations.map((conversation): ConversationCardProps => {
     const latestMessage = conversation.messages?.[0];
     const readState = getReadState(conversation, selectedId);
+    const hasEscalation = conversationHasEscalation(conversation);
     return {
       id: conversation.id,
       customerName: customerLabel(conversation),
@@ -1193,6 +1208,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       status: conversationCardStatus(conversation, readState),
       unreadCount: readState === "unread" ? 1 : undefined,
       aiAutoReplyBadge: isAiAutoReplyOutboundMessage(latestMessage) ? t.aiAutoReplyBadge : undefined,
+      escalationBadge: hasEscalation ? t.aiEscalationBadge : undefined,
+      needsAdminHighlight: hasEscalation,
       isActive: conversation.id === selectedId
     };
   });
@@ -1200,10 +1217,14 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const threadAiAutoReplyBadge = isAiAutoReplyOutboundMessage(lastOutboundMessage)
     ? t.aiAutoReplyBadge
     : undefined;
+  const threadEscalationBadge = conversationHasEscalation(selectedConversation)
+    ? t.aiEscalationBadge
+    : undefined;
   const chatMessages: ChatMessageItem[] = messages.map((message) => ({
     id: message.id,
-    variant: message.direction === "OUTBOUND" ? "outbound" : "inbound",
+    variant: isEscalationInboundMessage(message) ? "inbound-escalation" : message.direction === "OUTBOUND" ? "outbound" : "inbound",
     body: messageSummary(message),
+    escalationLabel: isEscalationInboundMessage(message) ? t.escalationBubbleLabel : undefined,
     authorInitial: message.direction === "INBOUND" ? customerInitial(selectedCustomerName) : undefined,
     time: message.direction === "OUTBOUND"
       ? `${currentUser?.displayName ?? "คุณ"} · ${formatDateTime(message.createdAt)}`
@@ -1424,6 +1445,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                 customerInitial={customerInitial(selectedCustomerName)}
                 customerName={selectedConversation ? selectedCustomerName : t.messageThread}
                 aiAutoReplyBadge={threadAiAutoReplyBadge}
+                escalationBadge={threadEscalationBadge}
                 emptyText={
                   !selectedConversation && !isLoadingConversations
                     ? t.connectLine
@@ -1764,6 +1786,26 @@ function isAiAutoReplyOutboundMessage(
     return false;
   }
   return message.rawPayload?.omnichatMeta?.triggeredBy === "system";
+}
+
+const AI_ESCALATED_TAG_NAME = "ai-escalated";
+
+function conversationHasEscalation(conversation: InboxConversation | null | undefined): boolean {
+  if (!conversation?.tagLinks?.length) {
+    return false;
+  }
+  return conversation.tagLinks.some(
+    (link) => !link.deletedAt && link.tag?.name === AI_ESCALATED_TAG_NAME
+  );
+}
+
+function isEscalationInboundMessage(
+  message: Pick<ConversationPreviewMessage, "direction" | "rawPayload">
+): boolean {
+  return (
+    message.direction === "INBOUND" &&
+    message.rawPayload?.omnichatMeta?.escalation === true
+  );
 }
 
 function conversationCardStatus(

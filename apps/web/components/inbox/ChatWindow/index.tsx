@@ -16,6 +16,7 @@ export interface ChatMessageItem {
   mediaR2Key?: string | null;
   mediaFileName?: string | null;
   rawPayload?: unknown;
+  escalationLabel?: string;
 }
 
 interface ChatWindowProps {
@@ -23,6 +24,7 @@ interface ChatWindowProps {
   customerInitial: string;
   channelLabel: string;
   aiAutoReplyBadge?: string;
+  escalationBadge?: string;
   status: "OPEN" | "PENDING" | "RESOLVED";
   priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   messages: ChatMessageItem[];
@@ -51,6 +53,7 @@ export function ChatWindow({
   customerInitial,
   channelLabel,
   aiAutoReplyBadge,
+  escalationBadge,
   status,
   priority,
   messages,
@@ -77,6 +80,7 @@ export function ChatWindow({
     <section className="flex min-h-0 flex-1 flex-col bg-[#F7F6FB]" aria-labelledby="thread-heading">
       <ChatHeader
         aiAutoReplyBadge={aiAutoReplyBadge}
+        escalationBadge={escalationBadge}
         channelLabel={channelLabel}
         customerInitial={customerInitial}
         customerName={customerName}
@@ -107,6 +111,7 @@ export function ChatWindow({
               body={message.body}
               time={message.time}
               variant={message.variant}
+              escalationLabel={message.escalationLabel}
               type={message.type}
               mediaUrl={message.mediaUrl}
               mediaMimeType={message.mediaMimeType}

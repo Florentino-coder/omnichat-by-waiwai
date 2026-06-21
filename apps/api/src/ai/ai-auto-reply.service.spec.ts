@@ -35,7 +35,7 @@ function createMocks() {
     tenantSettings: { findUnique: jest.fn() },
     conversation: { findFirst: jest.fn(), update: jest.fn() },
     tenant: { findUnique: jest.fn() },
-    message: { findFirst: jest.fn() },
+    message: { findFirst: jest.fn(), update: jest.fn() },
     planLimit: { findUnique: jest.fn() },
     usageCounter: { findUnique: jest.fn(), upsert: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({ id: "audit-1" }) },
@@ -195,10 +195,32 @@ describe("AiAutoReplyService", () => {
     mocks.prisma.conversationTag.findFirst.mockResolvedValue(null);
     mocks.prisma.conversationTag.create.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
     mocks.prisma.conversationTagLink.findFirst.mockResolvedValue(null);
+    mocks.prisma.message.findFirst.mockResolvedValue({
+      id: "message-1",
+      rawPayload: { message: { text: "ขอคุยกับแอดมินครับ" } }
+    });
+    mocks.prisma.message.update.mockResolvedValue({ id: "message-1" });
     const service = createService(mocks);
 
     await service.tryAutoReply({ ...baseInput, messageText: "ขอคุยกับแอดมินครับ" });
 
+    expect(mocks.prisma.conversationTag.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        name: "ai-escalated",
+        color: "#F59E0B"
+      })
+    });
+    expect(mocks.prisma.message.update).toHaveBeenCalledWith({
+      where: { id: "message-1" },
+      data: {
+        rawPayload: expect.objectContaining({
+          omnichatMeta: expect.objectContaining({
+            escalation: true,
+            matchedKeywords: ["แอดมิน"]
+          })
+        })
+      }
+    });
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: AuditAction.AI_AUTO_REPLY_ESCALATED

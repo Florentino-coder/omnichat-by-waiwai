@@ -253,4 +253,21 @@ Waves 4–5: implemented in working tree (commit pending).
 3. Fix P0/P1 (wrong answers, double replies, quota)
 4. Then Stage 6 Reporting or F-beta automation AI step
 
+---
+
+## F-alpha+ — Escalation inbox UX (2026-06-22)
+
+| Change | Location |
+|--------|----------|
+| Tag `ai-escalated` created with color `#F59E0B` | `ai-auto-reply.service.ts` |
+| Inbound message `omnichatMeta.escalation` + `matchedKeywords` | same |
+| Badge **ขอคุยแอดมิน** list + header | `ConversationCard`, `ChatHeader` |
+| Amber left border on escalated conv | `ConversationCard` |
+| Filter tab **ต้องการแอดมิน** | `inbox-client.tsx` |
+| Amber inbound bubble + label | `MessageBubble` variant `inbound-escalation` |
+
+_Old escalated threads: badge/filter from tag; bubble highlight only on new escalations with metadata._
+
+---
+
 _Last updated: 2026-06-22_

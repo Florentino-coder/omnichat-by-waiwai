@@ -8,6 +8,7 @@ interface ChatHeaderProps {
   customerName: string;
   customerInitial: string;
   aiAutoReplyBadge?: string;
+  escalationBadge?: string;
   status: Extract<ConvStatus, "OPEN" | "PENDING" | "RESOLVED">;
   channelLabel: string;
   priority: Priority;
@@ -29,6 +30,7 @@ export function ChatHeader({
   customerName,
   customerInitial,
   aiAutoReplyBadge,
+  escalationBadge,
   status,
   channelLabel,
   priority,
@@ -68,6 +70,11 @@ export function ChatHeader({
             {aiAutoReplyBadge ? (
               <span className="inline-flex shrink-0 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] md:text-xs font-semibold text-violet-700">
                 {aiAutoReplyBadge}
+              </span>
+            ) : null}
+            {escalationBadge ? (
+              <span className="inline-flex shrink-0 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] md:text-xs font-semibold text-amber-800">
+                {escalationBadge}
               </span>
             ) : null}
           </div>
