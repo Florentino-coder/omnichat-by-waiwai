@@ -217,4 +217,51 @@ describe("LineReplyService", () => {
       })
     });
   });
+
+  it("sets userId to null in audit logs when sent by automation system user", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      lineChannelId: "line-channel-1",
+      externalThreadId: "U123"
+    });
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-1",
+      tenantId: "tenant-1",
+      encryptedChannelAccessToken: "encrypted-token"
+    });
+    prisma.message.create.mockResolvedValue({ id: "message-2" });
+    prisma.conversation.update.mockResolvedValue({ id: "conversation-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: jest.fn().mockResolvedValue("")
+    }) as unknown as typeof fetch;
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-token"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    await new LineReplyService(prisma as unknown as PrismaService, crypto).replyText(
+      "tenant-1",
+      "automation",
+      "conversation-1",
+      { text: "สวัสดีจากระบบออโต้" }
+    );
+
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: null,
+        action: AuditAction.LINE_REPLY_SENT,
+        targetType: "Message",
+        targetId: "message-2",
+        metadata: expect.objectContaining({
+          triggeredBy: "automation"
+        })
+      })
+    });
+  });
 });

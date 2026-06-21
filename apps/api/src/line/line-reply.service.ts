@@ -98,16 +98,18 @@ export class LineReplyService {
       data: { lastMessageAt: sentAt }
     });
 
+    const isSystem = userId === "automation" || userId === "system";
     await this.prisma.auditLog.create({
       data: {
         tenantId,
-        userId,
+        userId: isSystem ? null : userId,
         action: AuditAction.LINE_REPLY_SENT,
         targetType: "Message",
         targetId: message.id,
         metadata: {
           conversationId: conversation.id,
-          lineChannelId: channel.id
+          lineChannelId: channel.id,
+          ...(isSystem ? { triggeredBy: userId } : {})
         }
       }
     });

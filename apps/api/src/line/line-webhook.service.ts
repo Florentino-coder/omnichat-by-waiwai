@@ -357,17 +357,23 @@ export class LineWebhookService {
             });
         }
 
-        if (messageType === MessageType.TEXT && lineMessage.text?.trim()) {
-          const resumedRuleIds = await this.automationService
-            .resumeWaitingRuns(channel.tenantId, conversation.id, message.id)
-            .catch((error: unknown) => {
-              this.logger.error(
-                "Failed to resume waiting automation runs",
-                error instanceof Error ? error.stack : error
-              );
-              return [] as string[];
-            });
+        let resumedRuleIds: string[] = [];
+        const isTextMessage = messageType === MessageType.TEXT && lineMessage.text?.trim();
 
+        const resumedRuleIdsResult = await this.automationService
+          .resumeWaitingRuns(channel.tenantId, conversation.id, message.id)
+          .catch((error: unknown) => {
+            this.logger.error(
+              "Failed to resume waiting automation runs",
+              error instanceof Error ? error.stack : error
+            );
+            return [] as string[];
+          });
+        if (resumedRuleIdsResult) {
+          resumedRuleIds = resumedRuleIdsResult;
+        }
+
+        if (isTextMessage) {
           await this.automationService
             .dispatchEvent(
               channel.tenantId,

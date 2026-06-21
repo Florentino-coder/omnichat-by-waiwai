@@ -463,12 +463,14 @@ describe("InboxService", () => {
     prisma.tenantSettings.findUnique.mockResolvedValue({
       inProgressAlertMinutes: 15,
       enableAiSuggest: true,
+      enableAiScenarios: true,
       aiProvider: "gemini",
       aiAgentGender: "FEMALE"
     });
     prisma.tenantSettings.upsert.mockResolvedValue({
       inProgressAlertMinutes: 5,
       enableAiSuggest: true,
+      enableAiScenarios: true,
       aiProvider: "gemini",
       aiAgentGender: "FEMALE"
     });
@@ -477,6 +479,7 @@ describe("InboxService", () => {
     await expect(createService(prisma).getSettings("tenant-1")).resolves.toEqual({
       inProgressAlertMinutes: 15,
       enableAiSuggest: true,
+      enableAiScenarios: true,
       aiProvider: "gemini",
       aiAgentGender: "FEMALE"
     });
@@ -488,18 +491,21 @@ describe("InboxService", () => {
         tenantId: "tenant-1",
         inProgressAlertMinutes: 5,
         enableAiSuggest: true,
+        enableAiScenarios: true,
         aiProvider: "gemini",
         aiAgentGender: "FEMALE"
       },
       update: {
         inProgressAlertMinutes: 5,
         enableAiSuggest: undefined,
+        enableAiScenarios: undefined,
         aiProvider: undefined,
         aiAgentGender: undefined
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
+        enableAiScenarios: true,
         aiProvider: true,
         aiAgentGender: true
       }

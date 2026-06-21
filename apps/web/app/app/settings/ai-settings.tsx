@@ -6,6 +6,32 @@ import { Button } from "@omnichat/ui";
 import { getAiCreditStatusMessage, type AiCreditBlockReason } from "../../lib/ai-credit-status";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages, type Locale } from "../../lib/i18n";
+import { Sparkles, GitBranch, Cpu, User, Clock } from "lucide-react";
+
+interface ToggleSwitchProps {
+  checked: boolean;
+  onChange: (val: boolean) => void;
+  disabled?: boolean;
+}
+
+function ToggleSwitch({ checked, onChange, disabled }: ToggleSwitchProps) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#4636D7] focus:ring-offset-2 ${
+        checked ? "bg-[#4636D7]" : "bg-[#ECEBFF]"
+      } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
 
 type AiSettingsData = {
   inProgressAlertMinutes: number;
@@ -279,90 +305,127 @@ export function AiSettings() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
-            {t.aiSuggestedReplySystem}
-          </label>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm font-semibold text-[#16182B]">{t.aiEnableSuggestedReply}</span>
-            <input
-              type="checkbox"
-              checked={settings.enableAiSuggest}
-              onChange={(e) => setSettings({ ...settings, enableAiSuggest: e.target.checked })}
-              className="h-5 w-5 rounded border-[#DEDDE6] text-[#4636D7] focus:ring-[#4636D7] cursor-pointer"
-            />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+        <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div>
+            <div className="flex items-center justify-between border-b border-[#F5F4F7] pb-3 mb-3">
+              <span className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+                {t.aiSuggestedReplySystem}
+              </span>
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <Sparkles size={16} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-sm font-semibold text-[#16182B]">{t.aiEnableSuggestedReply}</span>
+              <ToggleSwitch
+                checked={settings.enableAiSuggest}
+                onChange={(val) => setSettings({ ...settings, enableAiSuggest: val })}
+              />
+            </div>
           </div>
-          <p className="text-xs text-[#767A8C] mt-2">{t.aiSuggestedReplyHint}</p>
+          <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiSuggestedReplyHint}</p>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
-            {t.aiScenarioEngineSystem}
-          </label>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-sm font-semibold text-[#16182B]">{t.aiEnableScenarioEngine}</span>
-            <input
-              type="checkbox"
-              checked={settings.enableAiScenarios}
-              onChange={(e) => setSettings({ ...settings, enableAiScenarios: e.target.checked })}
-              className="h-5 w-5 rounded border-[#DEDDE6] text-[#4636D7] focus:ring-[#4636D7] cursor-pointer"
-            />
+        <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div>
+            <div className="flex items-center justify-between border-b border-[#F5F4F7] pb-3 mb-3">
+              <span className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+                {t.aiScenarioEngineSystem}
+              </span>
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <GitBranch size={16} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-sm font-semibold text-[#16182B]">{t.aiEnableScenarioEngine}</span>
+              <ToggleSwitch
+                checked={settings.enableAiScenarios}
+                onChange={(val) => setSettings({ ...settings, enableAiScenarios: val })}
+              />
+            </div>
           </div>
-          <p className="text-xs text-[#767A8C] mt-2">{t.aiScenarioEngineHint}</p>
+          <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiScenarioEngineHint}</p>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">{t.aiLlmProvider}</label>
-          <select
-            value={settings.aiProvider}
-            onChange={(e) => setSettings({ ...settings, aiProvider: e.target.value })}
-            className="w-full mt-2 rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
-          >
-            <option value="gemini">{t.aiProviderGemini}</option>
-            <option value="openai">{t.aiProviderOpenai}</option>
-            <option value="claude">{t.aiProviderClaude}</option>
-          </select>
-          <p className="text-xs text-[#767A8C] mt-2">{t.aiLlmProviderHint}</p>
+        <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div>
+            <div className="flex items-center justify-between border-b border-[#F5F4F7] pb-3 mb-3">
+              <span className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+                {t.aiLlmProvider}
+              </span>
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <Cpu size={16} />
+              </div>
+            </div>
+            <select
+              value={settings.aiProvider}
+              onChange={(e) => setSettings({ ...settings, aiProvider: e.target.value })}
+              className="w-full mt-2 rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7] cursor-pointer"
+            >
+              <option value="gemini">{t.aiProviderGemini}</option>
+              <option value="openai">{t.aiProviderOpenai}</option>
+              <option value="claude">{t.aiProviderClaude}</option>
+            </select>
+          </div>
+          <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiLlmProviderHint}</p>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">{t.aiAgentGender}</label>
-          <select
-            value={settings.aiAgentGender}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                aiAgentGender: e.target.value as AiSettingsData["aiAgentGender"]
-              })
-            }
-            className="w-full mt-2 rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
-          >
-            <option value="FEMALE">{t.aiGenderFemale}</option>
-            <option value="MALE">{t.aiGenderMale}</option>
-          </select>
-          <p className="text-xs text-[#767A8C] mt-2">{t.aiAgentGenderHint}</p>
-        </div>
-
-        <div className="flex flex-col gap-2 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">
-          <label className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">{t.aiSlowReplyAlert}</label>
-          <div className="flex items-center gap-2 mt-2">
-            <input
-              type="number"
-              min={1}
-              max={1440}
-              value={settings.inProgressAlertMinutes}
+        <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div>
+            <div className="flex items-center justify-between border-b border-[#F5F4F7] pb-3 mb-3">
+              <span className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+                {t.aiAgentGender}
+              </span>
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <User size={16} />
+              </div>
+            </div>
+            <select
+              value={settings.aiAgentGender}
               onChange={(e) =>
                 setSettings({
                   ...settings,
-                  inProgressAlertMinutes: Math.max(1, parseInt(e.target.value) || 1)
+                  aiAgentGender: e.target.value as AiSettingsData["aiAgentGender"]
                 })
               }
-              className="w-24 rounded-lg border border-[#DEDDE6] p-2 text-sm font-semibold text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
-            />
-            <span className="text-sm font-semibold text-[#16182B]">{t.aiMinutesUnit}</span>
+              className="w-full mt-2 rounded-lg border border-[#DEDDE6] bg-white p-2.5 text-sm font-medium text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7] cursor-pointer"
+            >
+              <option value="FEMALE">{t.aiGenderFemale}</option>
+              <option value="MALE">{t.aiGenderMale}</option>
+            </select>
           </div>
-          <p className="text-xs text-[#767A8C] mt-2">{t.aiSlowReplyHint}</p>
+          <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiAgentGenderHint}</p>
+        </div>
+
+        <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div>
+            <div className="flex items-center justify-between border-b border-[#F5F4F7] pb-3 mb-3">
+              <span className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+                {t.aiSlowReplyAlert}
+              </span>
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <Clock size={16} />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="number"
+                min={1}
+                max={1440}
+                value={settings.inProgressAlertMinutes}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    inProgressAlertMinutes: Math.max(1, parseInt(e.target.value) || 1)
+                  })
+                }
+                className="w-24 rounded-lg border border-[#DEDDE6] p-2 text-sm font-semibold text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+              />
+              <span className="text-sm font-semibold text-[#16182B]">{t.aiMinutesUnit}</span>
+            </div>
+          </div>
+          <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiSlowReplyHint}</p>
         </div>
       </div>
 
