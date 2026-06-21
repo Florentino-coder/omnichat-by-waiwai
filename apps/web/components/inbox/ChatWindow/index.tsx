@@ -22,6 +22,7 @@ interface ChatWindowProps {
   customerName: string;
   customerInitial: string;
   channelLabel: string;
+  aiAutoReplyBadge?: string;
   status: "OPEN" | "PENDING" | "RESOLVED";
   priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   messages: ChatMessageItem[];
@@ -49,6 +50,7 @@ export function ChatWindow({
   customerName,
   customerInitial,
   channelLabel,
+  aiAutoReplyBadge,
   status,
   priority,
   messages,
@@ -74,6 +76,7 @@ export function ChatWindow({
   return (
     <section className="flex min-h-0 flex-1 flex-col bg-[#F7F6FB]" aria-labelledby="thread-heading">
       <ChatHeader
+        aiAutoReplyBadge={aiAutoReplyBadge}
         channelLabel={channelLabel}
         customerInitial={customerInitial}
         customerName={customerName}

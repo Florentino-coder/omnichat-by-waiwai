@@ -25,7 +25,8 @@ describe("AutomationService", () => {
     },
     automationRun: {
       create: jest.fn(),
-      findMany: jest.fn()
+      findMany: jest.fn(),
+      update: jest.fn()
     }
   };
 
@@ -137,5 +138,108 @@ describe("AutomationService", () => {
     expect(automationEngineService.processRunStep).toHaveBeenNthCalledWith(1, "run-10", 1);
     expect(automationEngineService.processRunStep).toHaveBeenNthCalledWith(2, "run-20", 2);
     expect(result).toEqual(["rule-10", "rule-20"]);
+  });
+
+  it("skips rules listed in skipRuleIds during dispatchEvent", async () => {
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conv-1",
+      tenantId: "tenant-1",
+      lineChannelId: "channel-1",
+      deletedAt: null
+    });
+    prisma.conversationTagLink.findMany.mockResolvedValue([]);
+    prisma.automationRule.findMany.mockResolvedValue([
+      {
+        id: "rule-skip",
+        tenantId: "tenant-1",
+        isEnabled: true,
+        triggerType: AutomationTriggerType.MESSAGE_RECEIVED,
+        triggerKeywords: [],
+        triggerTagNames: [],
+        triggerStatus: null,
+        offHourStart: null,
+        offHourEnd: null,
+        lineChannelId: null,
+        priority: 10,
+        name: "Skip me"
+      },
+      {
+        id: "rule-run",
+        tenantId: "tenant-1",
+        isEnabled: true,
+        triggerType: AutomationTriggerType.MESSAGE_RECEIVED,
+        triggerKeywords: [],
+        triggerTagNames: [],
+        triggerStatus: null,
+        offHourStart: null,
+        offHourEnd: null,
+        lineChannelId: null,
+        priority: 20,
+        name: "Run me"
+      }
+    ]);
+
+    const startRunSpy = jest.spyOn(service, "startRun").mockResolvedValue(undefined);
+
+    await service.dispatchEvent(
+      "tenant-1",
+      "conv-1",
+      AutomationTriggerType.MESSAGE_RECEIVED,
+      {
+        lineChannelId: "channel-1",
+        messageText: "hello",
+        skipRuleIds: ["rule-skip"]
+      }
+    );
+
+    expect(startRunSpy).toHaveBeenCalledTimes(1);
+    expect(startRunSpy).toHaveBeenCalledWith("tenant-1", "conv-1", "rule-run");
+
+    startRunSpy.mockRestore();
+  });
+
+  it("marks stale WAITING_FOR_REPLY runs as FAILED with audit log", async () => {
+    prisma.automationRun.findMany.mockResolvedValue([
+      {
+        id: "run-stale",
+        tenantId: "tenant-1",
+        ruleId: "rule-1",
+        conversationId: "conv-1"
+      }
+    ]);
+    prisma.automationRun.update.mockResolvedValue({});
+    prisma.auditLog.create.mockResolvedValue({});
+
+    const count = await service.failStaleWaitingForReplyRuns();
+
+    expect(count).toBe(1);
+    expect(prisma.automationRun.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "WAITING_FOR_REPLY"
+        })
+      })
+    );
+    expect(prisma.automationRun.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "run-stale" },
+        data: expect.objectContaining({
+          status: "FAILED",
+          errorMessage: expect.stringContaining("24h")
+        })
+      })
+    );
+    expect(prisma.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: AuditAction.AUTOMATION_RUN_FAILED,
+          targetId: "run-stale",
+          metadata: expect.objectContaining({
+            reason: "waiting_for_reply_timeout",
+            triggeredBy: "automation"
+          })
+        })
+      })
+    );
   });
 });

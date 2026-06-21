@@ -14,6 +14,7 @@ import {
   isBullmqAutomationQueueEnabled
 } from "./automation-queue.service";
 import { AutomationService } from "./automation.service";
+import { AutomationWaitTimeoutScheduler } from "./automation-wait-timeout.scheduler";
 
 @Module({
   imports: [AuthModule, PrismaModule, forwardRef(() => LineModule)],
@@ -46,7 +47,8 @@ import { AutomationService } from "./automation.service";
         return createInlineAutomationQueue(automationProcessorService);
       }
     },
-    AutomationQueueService
+    AutomationQueueService,
+    AutomationWaitTimeoutScheduler
   ],
   exports: [AutomationService]
 })

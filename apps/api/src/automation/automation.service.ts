@@ -25,6 +25,12 @@ import {
 } from "./automation-match.util";
 import { AutomationQueueService } from "./automation-queue.service";
 import { AutomationEngineService } from "./automation-engine.service";
+import { buildAutomationAuditLog } from "./automation-audit.util";
+import {
+  WAITING_FOR_REPLY_TIMEOUT_ERROR,
+  WAITING_FOR_REPLY_TIMEOUT_MS,
+  WAITING_FOR_REPLY_TIMEOUT_REASON
+} from "./automation-wait-timeout.constants";
 
 @Injectable()
 export class AutomationService {
@@ -318,6 +324,53 @@ export class AutomationService {
       resumedRuleIds.push(run.ruleId);
     }
     return resumedRuleIds;
+  }
+
+  async failStaleWaitingForReplyRuns(): Promise<number> {
+    const cutoff = new Date(Date.now() - WAITING_FOR_REPLY_TIMEOUT_MS);
+
+    const staleRuns = await this.prisma.automationRun.findMany({
+      where: {
+        status: AutomationRunStatus.WAITING_FOR_REPLY,
+        updatedAt: { lte: cutoff }
+      },
+      select: {
+        id: true,
+        tenantId: true,
+        ruleId: true,
+        conversationId: true
+      }
+    });
+
+    if (staleRuns.length === 0) {
+      return 0;
+    }
+
+    for (const run of staleRuns) {
+      await this.prisma.automationRun.update({
+        where: { id: run.id },
+        data: {
+          status: AutomationRunStatus.FAILED,
+          errorMessage: WAITING_FOR_REPLY_TIMEOUT_ERROR,
+          completedAt: new Date()
+        }
+      });
+
+      await this.prisma.auditLog.create({
+        data: buildAutomationAuditLog(
+          run.tenantId,
+          AuditAction.AUTOMATION_RUN_FAILED,
+          { targetType: "AutomationRun", targetId: run.id },
+          {
+            ruleId: run.ruleId,
+            conversationId: run.conversationId,
+            reason: WAITING_FOR_REPLY_TIMEOUT_REASON
+          }
+        )
+      });
+    }
+
+    return staleRuns.length;
   }
 
   private async listEnabledRules(

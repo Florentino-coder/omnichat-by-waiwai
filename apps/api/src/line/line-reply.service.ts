@@ -80,6 +80,7 @@ export class LineReplyService {
     }
 
     const sentAt = new Date();
+    const isSystem = userId === "automation" || userId === "system";
     const message = await this.prisma.message.create({
       data: {
         tenantId,
@@ -89,7 +90,10 @@ export class LineReplyService {
         source: MessageSource.LINE,
         type: storedType,
         text: storedText,
-        sentAt
+        sentAt,
+        ...(isSystem
+          ? { rawPayload: { omnichatMeta: { triggeredBy: userId } } }
+          : {})
       }
     });
 
@@ -98,7 +102,6 @@ export class LineReplyService {
       data: { lastMessageAt: sentAt }
     });
 
-    const isSystem = userId === "automation" || userId === "system";
     await this.prisma.auditLog.create({
       data: {
         tenantId,

@@ -12,6 +12,7 @@ export interface ConversationCardProps {
   channelStyle?: CSSProperties;
   status: Extract<ConvStatus, "OPEN" | "PENDING" | "RESOLVED" | "UNREAD">;
   unreadCount?: number;
+  aiAutoReplyBadge?: string;
   isActive?: boolean;
   onSelect?: (id: string) => void;
 }
@@ -27,6 +28,7 @@ export function ConversationCard({
   channelStyle,
   status,
   unreadCount,
+  aiAutoReplyBadge,
   isActive = false,
   onSelect
 }: ConversationCardProps) {
@@ -68,12 +70,19 @@ export function ConversationCard({
           <span className="shrink-0 text-sm font-medium text-muted-foreground">{time}</span>
         </span>
         <span className="mt-1 block truncate text-sm text-[#6F7180]">{preview}</span>
-        <span className="mt-3 flex items-center justify-between gap-2">
-          <span
-            className="inline-flex rounded-md border border-[#DDE1FF] bg-[#E8EBFF] px-2.5 py-1 text-sm font-semibold text-[#4E47C8]"
-            style={channelStyle}
-          >
-            {channelTag}
+        <span className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="flex flex-wrap items-center gap-1.5">
+            <span
+              className="inline-flex rounded-md border border-[#DDE1FF] bg-[#E8EBFF] px-2.5 py-1 text-sm font-semibold text-[#4E47C8]"
+              style={channelStyle}
+            >
+              {channelTag}
+            </span>
+            {aiAutoReplyBadge ? (
+              <span className="inline-flex rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                {aiAutoReplyBadge}
+              </span>
+            ) : null}
           </span>
           <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: config.dot }} />

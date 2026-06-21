@@ -16,7 +16,7 @@ No feature code required; founder/ops tasks + one doc.
 
 | Step | Action |
 |------|--------|
-| 0.1 | Create `docs/deployment/ai-auto-reply-ops.md` — Gemini billing, env vars, re-index checklist |
+| 0.1 | Create `docs/deployment/ai-auto-reply-ops.md` — Gemini billing, env vars, re-index checklist ✅ |
 | 0.2 | Production: enable Google AI billing or dedicated API key |
 | 0.3 | Settings → Knowledge → **Re-index all** for customer tenant |
 | 0.4 | Manual smoke: 10 FAQ questions via AI suggest before enabling auto-reply |
@@ -85,8 +85,8 @@ Send via `LineReplyService.replyText(tenantId, "system", ...)`.
 | `apps/web/app/app/settings/automation-manager.tsx` | Optional: 2 rule templates (off-hours welcome, FAQ) |
 | Verify | `skipRuleIds` dedupe already in webhook — add test if missing |
 
-- [ ] Test timeout job  
-- [ ] i18n template labels  
+- [x] Test timeout job  
+- [x] i18n template labels  
 
 ---
 
@@ -95,7 +95,11 @@ Send via `LineReplyService.replyText(tenantId, "system", ...)`.
 | File | Change |
 |------|--------|
 | `apps/web/app/app/inbox/inbox-client.tsx` | Optional badge when last outbound metadata `triggeredBy: system` |
+| `apps/api/src/line/line-reply.service.ts` | Store `omnichatMeta.triggeredBy` on system outbound messages |
 | Docs | Update spec success criteria checkboxes |
+
+- [x] Inbox list + thread header AI auto-reply badge  
+- [x] Outbound metadata for system sends  
 
 ```bash
 npm run api:test

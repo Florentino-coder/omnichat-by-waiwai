@@ -122,6 +122,9 @@ type InboxMessage = {
 };
 
 type LineMessagePayload = {
+  omnichatMeta?: {
+    triggeredBy?: string;
+  };
   source?: {
     type?: string;
     userId?: string;
@@ -1189,9 +1192,14 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       channelStyle: lineChannelBadgeStyle(conversation.lineChannel),
       status: conversationCardStatus(conversation, readState),
       unreadCount: readState === "unread" ? 1 : undefined,
+      aiAutoReplyBadge: isAiAutoReplyOutboundMessage(latestMessage) ? t.aiAutoReplyBadge : undefined,
       isActive: conversation.id === selectedId
     };
   });
+  const lastOutboundMessage = [...messages].reverse().find((message) => message.direction === "OUTBOUND");
+  const threadAiAutoReplyBadge = isAiAutoReplyOutboundMessage(lastOutboundMessage)
+    ? t.aiAutoReplyBadge
+    : undefined;
   const chatMessages: ChatMessageItem[] = messages.map((message) => ({
     id: message.id,
     variant: message.direction === "OUTBOUND" ? "outbound" : "inbound",
@@ -1415,6 +1423,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                 }
                 customerInitial={customerInitial(selectedCustomerName)}
                 customerName={selectedConversation ? selectedCustomerName : t.messageThread}
+                aiAutoReplyBadge={threadAiAutoReplyBadge}
                 emptyText={
                   !selectedConversation && !isLoadingConversations
                     ? t.connectLine
@@ -1746,6 +1755,15 @@ function conversationStatus(conversation: InboxConversation | null): Conversatio
 
 function isConversationStatus(status: string | null | undefined): status is ConversationStatus {
   return status === "OPEN" || status === "IN_PROGRESS" || status === "RESOLVED";
+}
+
+function isAiAutoReplyOutboundMessage(
+  message?: Pick<ConversationPreviewMessage, "direction" | "rawPayload"> | null
+): boolean {
+  if (!message || message.direction !== "OUTBOUND") {
+    return false;
+  }
+  return message.rawPayload?.omnichatMeta?.triggeredBy === "system";
 }
 
 function conversationCardStatus(

@@ -7,6 +7,7 @@ type Priority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 interface ChatHeaderProps {
   customerName: string;
   customerInitial: string;
+  aiAutoReplyBadge?: string;
   status: Extract<ConvStatus, "OPEN" | "PENDING" | "RESOLVED">;
   channelLabel: string;
   priority: Priority;
@@ -27,6 +28,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   customerName,
   customerInitial,
+  aiAutoReplyBadge,
   status,
   channelLabel,
   priority,
@@ -63,6 +65,11 @@ export function ChatHeader({
               {config.text}
               {statusElapsed ? ` · ${statusElapsed}` : ""}
             </span>
+            {aiAutoReplyBadge ? (
+              <span className="inline-flex shrink-0 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] md:text-xs font-semibold text-violet-700">
+                {aiAutoReplyBadge}
+              </span>
+            ) : null}
           </div>
           <p className="mt-0.5 md:mt-1 truncate text-xs md:text-sm font-medium text-muted-foreground">
             ตอบกลับผ่าน LINE API · {channelLabel}

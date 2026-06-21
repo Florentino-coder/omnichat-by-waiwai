@@ -453,6 +453,53 @@ export function AutomationManager() {
     }));
   }
 
+  function applyTemplate(template: "off_hours_welcome" | "faq_handoff") {
+    setEditingId(null);
+    setError(null);
+
+    if (template === "off_hours_welcome") {
+      setForm({
+        ...emptyForm,
+        name: t.automationTemplateOffHoursName,
+        priority: "50",
+        isEnabled: true,
+        triggerType: "OFF_HOURS",
+        offHourStart: "8",
+        offHourEnd: "23",
+        steps: [
+          {
+            ...emptyStep(),
+            type: "SEND_TEXT_REPLY",
+            text: t.automationTemplateOffHoursText
+          }
+        ]
+      });
+      return;
+    }
+
+    setForm({
+      ...emptyForm,
+      name: t.automationTemplateFaqName,
+      priority: "60",
+      isEnabled: true,
+      triggerType: "MESSAGE_RECEIVED",
+      triggerKeywords: t.automationTemplateFaqKeywords,
+      steps: [
+        {
+          ...emptyStep(),
+          type: "SEND_TEXT_REPLY",
+          text: t.automationTemplateFaqText
+        },
+        {
+          ...emptyStep(),
+          type: "ADD_TAG",
+          tagName: t.automationTemplateFaqTag,
+          waitForCustomerReply: true
+        }
+      ]
+    });
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-[#DEDDE6] bg-white p-5 shadow-sm">
@@ -523,6 +570,28 @@ export function AutomationManager() {
           <h3 className="text-base font-semibold text-[#16182B]">
             {editingId ? t.editAutomationRule : t.newAutomationRule}
           </h3>
+
+          {!editingId ? (
+            <div className="space-y-2">
+              <p className="text-sm text-[#767A8C]">{t.automationTemplatesLabel}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => applyTemplate("off_hours_welcome")}
+                >
+                  {t.automationTemplateOffHoursWelcome}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => applyTemplate("faq_handoff")}
+                >
+                  {t.automationTemplateFaqHandoff}
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>

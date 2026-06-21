@@ -251,6 +251,11 @@ describe("LineReplyService", () => {
       { text: "สวัสดีจากระบบออโต้" }
     );
 
+    expect(prisma.message.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        rawPayload: { omnichatMeta: { triggeredBy: "automation" } }
+      })
+    });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         tenantId: "tenant-1",

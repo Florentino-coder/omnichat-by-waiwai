@@ -447,7 +447,7 @@ describe("LineWebhookService", () => {
     } as unknown as CryptoSecretService;
 
     const automationService = {
-      resumeWaitingRuns: jest.fn().mockResolvedValue([]),
+      resumeWaitingRuns: jest.fn().mockResolvedValue(["rule-resumed"]),
       dispatchEvent: jest.fn().mockResolvedValue(undefined)
     } as unknown as AutomationService;
 
@@ -476,6 +476,14 @@ describe("LineWebhookService", () => {
     });
 
     expect(automationService.dispatchEvent).toHaveBeenCalled();
+    expect(automationService.dispatchEvent).toHaveBeenCalledWith(
+      "tenant-1",
+      "conversation-1",
+      expect.anything(),
+      expect.objectContaining({
+        skipRuleIds: ["rule-resumed"]
+      })
+    );
     expect(aiAutoReplyService.tryAutoReply).toHaveBeenCalledWith({
       tenantId: "tenant-1",
       conversationId: "conversation-1",

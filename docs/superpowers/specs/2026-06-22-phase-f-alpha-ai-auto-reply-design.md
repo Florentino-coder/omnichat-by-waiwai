@@ -180,9 +180,9 @@ Already partially done:
 
 Still todo:
 
-- [ ] `WAITING_FOR_REPLY` timeout (e.g. 24h → run `FAILED` or send reminder step)  
-- [ ] Rule template presets in UI (off-hours welcome, FAQ handoff)  
-- [ ] OFF_HOURS hint (done)
+- [x] `WAITING_FOR_REPLY` timeout (e.g. 24h → run `FAILED` or send reminder step)  
+- [x] Rule template presets in UI (off-hours welcome, FAQ handoff)  
+- [x] OFF_HOURS hint (done)
 
 ---
 
@@ -211,13 +211,14 @@ Still todo:
 
 ## Success criteria
 
-- [ ] OWNER enables auto-reply → customer LINE message gets AI reply within 10s without admin action  
-- [ ] Escalation keyword → no AI send, tag/audit `escalated`  
-- [ ] Outside business hours → AI replies; inside hours → silent (`OFF_HOURS_ONLY` default)
-- [ ] `WHEN_UNASSIGNED` mode → assigned conversation silent  
-- [ ] Credits exhausted → skip + audit, no crash  
-- [ ] All sends tenant-scoped + audited  
-- [ ] Tests: guards unit + webhook integration mock  
+- [ ] OWNER enables auto-reply → customer LINE message gets AI reply within 10s without admin action *(staging smoke)*  
+- [x] Escalation keyword → no AI send, tag/audit `escalated`  
+- [x] Outside business hours → AI replies; inside hours → silent (`OFF_HOURS_ONLY` default)  
+- [x] `WHEN_UNASSIGNED` mode → assigned conversation silent  
+- [x] Credits exhausted → skip + audit, no crash  
+- [x] All sends tenant-scoped + audited  
+- [x] Tests: guards unit + webhook integration mock  
+- [x] Inbox badge when last outbound is AI auto-reply (`triggeredBy: system`)  
 
 ---
 
