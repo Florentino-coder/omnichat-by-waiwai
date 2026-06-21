@@ -29,7 +29,7 @@ function keywordMatches(messageText: string, keywords: string[]): boolean {
   return keywords.some((keyword) => normalized.includes(normalizeText(keyword)));
 }
 
-function isOffHours(currentHour: number, start: number | null, end: number | null): boolean {
+export function isOffHours(currentHour: number, start: number | null, end: number | null): boolean {
   if (start === null || end === null) {
     return false;
   }

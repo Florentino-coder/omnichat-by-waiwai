@@ -10,6 +10,7 @@ export type AiReplyGenerateInput = {
   aiAgentGender: AiAgentGender;
   provider: string;
   applyScenarioActions?: boolean;
+  extraInstructions?: string | null;
 };
 
 export type AiReplyGenerateSuccess = {

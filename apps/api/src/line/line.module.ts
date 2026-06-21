@@ -24,6 +24,7 @@ import { LineBroadcastScheduler } from "./line-broadcast.scheduler";
 import { MonitorModule } from "../monitor/monitor.module";
 import { ScenarioModule } from "../scenario/scenario.module";
 import { AutomationModule } from "../automation/automation.module";
+import { AiModule } from "../ai/ai.module";
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ import { AutomationModule } from "../automation/automation.module";
     StorageModule,
     MonitorModule,
     ScenarioModule,
-    forwardRef(() => AutomationModule)
+    forwardRef(() => AutomationModule),
+    forwardRef(() => AiModule)
   ],
   controllers: [LineChannelsController, LineWebhookController],
   providers: [

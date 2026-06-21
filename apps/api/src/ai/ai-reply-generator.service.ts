@@ -69,7 +69,8 @@ export class AiReplyGeneratorService {
       currentText,
       aiAgentGender,
       provider,
-      applyScenarioActions = true
+      applyScenarioActions = true,
+      extraInstructions
     } = input;
 
     const conversation = await this.prisma.conversation.findFirst({
@@ -207,6 +208,11 @@ export class AiReplyGeneratorService {
       ? promptWithScenario
       : `${agentGenderInstruction}\n\n${promptWithScenario}`;
 
+    const compiledPromptWithInstructions =
+      extraInstructions?.trim()
+        ? `${compiledPrompt}\n\nคำสั่งเพิ่มเติมจากร้าน:\n${extraInstructions.trim()}`
+        : compiledPrompt;
+
     const historyForLlm = history.map((msg) => ({
       role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
       text: msg.text || ""
@@ -221,7 +227,7 @@ export class AiReplyGeneratorService {
     const llmStartedAt = Date.now();
     try {
       const rawSuggestion = await activeLlmClient.generateReply({
-        systemPrompt: compiledPrompt,
+        systemPrompt: compiledPromptWithInstructions,
         conversationHistory: historyForLlm
       });
       const suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
@@ -229,7 +235,7 @@ export class AiReplyGeneratorService {
       return {
         outcome: "success",
         suggestionText,
-        compiledPrompt,
+        compiledPrompt: compiledPromptWithInstructions,
         knowledgeCitations: knowledgeResult.citations,
         latencyMs: Date.now() - llmStartedAt,
         provider

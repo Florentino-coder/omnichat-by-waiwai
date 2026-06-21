@@ -72,8 +72,8 @@ Guard order: disabled → non_text → mode → escalation → debounce → cred
 
 Send via `LineReplyService.replyText(tenantId, "system", ...)`.
 
-- [ ] Audit `AI_AUTO_REPLY_*` actions  
-- [ ] Redis rate keys: `ai-auto-reply:conv:{id}` TTL 1h, `ai-auto-reply:tenant:{id}` TTL 24h  
+- [x] Audit `AI_AUTO_REPLY_*` actions  
+- [x] Redis rate keys: `ai-auto-reply:conv:{id}` TTL 1h, `ai-auto-reply:tenant:{id}` TTL 24h  
 
 ---
 

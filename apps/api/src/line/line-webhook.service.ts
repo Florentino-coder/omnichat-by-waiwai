@@ -15,6 +15,7 @@ import { MonitorService } from "../monitor/monitor.service";
 import { ScenarioService } from "../scenario/scenario.service";
 import { AutomationService } from "../automation/automation.service";
 import { AutomationTriggerType } from "@prisma/client";
+import { AiAutoReplyService } from "../ai/ai-auto-reply.service";
 
 type LineWebhookPayload = {
   events?: LineWebhookEvent[];
@@ -59,7 +60,8 @@ export class LineWebhookService {
     private readonly monitorService?: MonitorService,
     private readonly scenarioService?: ScenarioService,
     @Inject(forwardRef(() => AutomationService))
-    private readonly automationService?: AutomationService
+    private readonly automationService?: AutomationService,
+    private readonly aiAutoReplyService?: AiAutoReplyService
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
@@ -409,6 +411,22 @@ export class LineWebhookService {
                 error instanceof Error ? error.stack : error
               );
             });
+
+          if (this.aiAutoReplyService) {
+            await this.aiAutoReplyService
+              .tryAutoReply({
+                tenantId: channel.tenantId,
+                conversationId: conversation.id,
+                inboundMessageId: message.id,
+                messageText: lineMessage.text ?? ""
+              })
+              .catch((error: unknown) => {
+                this.logger.error(
+                  "Failed to process AI auto-reply for inbound message",
+                  error instanceof Error ? error.stack : error
+                );
+              });
+          }
         }
       }
 
