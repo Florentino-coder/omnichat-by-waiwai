@@ -1,0 +1,1822 @@
+[
+  {
+    "cleaned_question": "เงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 967
+  },
+  {
+    "cleaned_question": "ฝาก",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 595
+  },
+  {
+    "cleaned_question": "ยอดไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 534
+  },
+  {
+    "cleaned_question": "ลืมรหัส",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 375
+  },
+  {
+    "cleaned_question": "ลืมรหัสผ่าน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 332
+  },
+  {
+    "cleaned_question": "รับเครดิตฟรี",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 304
+  },
+  {
+    "cleaned_question": "ไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 259
+  },
+  {
+    "cleaned_question": "เครดิตฟรี",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 257
+  },
+  {
+    "cleaned_question": "เงินไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 250
+  },
+  {
+    "cleaned_question": "ฝากเงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 202
+  },
+  {
+    "cleaned_question": "ยอดไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 176
+  },
+  {
+    "cleaned_question": "ฝากไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 172
+  },
+  {
+    "cleaned_question": "เงินไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 145
+  },
+  {
+    "cleaned_question": "เครดิตไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 142
+  },
+  {
+    "cleaned_question": "ตังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 113
+  },
+  {
+    "cleaned_question": "ยอดไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 100
+  },
+  {
+    "cleaned_question": "ฝากครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 100
+  },
+  {
+    "cleaned_question": "เงินไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 79
+  },
+  {
+    "cleaned_question": "ขอรับเครดิตฟรี",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 73
+  },
+  {
+    "cleaned_question": "ยอดฝากไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 73
+  },
+  {
+    "cleaned_question": "ฝากค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 70
+  },
+  {
+    "cleaned_question": "ฝากไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 70
+  },
+  {
+    "cleaned_question": "เงินยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 66
+  },
+  {
+    "cleaned_question": "สมัครไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 65
+  },
+  {
+    "cleaned_question": "ยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 62
+  },
+  {
+    "cleaned_question": "แอดครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 58
+  },
+  {
+    "cleaned_question": "เครดิตไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 55
+  },
+  {
+    "cleaned_question": "ฝากเงิน",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 55
+  },
+  {
+    "cleaned_question": "ลืมรหัสผ่านครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 53
+  },
+  {
+    "cleaned_question": "ลืมรหัสผ่านค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 52
+  },
+  {
+    "cleaned_question": "แอดมิน",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 51
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 49
+  },
+  {
+    "cleaned_question": "ถอนเงิน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 48
+  },
+  {
+    "cleaned_question": "ถอน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 48
+  },
+  {
+    "cleaned_question": "เติมเงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 47
+  },
+  {
+    "cleaned_question": "ลืมรหัสค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 43
+  },
+  {
+    "cleaned_question": "สมัคร",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 42
+  },
+  {
+    "cleaned_question": "ฝากเงินไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 41
+  },
+  {
+    "cleaned_question": "ลืมรหัสครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 40
+  },
+  {
+    "cleaned_question": "แจ้งถอน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์สมัคร และ ชื่อเล่นให้ตรวจสอบได้เลยนะคะ",
+    "frequency": 40
+  },
+  {
+    "cleaned_question": "ถอนไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 40
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 39
+  },
+  {
+    "cleaned_question": "ไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 38
+  },
+  {
+    "cleaned_question": "สมัครสมาชิก",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 34
+  },
+  {
+    "cleaned_question": "ฟรี",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 33
+  },
+  {
+    "cleaned_question": "ไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 32
+  },
+  {
+    "cleaned_question": "ตังไม่เข้าทีครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 32
+  },
+  {
+    "cleaned_question": "ทำไมถอนไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 32
+  },
+  {
+    "cleaned_question": "เงินยังไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 31
+  },
+  {
+    "cleaned_question": "แจ้งฝาก",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 30
+  },
+  {
+    "cleaned_question": "ตังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 30
+  },
+  {
+    "cleaned_question": "จำรหัสไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 29
+  },
+  {
+    "cleaned_question": "ฝากเงินไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 29
+  },
+  {
+    "cleaned_question": "เงินยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 28
+  },
+  {
+    "cleaned_question": "ฝากยอด",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ{{customer_name}} ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ {{customer_name}} ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 27
+  },
+  {
+    "cleaned_question": "ยอดไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 26
+  },
+  {
+    "cleaned_question": "เครดิตไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 25
+  },
+  {
+    "cleaned_question": "ค้าบ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 25
+  },
+  {
+    "cleaned_question": "ขอบคุณคับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 24
+  },
+  {
+    "cleaned_question": "แอดคับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 23
+  },
+  {
+    "cleaned_question": "เติม100",
+    "cleaned_answer": "{{brand_name}} รบกวนรอสักครู่กำลังตรวจสอบให้น๊า ระบบทำฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 23
+  },
+  {
+    "cleaned_question": "สมัครไม่ได้ค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 22
+  },
+  {
+    "cleaned_question": "ยอดไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} 🏻 ☎️รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ☎️",
+    "frequency": 22
+  },
+  {
+    "cleaned_question": "จร้า",
+    "cleaned_answer": "🍰 {{brand_name}}",
+    "frequency": 22
+  },
+  {
+    "cleaned_question": "ยอดยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 21
+  },
+  {
+    "cleaned_question": "ฝากคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 21
+  },
+  {
+    "cleaned_question": "แจ้งถอนครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 20
+  },
+  {
+    "cleaned_question": "ถอนเงินครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 20
+  },
+  {
+    "cleaned_question": "ปรับยอด",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 20
+  },
+  {
+    "cleaned_question": "ลืมรหัสคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 19
+  },
+  {
+    "cleaned_question": "ถอนเงินคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 19
+  },
+  {
+    "cleaned_question": "เติมเงินไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 19
+  },
+  {
+    "cleaned_question": "คับผม",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 19
+  },
+  {
+    "cleaned_question": "แอดค่ะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ฝากเงินไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ขอบคุณคะ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ฝากเงินไว้รบกวนเช็คให้หน่อยนะครับ",
+    "cleaned_answer": "ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ๆๆๆ",
+    "cleaned_answer": "เว็บมีให้เลือกทางเล่นหลายค่ายเลยนะคะ เปลี่ยนค่ายเกมใหม่ๆดูก่อนนะคะ",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ{{customer_name}} ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ {{customer_name}} ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "ฝากไปแล้ว",
+    "cleaned_answer": "{{brand_name}} รบกวนรอสักครู่กำลังตรวจสอบให้น๊า ระบบทำฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 18
+  },
+  {
+    "cleaned_question": "สมัครสมาชิกไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 17
+  },
+  {
+    "cleaned_question": "ยอดยังไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 16
+  },
+  {
+    "cleaned_question": "ถอนเงินยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 16
+  },
+  {
+    "cleaned_question": "ฝากเงินครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 16
+  },
+  {
+    "cleaned_question": "รับฟรี",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 16
+  },
+  {
+    "cleaned_question": "ลืมรหัสผ่านคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 16
+  },
+  {
+    "cleaned_question": "ยอดฝากไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 16
+  },
+  {
+    "cleaned_question": "ฝากแล้ว",
+    "cleaned_answer": "{{brand_name}} แจ้ง เบอร์ ที่สมัครให้ตรวจสอบนะคะ(แจ้งชื่อเล่นให้น้องหน่อยนะคะ)",
+    "frequency": 16
+  },
+  {
+    "cleaned_question": "สมัครไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 15
+  },
+  {
+    "cleaned_question": "ลืมระหัส",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 15
+  },
+  {
+    "cleaned_question": "ถอนไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 15
+  },
+  {
+    "cleaned_question": "ฝากค้าบ",
+    "cleaned_answer": "รอสักครู่นะคะ กำลังตรวจสอบนะคะ 🩵ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอให้เฮงๆปังๆนะคะ🩵 🩵อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 15
+  },
+  {
+    "cleaned_question": "ขอบคุณนะคะ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 14
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 14
+  },
+  {
+    "cleaned_question": "แจ้งถอนค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 14
+  },
+  {
+    "cleaned_question": "รับยังไง",
+    "cleaned_answer": "เครดิตฟรี 50 บาท -ทำเทิร์น 2 เท่าไม่รวมทุน (150บาท) -ถอนได้ 100 บาท -เล่นได้เฉพาะค่าย Sneaky เท่านั้น กดรับโปรที่หน้าเว็บได้เลยนะคะ {{link}} หากต้องการสอบถามหรือติดต่อบริการด้านใดทักสอบถามได้ 24 ชั่วโมงเลยน้า",
+    "frequency": 14
+  },
+  {
+    "cleaned_question": "ขอบคุณมากครับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 14
+  },
+  {
+    "cleaned_question": "เติมเงินไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 14
+  },
+  {
+    "cleaned_question": "รับยอดเสีย",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 13
+  },
+  {
+    "cleaned_question": "ทำไมถอนเงินไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 13
+  },
+  {
+    "cleaned_question": "สมัครให้หน่อย",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 13
+  },
+  {
+    "cleaned_question": "เข้าไม่ได้",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 13
+  },
+  {
+    "cleaned_question": "ฝากเงินยอดไม่เข้าเลยค่ะ",
+    "cleaned_answer": "💞 {{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ฝากให้เรียบร้อยแล้วนะคะ เฮงๆ ปังๆๆ 🍭ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ🍭",
+    "frequency": 13
+  },
+  {
+    "cleaned_question": "สวัสดีคะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "ถอนไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "สมัครให้หน่อยครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "เข้าระบบไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "คุณส่งข้อความเสียง",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "พี่ครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "ขอเครดิตฟรี",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "เงินไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "ถอนเงินค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 12
+  },
+  {
+    "cleaned_question": "รับเครดิต",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 11
+  },
+  {
+    "cleaned_question": "พี่ค่ะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 11
+  },
+  {
+    "cleaned_question": "ถอนเงินยังไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 11
+  },
+  {
+    "cleaned_question": "(heart eyes Moon)",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 11
+  },
+  {
+    "cleaned_question": "แอดคะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 11
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 11
+  },
+  {
+    "cleaned_question": "พี่",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "แอดมินคับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "สมัครให้หน่อยค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ยอดยังไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "สอบถามค่ะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "จำรหัสผ่านไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ครับขอบคุณครับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ขอบคุนค่ะ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ถอนไม่ได้ค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ยอดฝากไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} แจ้ง เบอร์ ให้ตรวจสอบนะคะ(แจ้งชื่อเล่นให้น้องด้วยนะคะ)",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ยังไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "อีขนมกุต้องการปิดไอดี กุไม่ต้องการเล่นเว็ปมึงอีกเเล้ว เงินกุถุกหวย 720 ปั่นสลอตเเดกห่ากุหมด เหี้ย อีสัส มึงปิดไอดีให้กุด่วนเลยนะ อีขนม เเดกดีจัด เเดกเกินไปอีเหี้ย ไม่เคยเเตกไม่เคยได้ถอน มีเเต่ฝาก มีเเต่เเดก อีสัสนรก มึงเล่นลอคเเดกจนหน้าเกลียดเกินอีสัส พอๆๆๆๆจบๆๆๆๆสะ อีขนมกุต้องการปิดไอดี กุไม่ต้องการเล่นเว็ปมึงอีกเเล้ว เงินกุถุกหวย 720 ปั่นสลอตเเดกห่ากุหมด เหี้ย อีสัส มึงปิดไอดีให้กุด่วนเลยนะ อีขนม เเดกดีจัด เเดกเกินไปอีเหี้ย ไม่เคยเเตกไม่เคยได้ถอน มีเเต่ฝาก มีเเต่เเดก อีสัสนรก มึงเล่นลอคเเดกจนหน้าเกลียดเกินอีสัส พอๆๆๆๆจบๆๆๆๆสะ",
+    "cleaned_answer": "การเดิมพันมีได้บ้างมีเสียบ้างรอบนี้ไม่ได้รอบหน้าลองแก้มือใหม่นะคะ",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ยอดยังไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 10
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่ได้คับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "ยังครับ",
+    "cleaned_answer": "ระบบทำการคืนยอดCashback/Rolling แล้วค่ะ ตรวจสอบยอดและกดรับเข้ากระเป๋าได้เลยน้า",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "แอดมินครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "อีขนมกุต้องการปิดไอดี กุไม่ต้องการเล่นเว็ปมึงอีกเเล้ว เงินกุถุกหวย 720 ปั่นสลอตเเดกห่ากุหมด เหี้ย อีสัส มึงปิดไอดีให้กุด่วนเลยนะ อีขนม เเดกดีจัด เเดกเกินไปอีเหี้ย ไม่เคยเเตกไม่เคยได้ถอน มีเเต่ฝาก มีเเต่เเดก อีสัสนรก มึงเล่นลอคเเดกจนหน้าเกลียดเกินอีสัส พอๆๆๆๆจบๆๆๆๆสะ อีขนมกุต้องการปิดไอดี กุไม่ต้องการเล่นเว็ปมึงอีกเเล้ว เงินกุถุกหวย 720 ปั่นสลอตเเดกห่ากุหมด เหี้ย อีสัส มึงปิดไอดีให้กุด่วนเลยนะ อีขนม เเดกดีจัด เเดกเกินไปอีเหี้ย ไม่เคยเเตกไม่เคยได้ถอน มีเเต่ฝาก มีเเต่เเดก อีสัสนรก มึงเล่นลอคเเดกจนหน้าเกลียดเกินอีสัส พอๆๆๆๆจบๆๆๆๆสะ อีขนมกุต้องการปิดไอดี กุไม่ต้องการเล่นเว็ปมึงอีกเเล้ว เงินกุถุกหวย 720 ปั่นสลอตเเดกห่ากุหมด เหี้ย อีสัส มึงปิดไอดีให้กุด่วนเลยนะ อีขนม เเดกดีจัด เเดกเกินไปอีเหี้ย ไม่เคยเเตกไม่เคยได้ถอน มีเเต่ฝาก มีเเต่เเดก อีสัสนรก มึงเล่นลอคเเดกจนหน้าเกลียดเกินอีสัส พอๆๆๆๆจบๆๆๆๆสะ",
+    "cleaned_answer": "หากเสียหนัก แนะนำให้พักก่อนนะคะ สล็อตสามารถเล่นได้ทุกวัน 24 ชม. ค่ะ ค่อยๆเล่นนะคะ แอดมินเอาใจช่วยเสมอค่ะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "ฝากเงินคะ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "เครจ้า",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "ฝากเงินยังไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "ยังไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "ยอดเงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} ทำรายการถอนหรือฝากแจ้งตรวจสอบนะคะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "ตังไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "ถอนเงินยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} แจ้งเบอร์ที่สมัครและชื่อเล่นเข้ามาให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 9
+  },
+  {
+    "cleaned_question": "เครดิตยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "ยอดถอนไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "เข้าเล่นไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแคปหน้าจอที่ติดปัญหาส่งมาให้ตรวจสอบหน่อยนะคะ",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "รับ",
+    "cleaned_answer": "{{brand_name}} (sparkle)เครดิตฟรี 50 บาท(sparkle) -ทำเทิร์น 2 เท่าไม่รวมทุน (150บาท) -ถอนได้ 100 บาท -เล่นได้เฉพาะค่าย Sneaky เท่านั้น กดรับโปรที่หน้าเว็บได้เลยนะคะ(Cony hug) {{link}} หากต้องการสอบถามหรือติดต่อบริการด้านใดทักสอบถามได้ 24 ชั่วโมงเลยน้า",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "สัส",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "อี",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "ยัง",
+    "cleaned_answer": "ระบบทำการคืนยอดCashback/Rolling แล้วค่ะ ตรวจสอบยอดและกดรับเข้ากระเป๋าได้เลยน้า",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่ได้ค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "พี่คะ",
+    "cleaned_answer": "{{brand_name}} 🏻",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "รับยังไงครับ",
+    "cleaned_answer": "เครดิตฟรี 50 บาท -ทำเทิร์น 2 เท่าไม่รวมทุน (150บาท) -ถอนได้ 100 บาท -เล่นได้เฉพาะค่าย Sneaky เท่านั้น กดรับโปรที่หน้าเว็บได้เลยนะคะ {{link}} หากต้องการสอบถามหรือติดต่อบริการด้านใดทักสอบถามได้ 24 ชั่วโมงเลยน้า",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "ไม่เข้าที",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะชื่อเล่นอะไรค้า บริการครั้งหน้าขนมจะได้เรียกชื่อถูกน้า ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 8
+  },
+  {
+    "cleaned_question": "แอดมินค่ะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ลืมรหัสคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ฝากคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "เข้าแล้ว",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ตังยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "เคดิตไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ทำไมถอนตังไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ฝากเงินยังไม่เข้าเลยครับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ถอนเงินไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ได้ค่ะ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "จำรหัสผ่านไม่ได้ค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "เติมเงินแล้วยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ฝากแล้วเงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ลืมระหัสผ่าน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ฝากยอดค่ะ",
+    "cleaned_answer": "ทำการตรวจสอบให้ รอสักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ร่วมสนุกไม่รับโปรโมชั่น ทางเรามี Rolling และ Cashback รับได้เวลา 07.30น.นะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "ปรับเครดิต",
+    "cleaned_answer": "รบกวนรอสักครู่กำลังตรวจสอบให้น๊า ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🍰 {{brand_name}}",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "น้องขนมเติมเครดิตให้หน่อยจ้า",
+    "cleaned_answer": "รอสักครู่น๊า กำลังตรวจสอบให้น๊า ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอให้ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "เติม",
+    "cleaned_answer": "{{brand_name}} รบกวนรอสักครู่กำลังตรวจสอบให้น๊า ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 7
+  },
+  {
+    "cleaned_question": "เเอด",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "แจ้งถอนคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ลืมรหัสผ่านคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ขอบคุณค้าบ",
+    "cleaned_answer": "ขนมยินดีให้บริการขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "สมัครไม่ได้คะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "สมัคไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "เงินไม้เข้าคับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ยอดถอนไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ขนม",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ฝากเงินแล้วยอดยังไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "นานจัง",
+    "cleaned_answer": "รบกวนรอสักครู่กำลังตรวจสอบให้น๊า",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ปรับยอดให้หน่อยครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ค้าบบ",
+    "cleaned_answer": "ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ อย่าลืม Rolling และ Cashback กดรับขั่นต่ำ 10 บาท รับได้ทุกวันช่วงเวลา 07.30 น. นะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ฝากไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ทำไมถอนไม่ได้ค่ะ",
+    "cleaned_answer": "{{brand_name}} แจ้ง เบอร์ ที่สมัครให้ตรวจสอบนะคะ(แจ้งชื่อเล่นให้น้องหน่อยนะคะ)",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "สมัครสมาชิกไม่ได้ค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ได้ยังครับ",
+    "cleaned_answer": "รบกวนรอสักครู่นะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "เข้าแล้วครับ",
+    "cleaned_answer": "หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ❄️️",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ฝากเงินยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ขอบคุณจ้า",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "พี่คับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ฝากแล้วเงินไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "โอเคค่ะ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ฝากเงินคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ฝากตัง",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "เงินยังไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "เดียวกูมีตังกูจะให้เค้าสืบว่ามึงเปนใคร กูจ้างฆ่ามึงแน่นอน เสียเท่ารัยกูก้อยอม พ่อแม่พี่น้องมึงกูจะเผานั่งยางให้หมดเลย",
+    "cleaned_answer": "เข้าใจความรู้สึกเลยค่ะ เกมก็มีขึ้นมีลงเสมอ อย่าเพิ่งท้อไปนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ยอดไม่เข้า ค้ะ",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ปรับยอดทีจ้า",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 6
+  },
+  {
+    "cleaned_question": "ฝากยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "จ้าขอบคุณจ้า",
+    "cleaned_answer": "💐ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "ถอนครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "ลืมยูส",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "ถอนไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "เเอดครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "จำรหัสไม่ได้ค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "โอเคครับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "เงินม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "ฝากเงินเข้าระบบ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "ทุนฟรี",
+    "cleaned_answer": "{{brand_name}} ขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ลูกค้าสามารถเติมเล่นได้นะคะ มีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "ลิ้ง",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า ทางเข้าเล่นนะคะ 👉👉 {{link}} แนะนำให้เข้าผ่านเบราว์เซอร์ google chrome เพื่อความเสถียรและรวดเร็วนะคะ 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 5
+  },
+  {
+    "cleaned_question": "น้องขนม",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ได้ยัง",
+    "cleaned_answer": "ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ค่ะขอบคุณค่ะ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "สมัครสมาชิกไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "แจ้งฝากครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ฝากแล้วยอดไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ฝากเงินไว้เงินยังไม่เข้าครับรบกวนเช็คให้หน่อยนะครับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ฝากเงินไว้เงินยังไม่เข้ารบกวนเช็คให้หน่อยนะครับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ถอนไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ตามยอด",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ฝากยอดให้หน่อยคะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "Hi",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "รอยอด",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ยอดไม่ปรับครับ",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า 🌹 ( ชื่อเล่น )อะไรคะ บริการครั้งถัดไปจะได้เรียกชื่อถูกนะคะ🌹 ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "เติมไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "สมัครไม่ได้คับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ลืมรหัสเข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "จำรหัสไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ลืมรหัสเข้าเกม",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "สมัครสมาชิกค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "รอยอดถอน",
+    "cleaned_answer": "💙 {{brand_name}} 💙 รบกวนรอสักครู่กำลังตรวจสอบให้น๊า🩵 ระบบกำลังทำรายการถอนตามลำดับคิวไม่เกิน 15 นาที หากยังไม่ได้รับยอดถอนแจ้งน้องได้เลยนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ขอรหัสหน่อยครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ทำไมถอนเงินไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ถอนคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ตามยอดให้พี่หน่อยคับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "สนใจสมัคร",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "เครดิตยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ครับผม ขอบคุณครับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "Pg",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "เติมเครดิต",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ฝากเงินเงินไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} ให้สักครู่นะคะ ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🍰 {{brand_name}}",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ฝากแล้วยอดไม่เข้ารบกวนดูให้หน่อย",
+    "cleaned_answer": "{{brand_name}} 🏻 นมตรวจสอบได้เลยน้า",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ฝากตังจ้า",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้สักครู่นะคะ ยอดเงินเข้าแล้วน้า เล่นให้สนุกนะคะ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "เติมเงินแล้วยังใม่เข้า",
+    "cleaned_answer": "{{brand_name}} 🏻 แจ้งสลิปให้ขนมตรวจสอบได้เลยน้า",
+    "frequency": 4
+  },
+  {
+    "cleaned_question": "ยอดฝากยังไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากยอดไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "หนุ่ม",
+    "cleaned_answer": "ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยังไม่เข้าเลย",
+    "cleaned_answer": "รบกวนรอสักครู่กำลังตรวจสอบให้น๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดเงินไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "พีผมโอนไปแล้วทำไมไมเขาอีกแล้วครับ",
+    "cleaned_answer": "💙 {{brand_name}} 💙 รบกวนรอสักครู่กำลังตรวจสอบให้น๊า🩵 🩵ระบบทำฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ🩵 ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เติมเงินไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} แจ้ง เบอร์ ที่สมัครให้ตรวจสอบนะคะ(แจ้งชื่อเล่นให้น้องหน่อยนะคะ)",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถุย",
+    "cleaned_answer": "หากเสียหนัก แนะนำให้พักก่อนนะคะ สล็อตสามารถเล่นได้ทุกวัน 24 ชม. ค่ะ ค่อยๆเล่นนะคะ แอดมินเอาใจช่วยเสมอค่ะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เครดิตไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดเงินไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} ให้สักครู่นะคะ ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🍰 {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เอาอีกแล้ววววว",
+    "cleaned_answer": "รอสักครู่กำลังทำรายการตรวจสอบให้นะคะ ระบบทำฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ อย่าลืม Rolling และ Cashback กดรับขั่นต่ำ 10 บาท รับได้ทุกวันช่วงเวลา 07.30 น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ทำไมสมัครไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แอดมินคะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แจ้งถอนเงิน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์สมัคร และ ชื่อเล่นให้ตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากเงินแล้วยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากแล้วครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากยอดไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถอนตัง",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ครับบ",
+    "cleaned_answer": "หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "'@",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "หมด",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถอนตังยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แอดค้าบ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ตอแหล",
+    "cleaned_answer": "หากเสียหนัก แนะนำให้พักก่อนนะคะ สล็อตสามารถเล่นได้ทุกวัน 24 ชม. ค่ะ ค่อยๆเล่นนะคะ แอดมินเอาใจช่วยเสมอค่ะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "จ้าขอบคุณค่ะ",
+    "cleaned_answer": "💐ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "รับทุนฟรี",
+    "cleaned_answer": "{{brand_name}} ขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ลูกค้าสามารถเติมเล่นได้นะคะ มีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยังคับ",
+    "cleaned_answer": "{{brand_name}} ระบบทำการคืนยอดCashback/Rolling แล้วค่ะ ตรวจสอบยอดและกดรับเข้ากระเป๋าได้เลยน้า ทางเข้าเล่นนะคะ 👉👉 {{link}} ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดเงินไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดฝากคะ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ขอบคุนครับ",
+    "cleaned_answer": "ขนมยินดีให้บริการขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากเงินไปม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดยังไม่เข้าเลยคะ",
+    "cleaned_answer": "{{brand_name}} แจ้ง เบอร์ ให้ตรวจสอบนะคะ(แจ้งชื่อเล่นให้น้องด้วยนะคะ)",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "สมัค",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถอนค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ขอบคุณครับแอด",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากเงินแล้วยอดไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} ะ กำลังตรวจสอบให้น๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ทำไมเงินไม่เข้าเกมครับ",
+    "cleaned_answer": "🍰กำลังตรวจสอบให้สักครู่นะคะ ยอดเข้าแล้วนะคะ ขอให้โชคดีแจ็คพอตแตกหนักๆนะคะ คุณส่งรูป โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "จำรหัสเข้าไม่ได้",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร : รบกวนแจ้งข้อมูล ยินดีทำการรีรหัสให้นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ขอบคุนคับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "สมัครสมาชิกครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "สอบถามครับ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แอด เงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} ห้สักครู่นะคะ ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🍰 ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถอนเงินยังไม่เข้าเลยครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากตังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} 🏻 ☎️รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ☎️",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เข้าสู่ระบบไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดฝากไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ไม่เข้าจ้า",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ขอเวลาเกม",
+    "cleaned_answer": "{{brand_name}} คุณส่งรูป ทางเข้าเล่นนะคะ 👉👉 {{link}} ทุกเกมมีโอกาสสนุกลุ้นได้เหมือนกัน แนะนำลองเลือกเกมที่คุณชอบเล่นเป็นพิเศษจะสนุกกว่านะคะ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยังค่ะ",
+    "cleaned_answer": "ระบบทำการคืนยอดCashback/Rolling แล้วค่ะ ตรวจสอบยอดและกดรับเข้ากระเป๋าได้เลยน้า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "สมัครสมาชิกให้หน่อย",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เติมเงิน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดยังไม่ปรับ",
+    "cleaned_answer": "{{brand_name}} รอสักครู่นะคะ กำลังตรวจสอบนะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอให้เฮงๆปังๆนะคะ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากเงินค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดฝากยังไม่เข้า",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เข้าแล้วค่ะ",
+    "cleaned_answer": "รับทราบค่ะ ครั้งหน้ามาสนุกกับทางเราใหม่นะคะ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ได้แล้วครับขอบคุณครับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ขอรหัส",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เติมเงินยังไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} ห้สักครู่นะคะ ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ 🍰 {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ได้ยังคะ",
+    "cleaned_answer": "เนื่องจากธนาคารทางเราขัดข้องเล็กน้อยนะคะ น้องกำลังเร่งแก้ไขค่ะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดเงินไปม่เข้า",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ควบ",
+    "cleaned_answer": "ใจเย็นๆนะคะ ลองแก้มือใหม่อีกรอบนะคะ รอบนี้อาจจะตาของที่จะโชคดีนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ทำไมถอนไม่ได้ครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "โอนแล้วคร้าบบ",
+    "cleaned_answer": "{{brand_name}} ครู่กำลังตรวจสอบให้น๊า ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ขอให้โชคดีแจ็คพอตแตกหนักๆนะคะ รับทรัพย์ รับโชคหนักๆเลยนะคะ อย่าลืมกดรับ Cashback / Rolling เวลา 07.30 น. แล้วเข้ามาเดิมพันกันต่อน๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "อีขนมกุต้องการปิดไอดี กุไม่ต้องการเล่นเว็ปมึงอีกเเล้ว เงินกุถุกหวย 720 ปั่นสลอตเเดกห่ากุหมด เหี้ย อีสัส มึงปิดไอดีให้กุด่วนเลยนะ อีขนม เเดกดีจัด เเดกเกินไปอีเหี้ย ไม่เคยเเตกไม่เคยได้ถอน มีเเต่ฝาก มีเเต่เเดก อีสัสนรก มึงเล่นลอคเเดกจนหน้าเกลียดเกินอีสัส พอๆๆๆๆจบๆๆๆๆสะ",
+    "cleaned_answer": "การพนันมีได้มีเสียนะคะ ครั้งนี้เสียไม่เป็นไรนะคะ ครั้งหน้าขอให้แตกหนักๆนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แจ้งถอนคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากเงินเข้าระบบจ้า",
+    "cleaned_answer": "{{brand_name}} กำลังตรวจสอบให้ค่ะ(แจ้งชื่อเล่นให้น้องหน่อยนะคะ) ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอให้เฮงๆปังๆนะคะ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถอนแล้ว",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เงินยังไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์สมัคร และ ชื่อเล่นให้ตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เงินไม่เข้าในเกม",
+    "cleaned_answer": "{{brand_name}} รบกวนรอสักครู่กำลังตรวจสอบให้น๊า ระบบทำฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "พี่เงินไม่เข้า",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า 💰ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ💰 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "จำรหัสไม่ได้คับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แจ้งฝากค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถอนยังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์สมัคร และ ชื่อเล่นให้ตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เหี้ย",
+    "cleaned_answer": "พักให้หายหัวร้อนก่อนน๊า ค่อยกลับมาลุ้นใหม่นะคะ ขนมเชื่อมีถอนถอนปังๆแน่นอนจ้า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "พี่ครับผมลืมรหัสผ่าน",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งข้อมูลให้ขนมหน่อยนะคะ ชื่อ-สกุล : ชื่อเล่น : เบอร์โทร : ชื่อบัญชีธนาคาร : เลขบัญชีธนาคาร :",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แจ้งถอนค่ะ แอดมิน",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากตังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง สลิป พร้อม เบอร์ ให้ตรวจสอบด้วยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ดีครับ",
+    "cleaned_answer": "{{brand_name}} ต้องการสอบถามข้อมูล หรือ ให้ช่วยด้านใดดีคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เงินยังไม่เข้าเลยครับ",
+    "cleaned_answer": "{{brand_name}} แจ้ง เบอร์ ที่สมัครให้ตรวจสอบนะคะ(แจ้งชื่อเล่นให้น้องหน่อยนะคะ)",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": ". . .",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เครคับ",
+    "cleaned_answer": "ยินดีที่ได้ดูแลน๊า {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "คั",
+    "cleaned_answer": "ยอดเงินเข้าแล้วนะคะ ขอใหุ้ขในการเดิมพันกับเว็บเรานะคะ กลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ 💖",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เออ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เครดิตฟรีสมาชิกใหม่",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากไม่เข้าค่ะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ขอรับเครดิตฟรีครับ",
+    "cleaned_answer": "{{brand_name}} ต้องขออภัยด้วยนะคะ ❌ ตอนนี้ทางเว็บหมดเขตรับเครดิตฟรีค่ะ ❌ ลูกค้าสามารถเติมเล่นได้นะคะ แอดมินมีโปรแนะนำให้ค่ะ ทางเข้าเล่นนะคะ 👉👉 {{link}} โปรฝากประจำ โบนัส 10% ทุกยอดฝาก (สำหรับ Slot) อย่าลืมเข้ามาร่วมกิจกรรมโปรโมชั่นกับได้เลยน๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ตังไม่เข้าคะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้ง เบอร์ ที่สมัครให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "น้องขนมจร้เติมตังให้หน่อยขร้",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "จร้",
+    "cleaned_answer": "💰 ระบบทำฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ💰 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ดีค่ะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ถอนตังไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เชค",
+    "cleaned_answer": "ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากถอนขั้นต่ำ",
+    "cleaned_answer": "{{brand_name}} 💵 รับโบนัสฝาก 100 ขั้นต่ำ 💵 🧧ไม่รับโบนัส ฝากเท่าไรก็ได้ค่ะ 🧧 💳 ถอนขั้นต่ำ 100 ค่ะ 💳 ทางเข้าเล่นนะคะ 👉👉 {{link}} สามารถฝากเงินเข้าเล่นได้เลยนะคะ หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถาม ได้ตลอด 24 ชม.เลยนะคะ {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แอดครับฝากเงินแล้วไม่เข้าครับ",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า 🌹 ( ชื่อเล่น )อะไรคะ บริการครั้งถัดไปจะได้เรียกชื่อถูกนะคะ🌹 💰ยอดเงินเข้าแล้วนะคะ ขอให้เฮงๆปังๆนะคะ เล่นให้สนุกนะคะ💰 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ทำไมถอนเงินไม่ได้คะ",
+    "cleaned_answer": "{{brand_name}} รบกวนแจ้งเบอร์และชื่อเล่นให้น้องตรวจสอบได้เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ทำรายการถอนแล้ว",
+    "cleaned_answer": "{{brand_name}} 🏻 รบกวนรอสักครู่ ตรวจสอบให้น๊า ระบบกำลังทำรายการถอนตามลำดับคิวไม่เกิน 5-15 นาที หากยังไม่ได้รับยอดถอนแจ้งน้องได้เลยนะคะ 🌞ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "พี่ขนมคะ",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "แดก",
+    "cleaned_answer": "ใจเย็นๆนะคะ ลองแก้มือใหม่อีกรอบนะคะ รอบนี้อาจจะตาของที่จะโชคดีนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เติมเครดิตให้หน่อยจ้า",
+    "cleaned_answer": "{{brand_name}} รอสักครู่น๊า กำลังตรวจสอบให้น๊า ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอให้ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากยังไม่เข้าคับ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "รอยอดฝาก",
+    "cleaned_answer": "{{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เช็คยอดฝากให้หน่อยคับ",
+    "cleaned_answer": "{{brand_name}} 🏻 แจ้งสลิปให้ขนมตรวจสอบได้เลยน้า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากจ้า",
+    "cleaned_answer": "ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "(thumbs up)",
+    "cleaned_answer": "หากต้องการสอบถามหรือติดต่อบริการด้านใดทักสอบถามได้ 24 ชั่วโมงเลยน้า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ทำรายการถอน",
+    "cleaned_answer": "รอสักครู่กำลังทำรายการตรวจสอบให้นะคะ เนื่องจากมีลูกค้าทำรายการถอนพร้อมกันเป็นจำนวนมาก ระบบกำลังดำเนินการถอนให้ตามลำดับนะคะลนะคะยอดเข้าบัญชีแน่นอนค่ะ หาก้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากตัวจ้า",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้สักครู่นะคะ ยอดเงินเข้าแล้วน้า เล่นให้สนุกนะคะ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดยังไม่เข้าครับพี่ขนม",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "Benjamas Sukyuen",
+    "cleaned_answer": "หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ {{brand_name}}",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ยอดฝากไม่เข้าค้าฟ",
+    "cleaned_answer": "{{brand_name}} 🏻 ขนมตรวจสอบได้เลยน้า",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "🙏🏻 JINBAO356 ยินดีให้บริการค่ะ ❤️‍🔥 ไลน์นี้เป็นไลน์สำรองของทางเรา สามารถทักทำรายการที่ไลน์หลักได้เลยนะคะ 𝑪𝒍𝒊𝒄𝒌️ :https://lin.ee/EO8nTUJ",
+    "cleaned_answer": "รบกวนเองไม่รัวแชทนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ฝากเงินแล้วยังไม่เข้า",
+    "cleaned_answer": "รอสักครู่นะคะ กำลังตรวจสอบนะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอให้เฮงๆปังๆนะคะ อย่าลืมกลับเข้ามารับ Cashback / Rolling ได้ทุกเช้า เวลา 7.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ปรับยอดด้วยคับ",
+    "cleaned_answer": "ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "ตามยอดฝาก",
+    "cleaned_answer": "{{brand_name}} รบกวนรอสักครู่กำลังตรวจสอบให้น๊า ระบบทำฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ทุกการฝากเล่นเดิมพัน รับคืน Cashback / Rolling ได้ทุกเช้า เวลา 07.30น. นะคะ",
+    "frequency": 3
+  },
+  {
+    "cleaned_question": "เช็คเงินให้หน่อยค่ะ",
+    "cleaned_answer": "{{brand_name}} ทำการตรวจสอบให้ สักครู่นะคะ ระบบทำรายการฝากให้เรียบร้อยค่ะ ขอบคุณที่ให้ {{brand_name}} ดูแลนะคะ ☎️หากมีข้อสงสัยด้านใดสามารถติดต่อสอบถามขนมได้ตลอด 24 ชม.เลยนะคะ",
+    "frequency": 3
+  }
+]

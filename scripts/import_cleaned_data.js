@@ -8,7 +8,6 @@ import { fileURLToPath } from 'url';
 
 const prisma = new PrismaClient();
 
-// จำลอง __dirname สำหรับ ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,14 +21,13 @@ async function importData() {
       }
     });
 
-    // หากไม่พบ ให้ดึง Tenant แรกในระบบเป็น Fallback
     if (!targetTenant) {
       const activeTenants = await prisma.tenant.findMany({
         where: { deletedAt: null }
       });
 
       if (activeTenants.length === 0) {
-        console.error("❌ ไม่พบข้อมูล Tenant ในฐานข้อมูลหลักของคุณ! กรุณาสร้างบัญชีร้านค้าก่อนนำเข้าข้อมูล");
+        console.error("❌ ไม่พบข้อมูล Tenant ในฐานข้อมูลหลักของคุณ!");
         return;
       }
       targetTenant = activeTenants[0];
@@ -38,11 +36,19 @@ async function importData() {
     const TENANT_ID = targetTenant.id;
 
     console.log(`==================================================`);
-    console.log(`🏢 ระบบทำการเลือก Tenant เป้าหมายตามคำขอ:`);
+    console.log(`🏢 เริ่มต้นระบบนำเข้าข้อมูลสำหรับ Tenant:`);
     console.log(`   - ชื่อร้านค้า: ${targetTenant.name}`);
     console.log(`   - Slug: ${targetTenant.slug}`);
     console.log(`   - ID: ${targetTenant.id}`);
     console.log(`==================================================\n`);
+
+    // 🧹 ล้างข้อมูล RAG เก่าทั้งหมดของ Tenant นี้ออกก่อน เพื่อเริ่มต้นทำข้อมูลที่สะอาดใหม่
+    const deleteResult = await prisma.knowledgeArticle.deleteMany({
+      where: {
+        tenantId: TENANT_ID
+      }
+    });
+    console.log(`🧹 เคลียร์บทความ RAG เก่าที่มั่วชื่อสำเร็จ: ${deleteResult.count} รายการ\n`);
 
     // 2. ตรวจเช็คไฟล์ข้อมูลเป้าหมาย
     let jsonPath = path.join(__dirname, '..', 'final_rag_data.json');
@@ -52,7 +58,6 @@ async function importData() {
     
     if (!fs.existsSync(jsonPath)) {
       console.error(`❌ ไม่พบไฟล์ข้อมูลเป้าหมายทั้ง final_rag_data.json และ cleaned_rag_data.json ที่โฟลเดอร์หลักของโปรเจกต์`);
-      console.error(`💡 วิธีแก้: กรุณาก๊อปปี้ไฟล์ข้อเสนอดังกล่าวมาวางไว้ในโฟลเดอร์โปรเจกต์หลัก (${path.join(__dirname, '..')}) ก่อนรันคำสั่งนี้ครับ`);
       return;
     }
 
@@ -60,7 +65,7 @@ async function importData() {
     const rawData = fs.readFileSync(jsonPath, 'utf8');
     const qaPairs = JSON.parse(rawData);
     
-    console.log(`🚀 กำลังเริ่มนำเข้าข้อมูล RAG เข้าสู่ฐานข้อมูล... จำนวนทั้งหมด: ${qaPairs.length} รายการ`);
+    console.log(`🚀 กำลังเริ่มนำเข้าข้อมูล RAG สะอาดเข้าสู่ฐานข้อมูล... จำนวนทั้งหมด: ${qaPairs.length} รายการ`);
 
     let importedCount = 0;
     
@@ -75,8 +80,8 @@ async function importData() {
       await prisma.knowledgeArticle.create({
         data: {
           tenantId: TENANT_ID,
-          lineChannelId: null, // นำเข้าเป็นคลังข้อความ RAG กลางของร้านค้า
-          title: q.substring(0, 100), // ใช้ส่วนคำถามเป็นหัวข้อบทความ
+          lineChannelId: null,
+          title: q.substring(0, 100),
           content: a,
           keywords: [q],
           isActive: true
@@ -89,7 +94,7 @@ async function importData() {
       }
     }
 
-    console.log(`\n🎉 นำเข้าข้อมูล RAG สำเร็จเรียบร้อยทั้งหมด: ${importedCount} รายการ!`);
+    console.log(`\n🎉 นำเข้าข้อมูล RAG สะอาดใหม่สำเร็จเรียบร้อยทั้งหมด: ${importedCount} รายการ!`);
   } catch (error) {
     console.error("❌ เกิดข้อผิดพลาดในขณะบันทึกข้อมูล:", error);
   } finally {

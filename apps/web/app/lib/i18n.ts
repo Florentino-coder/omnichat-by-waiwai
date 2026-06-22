@@ -124,7 +124,7 @@ export const messages = {
       "บทความ Knowledge ป้อนให้ AI ผ่าน {{knowledge_context}}",
     knowledgeArticlesExtraHint:
       "เพิ่มข้อมูลสินค้า นโยบาย FAQ — AI เลือกบทความที่ match จากข้อความลูกค้า",
-    allChannelsGlobal: "ทุกช่องทาง + ทั้งระบบ",
+    allChannelsGlobal: "ทุกช่องทางในบัญชีนี้",
     searchKnowledgePlaceholder: "ค้นหาชื่อหรือเนื้อหา...",
     newKnowledgeArticle: "บทความ Knowledge ใหม่",
     addKnowledgeArticle: "เพิ่มบทความ",
@@ -504,7 +504,7 @@ export const messages = {
       "Knowledge articles feed AI replies through {{knowledge_context}}.",
     knowledgeArticlesExtraHint:
       "Add product info, policies, and FAQs. AI picks top matches from customer messages.",
-    allChannelsGlobal: "All channels + global",
+    allChannelsGlobal: "All channels in this account",
     searchKnowledgePlaceholder: "Search title or content...",
     newKnowledgeArticle: "New Knowledge Article",
     addKnowledgeArticle: "Add Article",
