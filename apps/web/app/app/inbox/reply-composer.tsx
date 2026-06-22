@@ -75,6 +75,8 @@ export function ReplyComposer({
   const [rateLimitLock, setRateLimitLock] = useState(false);
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
   const [knowledgeOnlyMode, setKnowledgeOnlyMode] = useState(false);
+  const [cameFromAiGenerate, setCameFromAiGenerate] = useState(false);
+  const isProgrammaticRef = useRef(false);
 
   useEffect(() => {
     let timer: number;
@@ -100,6 +102,7 @@ export function ReplyComposer({
     setLastSuggestionText(null);
     setKnowledgeCitations([]);
     setKnowledgeOnlyMode(false);
+    setCameFromAiGenerate(false);
   }, [conversationId]);
 
   // Fetch all saved replies for autocomplete
@@ -139,6 +142,7 @@ export function ReplyComposer({
 
   function selectReply(reply: SavedReply) {
     const replacedText = text.replace(/\/(\w*)$/, reply.body);
+    isProgrammaticRef.current = true;
     setText(replacedText);
     if (reply.imageUrl) {
       setImageUrl(reply.imageUrl);
@@ -149,6 +153,7 @@ export function ReplyComposer({
 
   useEffect(() => {
     if (insertText) {
+      isProgrammaticRef.current = true;
       setText(insertText);
     }
   }, [insertNonce, insertText]);
@@ -159,6 +164,10 @@ export function ReplyComposer({
     setError(null);
 
     const isRefinement = actionType !== "generate";
+
+    if (actionType === "generate") {
+      setCameFromAiGenerate(true);
+    }
 
     if (suggestionId && !isRefinement) {
       await apiFetch(`/api/v1/inbox/ai-suggestions/${suggestionId}`, {
@@ -196,6 +205,7 @@ export function ReplyComposer({
       }
 
       setKnowledgeOnlyMode(false);
+      isProgrammaticRef.current = true;
       setText(data.suggestion_text || "");
       setSuggestionId(data.suggestion_id);
       setLastSuggestionText(data.suggestion_text || "");
@@ -238,6 +248,7 @@ export function ReplyComposer({
     setLastSuggestionText(null);
     setKnowledgeCitations([]);
     setKnowledgeOnlyMode(false);
+    isProgrammaticRef.current = true;
     setText("");
   }
 
@@ -283,6 +294,7 @@ export function ReplyComposer({
         setLastSuggestionText(null);
       }
 
+      isProgrammaticRef.current = true;
       setText("");
       setImageUrl("");
       setPastedImagePreview(null);
@@ -411,7 +423,7 @@ export function ReplyComposer({
             </button>
           </div>
         ) : null}
-        {(suggestionId || knowledgeOnlyMode) && knowledgeCitations.length > 0 ? (
+        {knowledgeCitations.length > 0 ? (
           <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-indigo-900">
             <p className="mb-2 font-semibold">{t.knowledgeCitationsTitle}</p>
             <ul className="flex flex-wrap gap-2">
@@ -433,16 +445,16 @@ export function ReplyComposer({
             </ul>
           </div>
         ) : null}
-        {suggestionId && (
+        {(suggestionId || text.trim().length > 0) && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-purple-50 p-3 border border-purple-100 text-xs font-semibold text-purple-700">
-            <span className="mr-1">🤖 ปรับแก้ข้อเสนอแนะ:</span>
+            <span className="mr-1">{t.toneRefineHeader}</span>
             <button
               type="button"
               className="rounded-lg bg-white px-2.5 py-1.5 border border-purple-200 hover:bg-purple-100 transition-colors"
               onClick={() => handleAiSuggest("rewrite")}
               disabled={isGeneratingSuggestion || rateLimitLock}
             >
-              ✍️ เขียนใหม่
+              {t.rewriteBtn}
             </button>
             <button
               type="button"
@@ -450,7 +462,7 @@ export function ReplyComposer({
               onClick={() => handleAiSuggest("shorter")}
               disabled={isGeneratingSuggestion || rateLimitLock}
             >
-              ⚡ ย่อความ
+              {t.shorterBtn}
             </button>
             <button
               type="button"
@@ -458,7 +470,7 @@ export function ReplyComposer({
               onClick={() => handleAiSuggest("polite")}
               disabled={isGeneratingSuggestion || rateLimitLock}
             >
-              🤝 สุภาพ
+              {t.politeBtn}
             </button>
             <button
               type="button"
@@ -466,16 +478,21 @@ export function ReplyComposer({
               onClick={() => handleAiSuggest("friendly")}
               disabled={isGeneratingSuggestion || rateLimitLock}
             >
-              😊 เป็นกันเอง
+              {t.friendlyBtn}
             </button>
-            <button
-              type="button"
-              className="rounded-lg bg-white px-2.5 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 transition-colors ml-auto"
-              onClick={handleDismissSuggestion}
-              disabled={isGeneratingSuggestion}
-            >
-              ❌ ปฏิเสธ
-            </button>
+            {suggestionId && cameFromAiGenerate && (
+              <button
+                type="button"
+                className="rounded-lg bg-white px-2.5 py-1.5 border border-red-200 hover:bg-red-50 text-red-600 transition-colors ml-auto"
+                onClick={handleDismissSuggestion}
+                disabled={isGeneratingSuggestion}
+              >
+                {t.dismissBtn}
+              </button>
+            )}
+            <span className="text-purple-400 font-normal ml-2 sm:ml-4 select-none">
+              {t.aiCreditCostHint}
+            </span>
           </div>
         )}
         <label className="sr-only" htmlFor="reply-text">
@@ -511,7 +528,14 @@ export function ReplyComposer({
               className="min-h-14 flex-1 resize-none rounded-[14px] border-2 border-[#C9C7D1] bg-[#F7F6FB] px-5 py-4 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary sm:min-h-16 w-full"
               disabled={!conversationId || isSending}
               maxLength={5000}
-              onChange={(event) => setText(event.target.value)}
+              onChange={(event) => {
+                if (isProgrammaticRef.current) {
+                  isProgrammaticRef.current = false;
+                } else {
+                  setCameFromAiGenerate(false);
+                }
+                setText(event.target.value);
+              }}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder={t.typeReply}

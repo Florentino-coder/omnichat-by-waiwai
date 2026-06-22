@@ -57,3 +57,12 @@ export function getCurrentMonthUsagePeriod(now = new Date()): {
   const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0, 0));
   return { periodStart, periodEnd };
 }
+
+export function formatMessagesForLlm(
+  messages: Array<{ direction: "INBOUND" | "OUTBOUND"; text?: string | null }>
+): { role: "customer" | "agent"; text: string }[] {
+  return messages.map((msg) => ({
+    role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
+    text: msg.text?.trim() ? msg.text : "[Media/Attachment]"
+  }));
+}

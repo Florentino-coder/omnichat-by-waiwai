@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { Check, Pencil, StickyNote, Tags, UserPlus, X, ChevronDown, Zap, Smartphone, Globe, MessageSquare } from "lucide-react";
+import { Check, Pencil, StickyNote, Tags, UserPlus, X, ChevronDown, Zap, Smartphone, Globe, MessageSquare, Sparkles } from "lucide-react";
 import { Button, Input, Label } from "@omnichat/ui";
+import { apiFetch } from "../../../app/lib/api-client";
+import { useLanguage } from "../../../app/lib/language-context";
+import { getMessages } from "../../../app/lib/i18n";
 import { AssignDropdown } from "./AssignDropdown";
 import { QuickReplyList } from "./QuickReplyList";
 import { TagList } from "./TagList";
@@ -51,6 +54,8 @@ interface CustomerPanelProps {
   phone?: string | null;
   email?: string | null;
   onSaveContactDetails?: (phone: string, email: string) => void;
+  conversationId?: string | null;
+  enableAiSuggest?: boolean;
 }
 
 export function CustomerPanel({
@@ -93,7 +98,9 @@ export function CustomerPanel({
   onCreateNote,
   phone,
   email,
-  onSaveContactDetails
+  onSaveContactDetails,
+  conversationId = null,
+  enableAiSuggest = false
 }: CustomerPanelProps) {
   const [newTagName, setNewTagName] = useState("");
   const [isEditingContact, setIsEditingContact] = useState(false);
@@ -104,6 +111,66 @@ export function CustomerPanel({
     setPhoneDraft(phone || "");
     setEmailDraft(email || "");
   }, [phone, email]);
+
+  const { locale } = useLanguage();
+  const t = getMessages(locale);
+  const [summary, setSummary] = useState<string>("");
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [rateLimitLock, setRateLimitLock] = useState(false);
+  const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: number;
+    if (rateLimitLock && rateLimitCountdown > 0) {
+      timer = window.setInterval(() => {
+        setRateLimitCountdown((prev) => {
+          if (prev <= 1) {
+            setRateLimitLock(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) window.clearInterval(timer);
+    };
+  }, [rateLimitLock, rateLimitCountdown]);
+
+  useEffect(() => {
+    setSummary("");
+    setSummaryError(null);
+  }, [conversationId]);
+
+  const handleGenerateSummary = async () => {
+    if (!conversationId) return;
+    setIsGeneratingSummary(true);
+    setSummaryError(null);
+    try {
+      const res = await apiFetch<{ summary: string }>(
+        `/api/v1/inbox/conversations/${conversationId}/summary`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ locale })
+        }
+      );
+      setSummary(res.summary);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t.summaryFailed;
+      if (msg.includes("Too many AI summaries") || msg.includes("RATE_LIMIT")) {
+        setRateLimitLock(true);
+        setRateLimitCountdown(15);
+        setSummaryError(t.summaryRateLimit);
+      } else {
+        setSummaryError(msg);
+      }
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     assign: true,
     tags: true,
@@ -111,7 +178,8 @@ export function CustomerPanel({
     notes: true,
     contact: false,
     channel: false,
-    latestMessage: false
+    latestMessage: false,
+    summary: true
   });
 
   const toggleSection = (section: string) => {
@@ -240,6 +308,53 @@ export function CustomerPanel({
             {statusLabel(status)}
           </p>
         </section>
+
+        {/* สรุปบทสนทนา (AI) */}
+        {enableAiSuggest && (
+          <section className="border-b border-border px-6">
+            {renderSectionHeader(t.summaryTitle, <Sparkles size={17} className="text-purple-500" aria-hidden="true" />, "summary")}
+            <div
+              className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                expanded.summary ? "max-h-[500px] opacity-100 pb-5" : "max-h-0 opacity-0 pointer-events-none pb-0"
+              }`}
+            >
+              {summary ? (
+                <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-4 text-sm text-foreground">
+                  <p className="whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-zinc-300 font-medium">
+                    {summary}
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-3 text-xs font-semibold text-purple-600 hover:text-purple-700 transition-colors disabled:opacity-60"
+                    onClick={handleGenerateSummary}
+                    disabled={isGeneratingSummary || rateLimitLock}
+                  >
+                    {isGeneratingSummary ? t.updatingSummary : rateLimitLock ? `${t.summaryRateLimit} (${rateLimitCountdown}s)` : t.reSummary}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+                  <Sparkles size={24} className="text-purple-400 mb-2 animate-pulse" />
+                  <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                    {t.summaryPlaceholder}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="bg-gradient-to-r from-violet-500 to-indigo-600 text-white font-semibold hover:from-violet-600 hover:to-indigo-700 shadow-sm rounded-xl px-4 disabled:from-slate-300 disabled:to-slate-400 disabled:opacity-60"
+                    onClick={handleGenerateSummary}
+                    disabled={isGeneratingSummary || rateLimitLock}
+                  >
+                    {isGeneratingSummary ? t.summaryGenerating : rateLimitLock ? `${t.summaryRateLimit} (${rateLimitCountdown}s)` : t.startSummary}
+                  </Button>
+                </div>
+              )}
+              {summaryError && !rateLimitLock && (
+                <p className="mt-2 text-xs text-danger">{summaryError}</p>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* มอบหมายให้ */}
         <section className="border-b border-border px-6">

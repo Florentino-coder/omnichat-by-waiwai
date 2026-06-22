@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, Logger, HttpException, HttpStatus } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Logger, HttpException, HttpStatus } from "@nestjs/common";
 import {
   AuditAction,
   AiAgentGender,
@@ -45,12 +45,14 @@ import { UpdateAiSuggestionDto } from "./dto/update-ai-suggestion.dto";
 import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { AiSuggestDto } from "./dto/ai-suggest.dto";
 import { AiTestDto } from "./dto/ai-test.dto";
+import { AiSummaryDto } from "./dto/ai-summary.dto";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import {
   AI_SUGGEST_USAGE_METRIC,
   buildAgentGenderInstruction,
   getCurrentMonthUsagePeriod,
-  normalizeThaiPoliteParticles
+  normalizeThaiPoliteParticles,
+  formatMessagesForLlm
 } from "./thai-speech.util";
 
 export type InboxConversation = Conversation & {
@@ -1256,6 +1258,10 @@ export class InboxService {
   ) {
     const actionType = dto.action_type;
 
+    if (actionType !== "generate" && !dto.current_text?.trim()) {
+      throw new BadRequestException("Current text is required for tone refinement actions");
+    }
+
     // 1. Rate limiting via Redis
     const conversationLimitKey = `ai-suggest-limit:conversation:${conversationId}`;
     const tenantLimitKey = `ai-suggest-limit:tenant:${tenantId}`;
@@ -1401,6 +1407,158 @@ export class InboxService {
       suggestion_text: suggestionText,
       knowledge_citations: knowledgeCitations
     };
+  }
+
+  async getConversationSummary(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    dto: AiSummaryDto
+  ): Promise<{ summary: string }> {
+    // 1. Fetch conversation
+    const conversation = await this.prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        tenantId,
+        deletedAt: null
+      },
+      include: {
+        customer: true
+      }
+    });
+
+    if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
+    // 2. Validate customer details
+    if (!conversation.customerId || !conversation.customer || conversation.customer.deletedAt !== null) {
+      throw new NotFoundException("Customer not found or has been deleted");
+    }
+
+    // 3. Get latest 15 messages first to handle empty fallback without charges or rate-limiting
+    const messages = await this.prisma.message.findMany({
+      where: {
+        conversationId,
+        tenantId,
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" },
+      take: 15
+    });
+
+    const targetLocale = dto.locale === "en" ? "en" : "th";
+
+    if (messages.length === 0) {
+      const fallback = targetLocale === "en" ? "No conversation history to summarize" : "ไม่มีประวัติการสนทนาสำหรับสรุป";
+      return { summary: fallback };
+    }
+
+    // 4. Assert settings and AI suggests enabled
+    const settings = await this.prisma.tenantSettings.findUnique({
+      where: { tenantId }
+    });
+
+    if (settings?.enableAiSuggest === false) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "AI_SUGGEST_DISABLED",
+            message: "AI suggestions are disabled for this tenant."
+          }
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    // 5. Assert credit availability
+    await this.assertAiCreditAvailable(tenantId, userId);
+
+    // 6. Rate-limit via Redis (conversation & tenant level)
+    const conversationLimitKey = `ai-summary-limit:conversation:${conversationId}`;
+    const tenantLimitKey = `ai-summary-limit:tenant:${tenantId}`;
+
+    const [convCount, tenantCount] = await Promise.all([
+      this.redisService.client.incr(conversationLimitKey),
+      this.redisService.client.incr(tenantLimitKey)
+    ]);
+
+    if (convCount === 1) {
+      await this.redisService.client.expire(conversationLimitKey, 60);
+    }
+    if (tenantCount === 1) {
+      await this.redisService.client.expire(tenantLimitKey, 60);
+    }
+
+    if (convCount > 5 || tenantCount > 30) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "RATE_LIMIT_EXCEEDED",
+            message: "Too many AI summaries requested. Please wait before trying again."
+          }
+        },
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+
+    const history = messages.reverse();
+    const historyForLlm = formatMessagesForLlm(history);
+
+    const provider = (settings?.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
+    const activeLlmClient = resolveLlmClient(provider, {
+      gemini: this.geminiClient,
+      openai: this.openaiClient,
+      claude: this.claudeClient
+    });
+
+    const promptByLocale: Record<string, string> = {
+      th: `คุณเป็นผู้ช่วยสรุปบทสนทนาของร้านค้าทาง LINE OA
+สรุปบทสนทนาระหว่างร้านค้าและลูกค้าตามประวัติการสนทนาที่กำหนดให้เป็นภาษาไทยสั้นๆ:
+- สรุปประเด็นหลักและความต้องการของลูกค้า
+- จัดหมวดหมู่ประเด็น (เช่น สอบถามราคา, ปัญหาการใช้งาน, ขอข้อมูลเพิ่มเติม)
+- เขียนเป็นข้อความสรุปกระชับ 3-4 บรรทัด หรือหัวข้อสั้นๆ
+- ห้ามใส่น้ำเสียงประจบหรือข้อความต้อนรับใดๆ เข้าเรื่องสรุปทันที`,
+      en: `You are an AI assistant summarizing a LINE OA merchant-customer chat.
+Summarize the conversation history between the merchant and the customer in English:
+- Highlight key points and customer needs.
+- Categorize the issues (e.g., pricing inquiry, technical issue, request for info).
+- Write a concise summary of 3-4 bullet points.
+- Do not include greetings or polite fillers; get straight to the summary.`
+    };
+
+    const systemPrompt = promptByLocale[targetLocale];
+
+    try {
+      const summary = await activeLlmClient.generateReply({
+        systemPrompt,
+        conversationHistory: historyForLlm
+      });
+
+      // 6. Increment AI usage and audit log
+      await this.incrementAiCreditUsage(tenantId);
+
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: AuditAction.AI_CONVERSATION_SUMMARIZED,
+          targetType: "Conversation",
+          targetId: conversationId,
+          metadata: {
+            provider,
+            locale: targetLocale,
+            messageCount: messages.length
+          }
+        }
+      });
+
+      return { summary };
+    } catch (llmError) {
+      throw buildLlmHttpException(llmError);
+    }
   }
 
   async getAiUsage(tenantId: string): Promise<AiUsageSnapshot> {

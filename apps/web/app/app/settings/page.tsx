@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
 import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch, Workflow } from "lucide-react";
@@ -11,16 +12,18 @@ import { ScenarioManager } from "./scenario-manager";
 import { AutomationManager } from "./automation-manager";
 import { ProfileEditor } from "./profile-editor";
 import { AiSettings } from "./ai-settings";
+import { AiCurationManager } from "./ai-curation-manager";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
-type SettingsTab = "channels" | "replies" | "knowledge" | "scenarios" | "automation" | "team" | "profile" | "ai";
+type SettingsTab = "channels" | "replies" | "knowledge" | "scenarios" | "automation" | "team" | "profile" | "ai" | "ai-curation";
 
-export default function SettingsPage() {
+function SettingsContent() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
   const [role, setRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SettingsTab>("replies");
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     try {
@@ -31,18 +34,28 @@ export default function SettingsPage() {
         userRole = parsed.role ?? "AGENT";
       }
       setRole(userRole);
-      if (userRole === "OWNER" || userRole === "ADMIN") {
-        setActiveTab("channels");
-      } else if (userRole === "QC" || userRole === "VIEWER") {
-        setActiveTab("profile");
+
+      const tabParam = searchParams.get("tab") as SettingsTab | null;
+      if (tabParam && ["channels", "replies", "knowledge", "scenarios", "automation", "team", "profile", "ai", "ai-curation"].includes(tabParam)) {
+        if (tabParam === "knowledge" && userRole === "VIEWER") {
+          setActiveTab("profile");
+        } else {
+          setActiveTab(tabParam);
+        }
       } else {
-        setActiveTab("replies");
+        if (userRole === "OWNER" || userRole === "ADMIN") {
+          setActiveTab("channels");
+        } else if (userRole === "QC" || userRole === "VIEWER") {
+          setActiveTab("profile");
+        } else {
+          setActiveTab("replies");
+        }
       }
     } catch {
       setRole("OWNER");
       setActiveTab("channels");
     }
-  }, []);
+  }, [searchParams]);
 
   return (
     <div className="h-full overflow-y-auto bg-[#F7F7FA] p-4 sm:p-6 md:p-8">
@@ -93,7 +106,7 @@ export default function SettingsPage() {
               {t.quickReplyTab}
             </button>
           )}
-          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC") && (
             <button
               type="button"
               onClick={() => setActiveTab("knowledge")}
@@ -163,6 +176,20 @@ export default function SettingsPage() {
               {t.aiAssistantTab}
             </button>
           )}
+          {(role === "OWNER" || role === "ADMIN" || role === "QC") && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("ai-curation")}
+              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+                activeTab === "ai-curation"
+                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+              }`}
+            >
+              <Sparkles size={16} />
+              {locale === "th" ? "คัดสรรข้อมูล AI" : "AI Curation"}
+            </button>
+          )}
           {role && (
             <button
               type="button"
@@ -209,7 +236,7 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC") && (
             <div className={`${activeTab === "knowledge" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
               <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
                 <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
@@ -281,8 +308,25 @@ export default function SettingsPage() {
               </Card>
             </div>
           )}
+          {(role === "OWNER" || role === "ADMIN" || role === "QC") && (
+            <div className={`${activeTab === "ai-curation" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+              <AiCurationManager />
+            </div>
+          )}
         </div>
       </section>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-full items-center justify-center bg-[#F7F7FA]">
+        <div className="text-sm text-[#767A8C]">Loading settings...</div>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
   );
 }

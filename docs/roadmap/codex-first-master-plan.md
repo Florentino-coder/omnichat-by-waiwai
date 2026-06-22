@@ -33,18 +33,19 @@ Active scope is MVP Track only until founder explicitly opens a Post-MVP stage.
 | 4 | Customer CRM | MVP | Customer profile, timeline, notes, tags. |
 | 5 | Knowledge System Lite | MVP | Saved replies first; full knowledge base later. |
 | 6 | Reporting Lite | MVP | Basic dashboard only. |
-| 7 | KPI Engine Lite | MVP | Response time and resolution time only. |
-| 8 | QC Center | Post-MVP | Conversation review, scoring, feedback, compliance. |
-| 9 | Audit Log | MVP | Immutable trace for auth, replies, deletes, assignments, exports, settings. |
-| 10 | Automation | Post-MVP | Auto assign, auto tag, auto close, reminders, SLA. |
-| 11 | Search | Post-MVP | Global and full-text search via OpenSearch. |
-| 12 | AI Copilot | Post-MVP | Reply suggestions, grammar, tone, summaries. |
-| 13 | RAG System | Post-MVP | Document upload, embeddings, semantic retrieval. |
-| 14 | AI QA | Post-MVP | Automated scoring and policy detection. |
-| 15 | Hybrid AI Agent | Post-MVP | AI drafts replies, human approves. |
-| 16 | Full AI Agent | Post-MVP | AI replies automatically with escalation and confidence thresholds. |
-| 17 | Billing Full | MVP after Billing Lite | Stripe/Omise/2C2P integration, invoices, self-serve billing. |
-| 18 | Multi-Channel | Post-MVP | Facebook, Messenger, Telegram, Instagram, WhatsApp, email, web chat. |
+| 7 | AI Curation Panel | MVP | Manage, edit, and approve logged Q&A pairs (convert `AiTrainingPair` to `KnowledgeArticle` or export for fine-tuning). |
+| 8 | RAG System | MVP | Document upload (PDF/Docx/Txt), chunking, embeddings, semantic retrieval, PostgreSQL pgvector setup. |
+| 9 | AI Copilot | MVP | RAG-powered reply suggestions, grammar/tone adjustments, thread summaries. |
+| 10 | Hybrid AI Agent | MVP | Auto-drafting suggestion when new LINE webhook arrives, human clicks approve to send. |
+| 11 | Full AI Agent | MVP | Fully automated replies with confidence thresholds and human agent escalation. |
+| 12 | AI QA & Policy Check | Post-MVP | Automated scoring of replies, policy checking, and compliance auditing. |
+| 13 | Audit Log | MVP | Immutable trace for auth, replies, deletes, assignments, exports, settings. |
+| 14 | Automation | Post-MVP | Auto assign, auto tag, auto close, reminders, SLA. |
+| 15 | Search | Post-MVP | Global and full-text search via OpenSearch. |
+| 16 | KPI Engine Lite | MVP | Response time and resolution time only. |
+| 17 | QC Center | Post-MVP | Conversation review, scoring, feedback, compliance. |
+| 18 | Billing Full | MVP after Billing Lite | Stripe/Omise/2C2P integration, invoices, self-serve billing. |
+| 19 | Multi-Channel | Post-MVP | Facebook, Messenger, Telegram, Instagram, WhatsApp, email, web chat. |
 
 ## Internal Dogfooding Gate
 

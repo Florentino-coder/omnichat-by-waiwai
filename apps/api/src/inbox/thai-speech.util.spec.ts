@@ -47,4 +47,36 @@ describe("thai-speech.util", () => {
       expect(result).toBe("รับทราบครับ");
     });
   });
+
+  describe("formatMessagesForLlm", () => {
+    const { formatMessagesForLlm } = require("./thai-speech.util");
+
+    it("maps INBOUND to customer role and OUTBOUND to agent role", () => {
+      const messages = [
+        { direction: "INBOUND" as const, text: "Hello" },
+        { direction: "OUTBOUND" as const, text: "Hi there" }
+      ];
+      const result = formatMessagesForLlm(messages);
+      expect(result).toEqual([
+        { role: "customer", text: "Hello" },
+        { role: "agent", text: "Hi there" }
+      ]);
+    });
+
+    it("uses [Media/Attachment] placeholder for null, undefined, empty, or whitespace text", () => {
+      const messages = [
+        { direction: "INBOUND" as const, text: "" },
+        { direction: "INBOUND" as const, text: "   " },
+        { direction: "INBOUND" as const, text: null },
+        { direction: "OUTBOUND" as const, text: undefined }
+      ];
+      const result = formatMessagesForLlm(messages);
+      expect(result).toEqual([
+        { role: "customer", text: "[Media/Attachment]" },
+        { role: "customer", text: "[Media/Attachment]" },
+        { role: "customer", text: "[Media/Attachment]" },
+        { role: "agent", text: "[Media/Attachment]" }
+      ]);
+    });
+  });
 });

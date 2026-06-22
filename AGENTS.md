@@ -263,25 +263,26 @@ pnpm test:e2e
 
 | Stage | Name             | Status     |
 |-------|------------------|------------|
-| 0     | Architecture     | 🔵 Planning |
-| 1     | Foundation       | ⏳ Todo     |
-| 2     | LINE OA          | ⏳ Todo     |
-| 3     | Unified Inbox    | ⏳ Todo     |
-| 4     | Customer CRM     | ⏳ Todo     |
-| 5     | Knowledge System | ⏳ Todo     |
-| 6     | Reporting        | ⏳ Todo     |
-| 7     | KPI Engine       | ⏳ Todo     |
-| 8     | QC Center        | ⏳ Todo     |
-| 9     | Audit Log        | ⏳ Todo     |
-| 10    | Automation       | ⏳ Todo     |
-| 11    | Search           | ⏳ Todo     |
-| 12    | AI Copilot       | ⏳ Todo     |
-| 13    | RAG System       | ⏳ Todo     |
-| 14    | AI QA            | ⏳ Todo     |
-| 15    | Hybrid AI Agent  | ⏳ Todo     |
-| 16    | Full AI Agent    | ⏳ Todo     |
-| 17    | Billing          | ⏳ Todo     |
-| 18    | Multi-Channel    | ⏳ Todo     |
+| 0     | Architecture     | ✅ Done     |
+| 1     | Foundation       | ✅ Done     |
+| 2     | LINE OA          | ✅ Done     |
+| 3     | Unified Inbox    | ✅ Done     |
+| 4     | Customer CRM     | ✅ Done     |
+| 5     | Knowledge System | ✅ Done     |
+| 6     | Reporting        | ✅ Done     |
+| 7     | AI Curation Panel| ✅ Done     |
+| 8     | RAG System       | ✅ Done     |
+| 9     | AI Copilot       | ✅ Done     |
+| 10    | Hybrid AI Agent  | ⏳ Todo     |
+| 11    | Full AI Agent    | ⏳ Todo     |
+| 12    | AI QA & Policy   | ⏳ Todo     |
+| 13    | Audit Log        | ⏳ Todo     |
+| 14    | Automation       | ⏳ Todo     |
+| 15    | Search           | ⏳ Todo     |
+| 16    | KPI Engine       | ⏳ Todo     |
+| 17    | QC Center        | ⏳ Todo     |
+| 18    | Billing          | ⏳ Todo     |
+| 19    | Multi-Channel    | ⏳ Todo     |
 
 ---
 

@@ -8,7 +8,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ScenarioService } from "../scenario/scenario.service";
 import {
   buildAgentGenderInstruction,
-  normalizeThaiPoliteParticles
+  normalizeThaiPoliteParticles,
+  formatMessagesForLlm
 } from "../inbox/thai-speech.util";
 import {
   extractLlmErrorCode,
@@ -256,10 +257,7 @@ export class AiReplyGeneratorService {
         ? `${promptWithGreeting}\n\nคำสั่งเพิ่มเติมจากร้าน:\n${extraInstructions.trim()}`
         : promptWithGreeting;
 
-    const historyForLlm = history.map((msg) => ({
-      role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),
-      text: msg.text || ""
-    }));
+    const historyForLlm = formatMessagesForLlm(history);
 
     const activeLlmClient = resolveLlmClient(provider, {
       gemini: this.geminiClient,

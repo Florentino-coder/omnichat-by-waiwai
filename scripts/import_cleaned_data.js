@@ -76,6 +76,11 @@ async function importData() {
       
       if (!q || !a) continue;
 
+      // ดึงคีย์เวิร์ดที่จับกลุ่มมาทั้งหมด หรือใช้หัวข้อคำถามหากไม่มีคีย์เวิร์ดกลุ่ม
+      const keywords = Array.isArray(pair.keywords) && pair.keywords.length > 0 
+        ? pair.keywords 
+        : [q];
+
       // เพิ่มข้อมูลลงในตาราง KnowledgeArticle
       await prisma.knowledgeArticle.create({
         data: {
@@ -83,7 +88,7 @@ async function importData() {
           lineChannelId: null,
           title: q.substring(0, 100),
           content: a,
-          keywords: [q],
+          keywords: keywords,
           isActive: true
         }
       });

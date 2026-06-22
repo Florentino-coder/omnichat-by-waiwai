@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { BookOpen, FileText } from "lucide-react";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
@@ -12,7 +13,17 @@ type KnowledgeTab = "articles" | "documents";
 export function KnowledgeSettingsPanel() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
+  const searchParams = useSearchParams();
+  const subParam = searchParams.get("sub") || searchParams.get("section");
   const [activeTab, setActiveTab] = useState<KnowledgeTab>("articles");
+
+  useEffect(() => {
+    if (subParam === "documents") {
+      setActiveTab("documents");
+    } else if (subParam === "articles") {
+      setActiveTab("articles");
+    }
+  }, [subParam]);
 
   return (
     <div className="space-y-6">

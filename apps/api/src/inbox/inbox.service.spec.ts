@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException, HttpException } from "@nestjs/common";
 import {
   AuditAction,
   ConversationPriority,
@@ -78,6 +78,8 @@ type MockPrisma = {
   usageCounter: {
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     upsert: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    updateMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
 };
 
@@ -146,7 +148,9 @@ const createPrisma = (): MockPrisma => ({
   },
   usageCounter: {
     findUnique: jest.fn<Promise<unknown>, [unknown]>(),
-    upsert: jest.fn<Promise<unknown>, [unknown]>()
+    upsert: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    updateMany: jest.fn<Promise<unknown>, [unknown]>()
   }
 });
 
@@ -1443,6 +1447,144 @@ describe("InboxService", () => {
         data: {
           status: "superseded"
         }
+      });
+    });
+
+    it("should throw BadRequestException if tone refinement has empty current_text", async () => {
+      const prisma = createPrisma();
+      setupAiSuggestPrisma(prisma);
+      const service = createService(prisma);
+      await expect(
+        service.aiSuggest("tenant-1", "user-1", "conv-1", {
+          action_type: "rewrite" as any,
+          current_text: ""
+        })
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe("AI Summary", () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      mockRedisService.client.incr.mockResolvedValue(1);
+      mockLlmClient.generateReply.mockResolvedValue("ประเด็นหลักคือลูกค้าต้องการราคาสินค้า");
+    });
+
+    function setupSummaryPrisma(prisma: MockPrisma): void {
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        tenantId: "tenant-1",
+        enableAiSuggest: true,
+        aiProvider: "gemini"
+      });
+      prisma.tenant.findUnique.mockResolvedValue({
+        id: "tenant-1",
+        planId: "pro"
+      });
+      prisma.planLimit.findUnique.mockResolvedValue({
+        planId: "pro",
+        maxAiCreditsPerMonth: 100
+      });
+      prisma.usageCounter.findFirst.mockResolvedValue({
+        tenantId: "tenant-1",
+        metricName: "ai_suggest",
+        usageValue: 5
+      });
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        tenantId: "tenant-1",
+        customerId: "cust-1",
+        customer: {
+          id: "cust-1",
+          displayName: "Somsak",
+          deletedAt: null
+        }
+      });
+      prisma.message.findMany.mockResolvedValue([
+        {
+          id: "msg-1",
+          direction: "INBOUND",
+          text: "ราคาเท่าไหร่ครับ",
+          createdAt: new Date()
+        }
+      ]);
+    }
+
+    it("should throw NotFoundException if conversation not found", async () => {
+      const prisma = createPrisma();
+      setupSummaryPrisma(prisma);
+      prisma.conversation.findFirst.mockResolvedValue(null);
+
+      const service = createService(prisma);
+      await expect(
+        service.getConversationSummary("tenant-1", "user-1", "conv-not-found", { locale: "th" })
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("should throw ForbiddenException if AI suggests are disabled", async () => {
+      const prisma = createPrisma();
+      setupSummaryPrisma(prisma);
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        tenantId: "tenant-1",
+        enableAiSuggest: false
+      });
+
+      const service = createService(prisma);
+      await expect(
+        service.getConversationSummary("tenant-1", "user-1", "conv-1", { locale: "th" })
+      ).rejects.toThrow(HttpException);
+    });
+
+    it("should return fallback message if conversation has no messages", async () => {
+      const prisma = createPrisma();
+      setupSummaryPrisma(prisma);
+      prisma.message.findMany.mockResolvedValue([]);
+
+      const service = createService(prisma);
+      const result = await service.getConversationSummary("tenant-1", "user-1", "conv-1", { locale: "th" });
+
+      expect(result).toEqual({
+        summary: "ไม่มีประวัติการสนทนาสำหรับสรุป"
+      });
+    });
+
+    it("should throw rate limit error if conversation limit count > 5", async () => {
+      const prisma = createPrisma();
+      setupSummaryPrisma(prisma);
+      mockRedisService.client.incr.mockResolvedValueOnce(6).mockResolvedValueOnce(1); // conv=6, tenant=1
+
+      const service = createService(prisma);
+      await expect(
+        service.getConversationSummary("tenant-1", "user-1", "conv-1", { locale: "th" })
+      ).rejects.toThrow(HttpException);
+    });
+
+    it("should generate summary, log audit log, and increment credits", async () => {
+      const prisma = createPrisma();
+      setupSummaryPrisma(prisma);
+      prisma.message.findMany.mockResolvedValue([
+        {
+          id: "msg-1",
+          direction: "INBOUND",
+          text: "ราคาเท่าไหร่ครับ",
+          createdAt: new Date()
+        }
+      ]);
+      prisma.usageCounter.updateMany.mockResolvedValue({ count: 1 });
+      prisma.auditLog.create.mockResolvedValue({ id: "log-1" });
+
+      const service = createService(prisma);
+      const result = await service.getConversationSummary("tenant-1", "user-1", "conv-1", { locale: "th" });
+
+      expect(result).toEqual({
+        summary: "ประเด็นหลักคือลูกค้าต้องการราคาสินค้า"
+      });
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: AuditAction.AI_CONVERSATION_SUMMARIZED,
+          targetType: "Conversation",
+          targetId: "conv-1"
+        })
       });
     });
   });

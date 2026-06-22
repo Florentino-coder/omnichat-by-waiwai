@@ -34,6 +34,7 @@ import {
   InboxSettings
 } from "./inbox.service";
 import { AiTestDto } from "./dto/ai-test.dto";
+import { AiSummaryDto } from "./dto/ai-summary.dto";
 
 @Controller("inbox")
 @UseGuards(JwtAuthGuard, TenantGuard, RolesGuard)
@@ -270,8 +271,18 @@ export class InboxController {
     return { success: true };
   }
 
+  @Post("conversations/:id/summary")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC)
+  async getConversationSummary(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string,
+    @Body() dto: AiSummaryDto
+  ) {
+    return this.inboxService.getConversationSummary(ctx.tenantId, ctx.sub, id, dto);
+  }
+
   @Post("conversations/:id/ai-suggest")
-  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC)
   async aiSuggest(
     @TenantCtx() ctx: JwtTenantPayload,
     @Param("id") id: string,
@@ -281,7 +292,7 @@ export class InboxController {
   }
 
   @Patch("ai-suggestions/:id")
-  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT)
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC)
   async updateAiSuggestion(
     @TenantCtx() ctx: JwtTenantPayload,
     @Param("id") id: string,

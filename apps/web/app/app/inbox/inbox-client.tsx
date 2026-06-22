@@ -1310,6 +1310,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       notes={internalNotes}
       isLoadingOperations={isLoadingOperations}
       disabled={!selectedConversation}
+      conversationId={selectedConversation?.id}
+      enableAiSuggest={enableAiSuggest}
     />
   );
 
