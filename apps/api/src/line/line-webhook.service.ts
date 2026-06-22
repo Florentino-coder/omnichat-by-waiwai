@@ -438,7 +438,7 @@ export class LineWebhookService {
               const settings = await this.prisma.tenantSettings.findUnique({
                 where: { tenantId: channel.tenantId }
               });
-              if (settings?.enableAiSuggest) {
+              if (settings?.enableHybridAutoDraft && settings?.enableAiSuggest) {
                 await this.aiHybridDraftService
                   .tryHybridDraft(
                     channel.tenantId,

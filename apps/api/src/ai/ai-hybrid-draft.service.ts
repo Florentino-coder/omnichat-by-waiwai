@@ -64,7 +64,7 @@ export class AiHybridDraftService implements OnModuleDestroy {
       where: { tenantId }
     });
 
-    if (settings?.enableAiSuggest === false) {
+    if (settings?.enableAiSuggest === false || settings?.enableHybridAutoDraft === false) {
       return;
     }
 
@@ -168,7 +168,7 @@ export class AiHybridDraftService implements OnModuleDestroy {
     await this.prisma.auditLog.create({
       data: {
         tenantId,
-        userId: "system",
+        userId: null,
         action: AuditAction.AI_SUGGEST_GENERATED,
         targetType: "AiSuggestion",
         targetId: suggestion.id,
@@ -179,7 +179,8 @@ export class AiHybridDraftService implements OnModuleDestroy {
           aiAgentGender,
           latencyMs,
           programmatic: true,
-          outcome: generateResult.outcome
+          outcome: generateResult.outcome,
+          triggeredBy: "system"
         }
       }
     });

@@ -13,6 +13,7 @@ describe("UpdateInboxSettingsDto", () => {
   it("accepts valid AI auto-reply settings", async () => {
     const errors = await validateDto({
       enableAiAutoReply: true,
+      enableHybridAutoDraft: false,
       aiAutoReplyMode: AiAutoReplyMode.OFF_HOURS_ONLY,
       aiAutoReplyBusinessHourStart: 8,
       aiAutoReplyBusinessHourEnd: 23,
@@ -54,5 +55,24 @@ describe("UpdateInboxSettingsDto", () => {
     });
 
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it("accepts valid confidence threshold values", async () => {
+    const errors = await validateDto({
+      aiAutoReplyConfidenceThreshold: 0.85
+    });
+    expect(errors).toHaveLength(0);
+  });
+
+  it("rejects invalid confidence threshold values", async () => {
+    const errors = await validateDto({
+      aiAutoReplyConfidenceThreshold: 1.1
+    });
+    expect(errors.length).toBeGreaterThan(0);
+
+    const errors2 = await validateDto({
+      aiAutoReplyConfidenceThreshold: -0.1
+    });
+    expect(errors2.length).toBeGreaterThan(0);
   });
 });

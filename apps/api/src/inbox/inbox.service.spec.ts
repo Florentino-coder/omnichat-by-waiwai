@@ -479,6 +479,7 @@ describe("InboxService", () => {
     prisma.tenantSettings.findUnique.mockResolvedValue({
       inProgressAlertMinutes: 15,
       enableAiSuggest: true,
+      enableHybridAutoDraft: true,
       enableAiScenarios: true,
       aiProvider: "gemini",
       aiAgentGender: "FEMALE",
@@ -492,6 +493,7 @@ describe("InboxService", () => {
     prisma.tenantSettings.upsert.mockResolvedValue({
       inProgressAlertMinutes: 5,
       enableAiSuggest: true,
+      enableHybridAutoDraft: true,
       enableAiScenarios: true,
       aiProvider: "gemini",
       aiAgentGender: "FEMALE",
@@ -507,6 +509,7 @@ describe("InboxService", () => {
     await expect(createService(prisma).getSettings("tenant-1")).resolves.toEqual({
       inProgressAlertMinutes: 15,
       enableAiSuggest: true,
+      enableHybridAutoDraft: true,
       enableAiScenarios: true,
       aiProvider: "gemini",
       aiAgentGender: "FEMALE",
@@ -515,7 +518,8 @@ describe("InboxService", () => {
       aiAutoReplyBusinessHourStart: 8,
       aiAutoReplyBusinessHourEnd: 23,
       aiAutoReplyInstructions: null,
-      aiEscalationKeywords: ["แอดมิน", "คุยกับคน"]
+      aiEscalationKeywords: ["แอดมิน", "คุยกับคน"],
+      aiAutoReplyConfidenceThreshold: 0.8
     });
 
     await createService(prisma).updateSettings("tenant-1", "user-1", {
@@ -525,7 +529,8 @@ describe("InboxService", () => {
       aiAutoReplyBusinessHourStart: 9,
       aiAutoReplyBusinessHourEnd: 22,
       aiAutoReplyInstructions: "ตอบสั้นๆ",
-      aiEscalationKeywords: [" แอดมิน ", "แอดมิน"]
+      aiEscalationKeywords: [" แอดมิน ", "แอดมิน"],
+      aiAutoReplyConfidenceThreshold: 0.85
     });
 
     expect(prisma.tenantSettings.upsert).toHaveBeenCalledWith({
@@ -534,6 +539,7 @@ describe("InboxService", () => {
         tenantId: "tenant-1",
         inProgressAlertMinutes: 5,
         enableAiSuggest: true,
+        enableHybridAutoDraft: true,
         enableAiScenarios: true,
         aiProvider: "gemini",
         aiAgentGender: "FEMALE",
@@ -542,11 +548,13 @@ describe("InboxService", () => {
         aiAutoReplyBusinessHourStart: 9,
         aiAutoReplyBusinessHourEnd: 22,
         aiAutoReplyInstructions: "ตอบสั้นๆ",
-        aiEscalationKeywords: ["แอดมิน"]
+        aiEscalationKeywords: ["แอดมิน"],
+        aiAutoReplyConfidenceThreshold: 0.85
       },
       update: {
         inProgressAlertMinutes: 5,
         enableAiSuggest: undefined,
+        enableHybridAutoDraft: undefined,
         enableAiScenarios: undefined,
         aiProvider: undefined,
         aiAgentGender: undefined,
@@ -555,11 +563,13 @@ describe("InboxService", () => {
         aiAutoReplyBusinessHourStart: 9,
         aiAutoReplyBusinessHourEnd: 22,
         aiAutoReplyInstructions: "ตอบสั้นๆ",
-        aiEscalationKeywords: ["แอดมิน"]
+        aiEscalationKeywords: ["แอดมิน"],
+        aiAutoReplyConfidenceThreshold: 0.85
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
+        enableHybridAutoDraft: true,
         enableAiScenarios: true,
         aiProvider: true,
         aiAgentGender: true,
@@ -568,7 +578,8 @@ describe("InboxService", () => {
         aiAutoReplyBusinessHourStart: true,
         aiAutoReplyBusinessHourEnd: true,
         aiAutoReplyInstructions: true,
-        aiEscalationKeywords: true
+        aiEscalationKeywords: true,
+        aiAutoReplyConfidenceThreshold: true
       }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
@@ -612,8 +623,11 @@ describe("InboxService", () => {
       }
     ]);
 
-    await createService(prisma).getConversationMessages("tenant-1", "conversation-1");
+    const result = await createService(prisma).getConversationMessages("tenant-1", "conversation-1");
 
+    expect(result.messages).toHaveLength(1);
+    expect(result.hasMore).toBe(false);
+    expect(result.oldestId).toBe("message-1");
     expect(prisma.conversation.findFirst).toHaveBeenCalledWith({
       where: {
         id: "conversation-1",
@@ -627,8 +641,8 @@ describe("InboxService", () => {
         conversationId: "conversation-1",
         deletedAt: null
       },
-      orderBy: { createdAt: "asc" },
-      take: 200
+      orderBy: { createdAt: "desc" },
+      take: 51
     });
   });
 

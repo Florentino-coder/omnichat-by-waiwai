@@ -45,7 +45,8 @@ export type AiAutoReplySkipReason =
   | "debounce"
   | "no_credits"
   | "rate_limited"
-  | "provider_unavailable";
+  | "provider_unavailable"
+  | "low_confidence";
 
 export function getTenantLocalHour(timezone: string, date = new Date()): number {
   try {

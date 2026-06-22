@@ -47,31 +47,59 @@ export class GeminiClient implements LLMClient {
       },
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 1000
+        maxOutputTokens: 2048
       }
     };
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
+    let lastFinishReason: string | undefined;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      this.logger.error(`Gemini API error: ${response.status} - ${errorText}`);
-      throw new Error(`Gemini API failed with status ${response.status}: ${errorText}`);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(`Gemini API error: ${response.status} - ${errorText}`);
+        throw new Error(`Gemini API failed with status ${response.status}: ${errorText}`);
+      }
+
+      const data = (await response.json()) as {
+        candidates?: Array<{
+          finishReason?: string;
+          content?: { parts?: Array<{ text?: string }> };
+        }>;
+        usageMetadata?: unknown;
+      };
+
+      const candidate = data.candidates?.[0];
+      lastFinishReason = candidate?.finishReason;
+      const parts = candidate?.content?.parts ?? [];
+      const text = parts
+        .map((part) => part.text ?? "")
+        .join("")
+        .trim();
+
+      if (text) {
+        return text;
+      }
+
+      this.logger.error(
+        `Gemini returned empty content (finishReason=${lastFinishReason ?? "unknown"}, attempt=${attempt + 1})`,
+        JSON.stringify({ finishReason: lastFinishReason, usageMetadata: data.usageMetadata })
+      );
+
+      if (attempt === 0) {
+        continue;
+      }
     }
 
-    const data = (await response.json()) as any;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      this.logger.error(`Invalid response structure from Gemini API: ${JSON.stringify(data)}`);
-      throw new Error("Invalid response structure from Gemini API");
-    }
-
-    return text.trim();
+    throw new Error(
+      `Gemini returned empty content (finishReason=${lastFinishReason ?? "unknown"})`
+    );
   }
 }

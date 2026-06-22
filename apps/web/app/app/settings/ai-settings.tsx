@@ -38,6 +38,7 @@ type AiAutoReplyMode = "OFF" | "WHEN_UNASSIGNED" | "ALWAYS" | "OFF_HOURS_ONLY";
 type AiSettingsData = {
   inProgressAlertMinutes: number;
   enableAiSuggest: boolean;
+  enableHybridAutoDraft: boolean;
   enableAiScenarios: boolean;
   aiProvider: string;
   aiAgentGender: "FEMALE" | "MALE";
@@ -47,6 +48,7 @@ type AiSettingsData = {
   aiAutoReplyBusinessHourEnd: number;
   aiAutoReplyInstructions: string | null;
   aiEscalationKeywords: string[];
+  aiAutoReplyConfidenceThreshold: number;
 };
 
 type PromptTemplateData = {
@@ -107,6 +109,7 @@ export function AiSettings() {
   const [settings, setSettings] = useState<AiSettingsData>({
     inProgressAlertMinutes: 10,
     enableAiSuggest: true,
+    enableHybridAutoDraft: true,
     enableAiScenarios: true,
     aiProvider: "gemini",
     aiAgentGender: "FEMALE",
@@ -115,7 +118,8 @@ export function AiSettings() {
     aiAutoReplyBusinessHourStart: 8,
     aiAutoReplyBusinessHourEnd: 23,
     aiAutoReplyInstructions: null,
-    aiEscalationKeywords: []
+    aiEscalationKeywords: [],
+    aiAutoReplyConfidenceThreshold: 0.80
   });
   const [escalationKeywordsText, setEscalationKeywordsText] = useState("");
   const [promptTemplate, setPromptTemplate] = useState<PromptTemplateData | null>(null);
@@ -208,6 +212,7 @@ export function AiSettings() {
         body: JSON.stringify({
           inProgressAlertMinutes: settings.inProgressAlertMinutes,
           enableAiSuggest: settings.enableAiSuggest,
+          enableHybridAutoDraft: settings.enableHybridAutoDraft,
           enableAiScenarios: settings.enableAiScenarios,
           aiProvider: settings.aiProvider,
           aiAgentGender: settings.aiAgentGender,
@@ -216,6 +221,7 @@ export function AiSettings() {
           aiAutoReplyBusinessHourStart: settings.aiAutoReplyBusinessHourStart,
           aiAutoReplyBusinessHourEnd: settings.aiAutoReplyBusinessHourEnd,
           aiAutoReplyInstructions: settings.aiAutoReplyInstructions,
+          aiAutoReplyConfidenceThreshold: settings.aiAutoReplyConfidenceThreshold,
           aiEscalationKeywords: escalationKeywordsText
             .split(",")
             .map((keyword) => keyword.trim())
@@ -350,6 +356,27 @@ export function AiSettings() {
             </div>
           </div>
           <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiSuggestedReplyHint}</p>
+        </div>
+
+        <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div>
+            <div className="flex items-center justify-between border-b border-[#F5F4F7] pb-3 mb-3">
+              <span className="text-xs font-bold text-[#767A8C] uppercase tracking-wider">
+                {t.aiHybridAutoDraftSystem}
+              </span>
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <Sparkles size={16} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-sm font-semibold text-[#16182B]">{t.aiEnableHybridAutoDraft}</span>
+              <ToggleSwitch
+                checked={settings.enableHybridAutoDraft}
+                onChange={(val) => setSettings({ ...settings, enableHybridAutoDraft: val })}
+              />
+            </div>
+          </div>
+          <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiHybridAutoDraftHint}</p>
         </div>
 
         <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -566,6 +593,33 @@ export function AiSettings() {
             className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
             placeholder="แอดมิน, คุยกับคน, โทรหา"
           />
+        </div>
+
+        <div>
+          <label htmlFor="ai-confidence-threshold" className="text-sm font-semibold text-[#16182B] flex items-center justify-between">
+            <span>{t.aiConfidenceThreshold}</span>
+            <span className="font-bold text-[#4636D7]">
+              {Math.round((settings.aiAutoReplyConfidenceThreshold ?? 0.80) * 100)}%
+            </span>
+          </label>
+          <p className="mt-1 text-xs text-[#767A8C]">{t.aiConfidenceThresholdHint}</p>
+          <div className="mt-3 flex items-center gap-4">
+            <input
+              id="ai-confidence-threshold"
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={Math.round((settings.aiAutoReplyConfidenceThreshold ?? 0.80) * 100)}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  aiAutoReplyConfidenceThreshold: parseFloat(e.target.value) / 100
+                })
+              }
+              className="w-full h-1.5 bg-[#ECEBFF] rounded-lg appearance-none cursor-pointer accent-[#4636D7]"
+            />
+          </div>
         </div>
 
         <div>

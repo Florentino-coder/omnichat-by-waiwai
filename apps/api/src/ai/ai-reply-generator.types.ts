@@ -11,6 +11,7 @@ export type AiReplyGenerateInput = {
   provider: string;
   applyScenarioActions?: boolean;
   extraInstructions?: string | null;
+  includeConfidence?: boolean;
 };
 
 export type AiReplyGenerateSuccess = {
@@ -20,6 +21,7 @@ export type AiReplyGenerateSuccess = {
   knowledgeCitations: KnowledgeCitation[];
   latencyMs: number;
   provider: string;
+  confidence?: number;
 };
 
 export type AiReplyGenerateKnowledgeOnly = {

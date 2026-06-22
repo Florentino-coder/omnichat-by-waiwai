@@ -260,6 +260,7 @@ model TenantSettings {
   maxAgents              Int      @default(10)
   inProgressAlertMinutes Int      @default(10)
   enableAiSuggest        Boolean       @default(true)   @map("enable_ai_suggest")
+  enableHybridAutoDraft  Boolean       @default(true)   @map("enable_hybrid_auto_draft")
   enableAiScenarios      Boolean       @default(true)   @map("enable_ai_scenarios")
   aiProvider             String        @default("gemini") @map("ai_provider")
   aiAgentGender          AiAgentGender @default(FEMALE)   @map("ai_agent_gender")
@@ -269,6 +270,7 @@ model TenantSettings {
   aiAutoReplyBusinessHourEnd   Int       @default(23)     @map("ai_auto_reply_business_hour_end")
   aiAutoReplyInstructions    String?   @map("ai_auto_reply_instructions")
   aiEscalationKeywords       String[]  @default([])     @map("ai_escalation_keywords")
+  aiAutoReplyConfidenceThreshold Float @default(0.80) @map("ai_auto_reply_confidence_threshold")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -936,6 +938,7 @@ model AiSuggestion {
   latencyMs      Int?         @map("latency_ms")
   errorCode      String?      @map("error_code")
   citations      Json?        @map("citations")
+  confidence     Float?       @map("confidence")
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@index([tenantId])

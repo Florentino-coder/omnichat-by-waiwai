@@ -7,6 +7,7 @@ import {
 import { LineReplyService } from "../line/line-reply.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
+import { RealtimeService } from "../realtime/realtime.service";
 import { AiAutoReplyService } from "./ai-auto-reply.service";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
 
@@ -40,7 +41,8 @@ function createMocks() {
     usageCounter: { findUnique: jest.fn(), upsert: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({ id: "audit-1" }) },
     conversationTag: { findFirst: jest.fn(), create: jest.fn() },
-    conversationTagLink: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() }
+    conversationTagLink: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+    aiSuggestion: { create: jest.fn().mockResolvedValue({ id: "suggest-1" }), updateMany: jest.fn() }
   };
 
   const redisService = {
@@ -58,7 +60,11 @@ function createMocks() {
     replyText: jest.fn().mockResolvedValue(undefined)
   };
 
-  return { prisma, redisService, aiReplyGenerator, lineReplyService };
+  const realtimeService = {
+    publishTenantEvent: jest.fn().mockResolvedValue(undefined)
+  };
+
+  return { prisma, redisService, aiReplyGenerator, lineReplyService, realtimeService };
 }
 
 function createService(mocks: ReturnType<typeof createMocks>) {
@@ -66,15 +72,19 @@ function createService(mocks: ReturnType<typeof createMocks>) {
     mocks.prisma as unknown as PrismaService,
     mocks.redisService as unknown as RedisService,
     mocks.aiReplyGenerator as unknown as AiReplyGeneratorService,
-    mocks.lineReplyService as unknown as LineReplyService
+    mocks.lineReplyService as unknown as LineReplyService,
+    mocks.realtimeService as unknown as RealtimeService
   );
 }
 
 function mockHappyPath(mocks: ReturnType<typeof createMocks>) {
-  mocks.prisma.tenantSettings.findUnique.mockResolvedValue(defaultSettings);
+  mocks.prisma.tenantSettings.findUnique.mockResolvedValue({
+    ...defaultSettings,
+    aiAutoReplyConfidenceThreshold: 0.80
+  });
   mocks.prisma.conversation.findFirst
     .mockResolvedValueOnce({ id: "conversation-1", assignedToMemberId: null })
-    .mockResolvedValue({ priority: ConversationPriority.NORMAL });
+    .mockResolvedValue({ priority: ConversationPriority.NORMAL, assignedToMemberId: null, status: "IN_PROGRESS" });
   mocks.prisma.tenant.findUnique.mockResolvedValue({
     timezone: "Asia/Bangkok",
     planId: "plan-1"
@@ -82,13 +92,17 @@ function mockHappyPath(mocks: ReturnType<typeof createMocks>) {
   mocks.prisma.message.findFirst.mockResolvedValue(null);
   mocks.prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 100 });
   mocks.prisma.usageCounter.findUnique.mockResolvedValue({ value: 0n });
+  mocks.prisma.conversationTag.findFirst.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
+  mocks.prisma.conversationTag.create.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
+  mocks.prisma.conversationTagLink.findFirst.mockResolvedValue(null);
   mocks.aiReplyGenerator.generate.mockResolvedValue({
     outcome: "success",
     suggestionText: "สวัสดีค่ะ ยินดีให้บริการค่ะ",
     compiledPrompt: "prompt",
     knowledgeCitations: [],
     latencyMs: 120,
-    provider: "gemini"
+    provider: "gemini",
+    confidence: 0.90
   });
 }
 
@@ -309,14 +323,20 @@ describe("AiAutoReplyService", () => {
       knowledgeCitations: [{ documentId: "doc-1", title: "FAQ", snippet: "..." }],
       provider: "gemini"
     });
+    mocks.prisma.conversationTag.findFirst.mockResolvedValue(null);
+    mocks.prisma.conversationTag.create.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
+    mocks.prisma.conversationTagLink.findFirst.mockResolvedValue(null);
+    mocks.prisma.message.findFirst.mockResolvedValue({ id: "message-1", rawPayload: {} });
+    
     const service = createService(mocks);
 
-    await service.tryAutoReply(baseInput);
+    const result = await service.tryAutoReply(baseInput);
 
+    expect(result).toEqual({ outcome: "skipped", reason: "low_confidence" });
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: AuditAction.AI_AUTO_REPLY_SKIPPED,
-        metadata: expect.objectContaining({ reason: "provider_unavailable" })
+        metadata: expect.objectContaining({ reason: "low_confidence", mode: "knowledge_only" })
       })
     });
     expect(mocks.lineReplyService.replyText).not.toHaveBeenCalled();
@@ -365,6 +385,135 @@ describe("AiAutoReplyService", () => {
     const result = await service.tryAutoReply(baseInput);
 
     expect(result).toEqual({ outcome: "skipped", reason: "disabled" });
+  });
+
+  it("escalates conversation on low confidence, saves draft, charges 1 credit", async () => {
+    const mocks = createMocks();
+    mockHappyPath(mocks);
+    mocks.aiReplyGenerator.generate.mockResolvedValue({
+      outcome: "success",
+      suggestionText: "สวัสดีค่ะ นี่คือคำตอบความน่าเชื่อถือต่ำ",
+      compiledPrompt: "compiled-prompt",
+      knowledgeCitations: [{ documentId: "doc-1", title: "Doc Title", snippet: "Doc Snippet" }],
+      latencyMs: 150,
+      provider: "gemini",
+      confidence: 0.50
+    });
+
+    mocks.prisma.conversationTag.findFirst.mockResolvedValue(null);
+    mocks.prisma.conversationTag.create.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
+    mocks.prisma.conversationTagLink.findFirst.mockResolvedValue(null);
+    mocks.prisma.message.findFirst.mockResolvedValue({
+      id: "message-1",
+      rawPayload: {}
+    });
+
+    const service = createService(mocks);
+    const result = await service.tryAutoReply(baseInput);
+
+    expect(result).toEqual({ outcome: "skipped", reason: "low_confidence" });
+
+    // Assert priority high, status open (since unassigned) updates
+    expect(mocks.prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: "conversation-1" },
+      data: {
+        priority: ConversationPriority.HIGH,
+        status: "OPEN"
+      }
+    });
+
+    // Assert suggestion draft created
+    expect(mocks.prisma.aiSuggestion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        suggestionText: "สวัสดีค่ะ นี่คือคำตอบความน่าเชื่อถือต่ำ",
+        confidence: 0.50,
+        status: "shown"
+      })
+    });
+
+    // Assert credit is charged for low-confidence text reply
+    expect(mocks.prisma.usageCounter.upsert).toHaveBeenCalled();
+
+    expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: null,
+        action: AuditAction.AI_SUGGEST_GENERATED,
+        metadata: expect.objectContaining({
+          triggeredBy: "system",
+          outcome: "low_confidence"
+        })
+      })
+    });
+
+    // Assert SSE emitted
+    expect(mocks.realtimeService.publishTenantEvent).toHaveBeenCalledWith(
+      "tenant-1",
+      "ai-suggestion.created",
+      expect.objectContaining({ conversationId: "conversation-1", suggestionId: "suggest-1" })
+    );
+
+    // Assert message marked escalated with escalationReason: low_confidence
+    expect(mocks.prisma.message.update).toHaveBeenCalledWith({
+      where: { id: "message-1" },
+      data: expect.objectContaining({
+        rawPayload: expect.objectContaining({
+          omnichatMeta: expect.objectContaining({
+            escalation: true,
+            escalationReason: "low_confidence"
+          })
+        })
+      })
+    });
+  });
+
+  it("escalates conversation on knowledge_only, saves citations draft, does NOT charge credit", async () => {
+    const mocks = createMocks();
+    mockHappyPath(mocks);
+    mocks.aiReplyGenerator.generate.mockResolvedValue({
+      outcome: "knowledge_only",
+      errorCode: "KNOWLEDGE_ONLY",
+      knowledgeCitations: [{ documentId: "doc-1", title: "Doc Title", snippet: "Doc Snippet" }],
+      provider: "gemini"
+    });
+
+    mocks.prisma.conversationTag.findFirst.mockResolvedValue(null);
+    mocks.prisma.conversationTag.create.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
+    mocks.prisma.conversationTagLink.findFirst.mockResolvedValue(null);
+    mocks.prisma.message.findFirst.mockResolvedValue({
+      id: "message-1",
+      rawPayload: {}
+    });
+
+    const service = createService(mocks);
+    const result = await service.tryAutoReply(baseInput);
+
+    expect(result).toEqual({ outcome: "skipped", reason: "low_confidence" });
+
+    // Assert suggestion draft created with null text, citations populated, confidence null
+    expect(mocks.prisma.aiSuggestion.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        suggestionText: null,
+        confidence: null,
+        status: "shown",
+        citations: expect.any(Array)
+      })
+    });
+
+    // Assert credit is NOT charged
+    expect(mocks.prisma.usageCounter.upsert).not.toHaveBeenCalled();
+
+    // Assert message marked escalated with escalationReason: knowledge_only
+    expect(mocks.prisma.message.update).toHaveBeenCalledWith({
+      where: { id: "message-1" },
+      data: expect.objectContaining({
+        rawPayload: expect.objectContaining({
+          omnichatMeta: expect.objectContaining({
+            escalation: true,
+            escalationReason: "knowledge_only"
+          })
+        })
+      })
+    });
   });
 });
 

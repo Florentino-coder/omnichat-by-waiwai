@@ -45,6 +45,7 @@ function createService(mocks: ReturnType<typeof createMocks>) {
 function mockHappyPath(mocks: ReturnType<typeof createMocks>) {
   mocks.prisma.tenantSettings.findUnique.mockResolvedValue({
     enableAiSuggest: true,
+    enableHybridAutoDraft: true,
     aiProvider: "gemini",
     aiAgentGender: AiAgentGender.FEMALE,
     aiAutoReplyInstructions: "instructions"
@@ -113,6 +114,21 @@ describe("AiHybridDraftService", () => {
     expect(mocks.aiReplyGenerator.generate).not.toHaveBeenCalled();
   });
 
+  it("skips generation when enableHybridAutoDraft is false", async () => {
+    const mocks = createMocks();
+    mockHappyPath(mocks);
+    mocks.prisma.tenantSettings.findUnique.mockResolvedValue({
+      enableAiSuggest: true,
+      enableHybridAutoDraft: false
+    });
+    const service = createService(mocks);
+
+    void service.tryHybridDraft("tenant-1", "conv-1", "msg-1", "hello");
+    await jest.runAllTimersAsync();
+
+    expect(mocks.aiReplyGenerator.generate).not.toHaveBeenCalled();
+  });
+
   it("skips generation when credits are unavailable", async () => {
     const mocks = createMocks();
     mockHappyPath(mocks);
@@ -161,8 +177,13 @@ describe("AiHybridDraftService", () => {
     expect(mocks.prisma.usageCounter.upsert).toHaveBeenCalled();
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
+        userId: null,
         action: AuditAction.AI_SUGGEST_GENERATED,
-        metadata: expect.objectContaining({ programmatic: true, outcome: "success" })
+        metadata: expect.objectContaining({
+          programmatic: true,
+          outcome: "success",
+          triggeredBy: "system"
+        })
       })
     });
     expect(mocks.realtimeService.publishTenantEvent).toHaveBeenCalledWith(
@@ -198,7 +219,12 @@ describe("AiHybridDraftService", () => {
     expect(mocks.prisma.usageCounter.upsert).not.toHaveBeenCalled();
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        metadata: expect.objectContaining({ programmatic: true, outcome: "knowledge_only" })
+        userId: null,
+        metadata: expect.objectContaining({
+          programmatic: true,
+          outcome: "knowledge_only",
+          triggeredBy: "system"
+        })
       })
     });
     expect(mocks.realtimeService.publishTenantEvent).toHaveBeenCalled();

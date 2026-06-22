@@ -3,7 +3,7 @@ import { Check, Pencil, StickyNote, Tags, UserPlus, X, ChevronDown, Zap, Smartph
 import { Button, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../../app/lib/api-client";
 import { useLanguage } from "../../../app/lib/language-context";
-import { getMessages } from "../../../app/lib/i18n";
+import { getMessages, type Messages } from "../../../app/lib/i18n";
 import { AssignDropdown } from "./AssignDropdown";
 import { QuickReplyList } from "./QuickReplyList";
 import { TagList } from "./TagList";
@@ -158,8 +158,9 @@ export function CustomerPanel({
       );
       setSummary(res.summary);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t.summaryFailed;
-      if (msg.includes("Too many AI summaries") || msg.includes("RATE_LIMIT")) {
+      const rawMsg = err instanceof Error ? err.message : t.summaryFailed;
+      const msg = formatSummaryError(rawMsg, t);
+      if (msg === t.summaryRateLimit || rawMsg.includes("Too many AI summaries") || rawMsg.includes("RATE_LIMIT")) {
         setRateLimitLock(true);
         setRateLimitCountdown(15);
         setSummaryError(t.summaryRateLimit);
@@ -724,6 +725,19 @@ function formatDateTime(value: string): string {
     dateStyle: "short",
     timeStyle: "short"
   }).format(date);
+}
+
+function formatSummaryError(rawMsg: string, t: Messages): string {
+  if (rawMsg.includes("AI_PROVIDER_RATE_LIMITED")) {
+    return t.aiProviderRateLimited;
+  }
+  if (rawMsg.includes("AI_PROVIDER_NOT_CONFIGURED")) {
+    return t.aiProviderNotConfigured;
+  }
+  if (rawMsg.includes("AI_GENERATION_FAILED") || rawMsg.includes("AI_PROVIDER_TIMEOUT")) {
+    return t.summaryFailed;
+  }
+  return rawMsg;
 }
 
 export { AssignDropdown } from "./AssignDropdown";

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { RealtimeService } from "../realtime/realtime.service";
 import {
   AiAgentGender,
   AiAutoReplyMode,
@@ -49,7 +50,8 @@ export class AiAutoReplyService {
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
     private readonly aiReplyGenerator: AiReplyGeneratorService,
-    private readonly lineReplyService: LineReplyService
+    private readonly lineReplyService: LineReplyService,
+    private readonly realtimeService: RealtimeService
   ) {}
 
   async tryAutoReply(
@@ -74,7 +76,8 @@ export class AiAutoReplyService {
           enableAiSuggest: true,
           aiProvider: true,
           aiAgentGender: true,
-          timezone: true
+          timezone: true,
+          aiAutoReplyConfidenceThreshold: true
         }
       }),
       this.prisma.conversation.findFirst({
@@ -126,7 +129,14 @@ export class AiAutoReplyService {
     const escalationKeywords = getEscalationKeywordsForMatching(settings.aiEscalationKeywords);
     if (matchesEscalationKeyword(trimmedText, escalationKeywords)) {
       const matchedKeywords = getMatchedEscalationKeywords(trimmedText, escalationKeywords);
-      await this.handleEscalation(input, trimmedText, matchedKeywords);
+      await this.escalateConversationForHumanReview({
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        inboundMessageId: input.inboundMessageId,
+        matchedKeywords,
+        reason: "keyword",
+        messageText: trimmedText
+      });
       return { outcome: "skipped", reason: "escalated" };
     }
 
@@ -157,15 +167,27 @@ export class AiAutoReplyService {
       aiAgentGender,
       provider,
       applyScenarioActions: false,
-      extraInstructions: settings.aiAutoReplyInstructions
+      extraInstructions: settings.aiAutoReplyInstructions,
+      includeConfidence: true
     });
 
     if (generateResult.outcome === "knowledge_only") {
-      await this.logSkipped(input, "provider_unavailable", {
-        errorCode: generateResult.errorCode,
-        mode: "knowledge_only"
+      await this.escalateConversationForHumanReview({
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        inboundMessageId: input.inboundMessageId,
+        matchedKeywords: [],
+        reason: "knowledge_only",
+        suggestion: {
+          suggestionText: null,
+          compiledPrompt: null,
+          provider: generateResult.provider,
+          latencyMs: 0,
+          citations: generateResult.knowledgeCitations,
+          confidence: null
+        }
       });
-      return { outcome: "skipped", reason: "provider_unavailable" };
+      return { outcome: "skipped", reason: "low_confidence" };
     }
 
     if (generateResult.outcome === "llm_failed") {
@@ -189,6 +211,29 @@ export class AiAutoReplyService {
     if (!replyText) {
       await this.logSkipped(input, "provider_unavailable", { reason: "empty_reply" });
       return { outcome: "skipped", reason: "provider_unavailable" };
+    }
+
+    const confidence = generateResult.confidence ?? 0.0;
+    const threshold = settings.aiAutoReplyConfidenceThreshold ?? 0.80;
+
+    if (confidence < threshold) {
+      await this.escalateConversationForHumanReview({
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        inboundMessageId: input.inboundMessageId,
+        matchedKeywords: [],
+        reason: "low_confidence",
+        suggestion: {
+          suggestionText: replyText,
+          compiledPrompt: generateResult.compiledPrompt,
+          provider: generateResult.provider,
+          latencyMs: generateResult.latencyMs,
+          citations: generateResult.knowledgeCitations,
+          confidence
+        }
+      });
+      await this.incrementAiCreditUsage(input.tenantId);
+      return { outcome: "skipped", reason: "low_confidence" };
     }
 
     try {
@@ -259,47 +304,143 @@ export class AiAutoReplyService {
     });
   }
 
-  private async handleEscalation(
-    input: AiAutoReplyInput,
-    messageText: string,
-    matchedKeywords: string[]
-  ): Promise<void> {
-    await this.addTagByName(input.tenantId, input.conversationId, AI_ESCALATED_TAG_NAME);
+  private async escalateConversationForHumanReview(params: {
+    tenantId: string;
+    conversationId: string;
+    inboundMessageId: string;
+    matchedKeywords: string[];
+    reason: "keyword" | "low_confidence" | "knowledge_only";
+    messageText?: string;
+    suggestion?: {
+      suggestionText: string | null;
+      compiledPrompt: string | null;
+      provider: string;
+      latencyMs: number;
+      citations: any[];
+      confidence: number | null;
+    };
+  }): Promise<void> {
+    await this.addTagByName(params.tenantId, params.conversationId, AI_ESCALATED_TAG_NAME);
     await this.markInboundMessageEscalated(
-      input.tenantId,
-      input.inboundMessageId,
-      matchedKeywords
+      params.tenantId,
+      params.inboundMessageId,
+      params.matchedKeywords,
+      params.reason
     );
 
     const conversation = await this.prisma.conversation.findFirst({
       where: {
-        id: input.conversationId,
-        tenantId: input.tenantId,
+        id: params.conversationId,
+        tenantId: params.tenantId,
         deletedAt: null
       },
-      select: { priority: true }
+      select: { priority: true, assignedToMemberId: true, status: true }
     });
 
-    if (conversation && conversation.priority !== ConversationPriority.HIGH) {
-      await this.prisma.conversation.update({
-        where: { id: input.conversationId },
-        data: { priority: ConversationPriority.HIGH }
-      });
+    if (conversation) {
+      const updates: any = {};
+      if (conversation.priority !== ConversationPriority.HIGH) {
+        updates.priority = ConversationPriority.HIGH;
+      }
+      if (conversation.assignedToMemberId === null && conversation.status !== "OPEN") {
+        updates.status = "OPEN";
+      }
+      if (Object.keys(updates).length > 0) {
+        await this.prisma.conversation.update({
+          where: { id: params.conversationId },
+          data: updates
+        });
+      }
     }
 
-    await this.prisma.auditLog.create({
-      data: {
-        tenantId: input.tenantId,
-        action: AuditAction.AI_AUTO_REPLY_ESCALATED,
-        targetType: "Conversation",
-        targetId: input.conversationId,
-        metadata: {
-          inboundMessageId: input.inboundMessageId,
-          messageText,
-          matchedKeywords
+    let dbSuggestionId: string | undefined;
+    if (params.suggestion) {
+      await this.prisma.aiSuggestion.updateMany({
+        where: {
+          conversationId: params.conversationId,
+          tenantId: params.tenantId,
+          status: "shown"
+        },
+        data: {
+          status: "superseded"
         }
+      });
+
+      const newSuggest = await this.prisma.aiSuggestion.create({
+        data: {
+          tenantId: params.tenantId,
+          conversationId: params.conversationId,
+          actionType: "generate",
+          promptUsed: params.suggestion.compiledPrompt,
+          suggestionText: params.suggestion.suggestionText,
+          status: "shown",
+          provider: params.suggestion.provider,
+          latencyMs: params.suggestion.latencyMs,
+          citations: params.suggestion.citations as any,
+          confidence: params.suggestion.confidence
+        }
+      });
+      dbSuggestionId = newSuggest.id;
+    }
+
+    if (params.reason === "keyword") {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId: params.tenantId,
+          action: AuditAction.AI_AUTO_REPLY_ESCALATED,
+          targetType: "Conversation",
+          targetId: params.conversationId,
+          metadata: {
+            inboundMessageId: params.inboundMessageId,
+            messageText: params.messageText,
+            matchedKeywords: params.matchedKeywords
+          }
+        }
+      });
+    } else {
+      if (dbSuggestionId) {
+        await this.prisma.auditLog.create({
+          data: {
+            tenantId: params.tenantId,
+            userId: null,
+            action: AuditAction.AI_SUGGEST_GENERATED,
+            targetType: "AiSuggestion",
+            targetId: dbSuggestionId,
+            metadata: {
+              conversationId: params.conversationId,
+              actionType: "generate",
+              provider: params.suggestion?.provider,
+              latencyMs: params.suggestion?.latencyMs,
+              programmatic: true,
+              outcome: params.reason,
+              triggeredBy: "system"
+            }
+          }
+        });
       }
-    });
+
+      await this.logSkipped(
+        {
+          tenantId: params.tenantId,
+          conversationId: params.conversationId,
+          inboundMessageId: params.inboundMessageId,
+          messageText: ""
+        },
+        "low_confidence",
+        {
+          mode: params.reason,
+          confidence: params.suggestion?.confidence,
+          suggestionId: dbSuggestionId
+        }
+      );
+    }
+
+    if (dbSuggestionId) {
+      await this.realtimeService.publishTenantEvent(params.tenantId, "ai-suggestion.created", {
+        conversationId: params.conversationId,
+        suggestionId: dbSuggestionId
+      });
+    }
   }
 
   private async addTagByName(
@@ -345,7 +486,8 @@ export class AiAutoReplyService {
   private async markInboundMessageEscalated(
     tenantId: string,
     inboundMessageId: string,
-    matchedKeywords: string[]
+    matchedKeywords: string[],
+    reason?: string
   ): Promise<void> {
     const message = await this.prisma.message.findFirst({
       where: { id: inboundMessageId, tenantId, deletedAt: null },
@@ -377,7 +519,8 @@ export class AiAutoReplyService {
           omnichatMeta: {
             ...existingMeta,
             escalation: true,
-            matchedKeywords
+            matchedKeywords,
+            escalationReason: reason || "keyword"
           }
         }
       }

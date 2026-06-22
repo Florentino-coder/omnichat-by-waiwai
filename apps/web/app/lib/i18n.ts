@@ -15,6 +15,8 @@ export const messages = {
     save: "บันทึก",
     loadingConversations: "กำลังโหลดแชท...",
     loadingMessages: "กำลังโหลดข้อความ...",
+    loadOlderMessages: "โหลดข้อความเก่า",
+    loadingOlderMessages: "กำลังโหลดข้อความเก่า...",
     noConversations: "ยังไม่มีแชท LINE",
     noThreadMessages: "ยังไม่มีข้อความในแชทนี้",
     connectLine: "เชื่อมต่อ LINE OA แล้วส่งข้อความเพื่อเริ่มต้น",
@@ -334,6 +336,10 @@ export const messages = {
     aiEnableSuggestedReply: "เปิดใช้งาน AI Suggested Reply",
     aiSuggestedReplyHint:
       'เปิดหรือปิดการแสดงปุ่ม "✨ AI ร่างคำตอบ" ในหน้าแชทของตัวแทน',
+    aiHybridAutoDraftSystem: "ร่างอัตโนมัติเมื่อลูกค้าทัก",
+    aiEnableHybridAutoDraft: "เปิด Hybrid Auto-Draft",
+    aiHybridAutoDraftHint:
+      "เมื่อเปิด ระบบจะร่างคำตอบอัตโนมัติในพื้นหลังหลังลูกค้าส่งข้อความ (ต้องเปิด AI Suggested Reply ด้วย)",
     aiScenarioEngineSystem: "ระบบคัดแยกและจัดการอัตโนมัติ",
     aiEnableScenarioEngine: "เปิดใช้งาน AI Scenario Engine",
     aiScenarioEngineHint:
@@ -396,7 +402,12 @@ export const messages = {
     aiAutoReplyInstructionsHint: "ข้อความนี้จะถูกใส่ใน prompt ทุกครั้งที่ AI ตอบอัตโนมัติ",
     aiEscalationKeywords: "คำขอ escalate (คั่นด้วย comma)",
     aiEscalationKeywordsHint:
-      "ถ้าลูกค้าพิมพ์คำเหล่านี้ ระบบจะไม่ส่ง AI ตอบ — ส่งต่อให้แอดมินแทน"
+      "ถ้าลูกค้าพิมพ์คำเหล่านี้ ระบบจะไม่ส่ง AI ตอบ — ส่งต่อให้แอดมินแทน",
+    aiConfidenceThreshold: "เกณฑ์ความมั่นใจในการตอบอัตโนมัติ (Confidence Threshold)",
+    aiConfidenceThresholdHint: "เกณฑ์เปอร์เซ็นต์ขั้นต่ำที่ระบบจะส่งข้อความหาลูกค้าทันที หากความมั่นใจต่ำกว่านี้ระบบจะร่างคำตอบไว้และดึงแอดมินเข้ามาจัดการแทน (แนะนำ: 80% ขึ้นไป)",
+    aiComposerConfidence: "ความแม่นยำ AI:",
+    aiComposerConfidenceLowWarning: "ความแม่นยำต่ำกว่าเกณฑ์ กำลังรอแอดมินตรวจสอบ",
+    aiComposerCitationsOnly: "ความเห็นอ้างอิงเท่านั้น (ไม่มีข้อความร่าง)"
   },
   en: {
     inboxTitle: "Inbox",
@@ -410,6 +421,8 @@ export const messages = {
     save: "Save",
     loadingConversations: "Loading conversations...",
     loadingMessages: "Loading messages...",
+    loadOlderMessages: "Load older messages",
+    loadingOlderMessages: "Loading older messages...",
     noConversations: "No LINE conversations yet.",
     noThreadMessages: "No messages in this thread yet.",
     connectLine: "Connect LINE OA and send a message.",
@@ -729,6 +742,10 @@ export const messages = {
     aiEnableSuggestedReply: "Enable AI Suggested Reply",
     aiSuggestedReplyHint:
       'Show or hide the "✨ AI draft reply" button in the agent chat view.',
+    aiHybridAutoDraftSystem: "Background auto-draft",
+    aiEnableHybridAutoDraft: "Enable Hybrid Auto-Draft",
+    aiHybridAutoDraftHint:
+      "When enabled, drafts replies in the background after customer messages (requires AI Suggested Reply).",
     aiScenarioEngineSystem: "AI Scenario Routing & Automation",
     aiEnableScenarioEngine: "Enable AI Scenario Engine",
     aiScenarioEngineHint:
@@ -791,7 +808,12 @@ export const messages = {
     aiAutoReplyInstructionsHint: "Appended to the prompt on every auto-reply",
     aiEscalationKeywords: "Escalation keywords (comma-separated)",
     aiEscalationKeywordsHint:
-      "If the customer message contains these words, AI will not reply — hand off to an agent"
+      "If the customer message contains these words, AI will not reply — hand off to an agent",
+    aiConfidenceThreshold: "AI Auto-reply Confidence Threshold",
+    aiConfidenceThresholdHint: "Minimum confidence percentage for system to auto-send LINE reply. Below this, AI drafts response and alerts agent. (Recommended: 80%+)",
+    aiComposerConfidence: "AI Confidence:",
+    aiComposerConfidenceLowWarning: "Confidence below threshold, awaiting agent review",
+    aiComposerCitationsOnly: "References only (No suggestion text)"
   }
 } as const;
 

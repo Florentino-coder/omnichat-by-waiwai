@@ -87,6 +87,7 @@ type InboxConversationRow = Omit<InboxConversation, "unreadInboundMessageCount">
 export type InboxSettings = {
   inProgressAlertMinutes: number;
   enableAiSuggest: boolean;
+  enableHybridAutoDraft: boolean;
   enableAiScenarios: boolean;
   aiProvider: string;
   aiAgentGender: AiAgentGender;
@@ -96,6 +97,7 @@ export type InboxSettings = {
   aiAutoReplyBusinessHourEnd: number;
   aiAutoReplyInstructions: string | null;
   aiEscalationKeywords: string[];
+  aiAutoReplyConfidenceThreshold: number;
 };
 
 export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
@@ -153,6 +155,12 @@ export type UpdateSavedReplyInput = {
   imageUrl?: string;
   hotkeyBinding?: string;
   isActive?: boolean;
+};
+
+export type ConversationMessagesPage = {
+  messages: Message[];
+  hasMore: boolean;
+  oldestId: string | null;
 };
 
 export type CreateTagInput = {
@@ -248,8 +256,9 @@ export class InboxService {
 
   async getConversationMessages(
     tenantId: string,
-    conversationId: string
-  ): Promise<Message[]> {
+    conversationId: string,
+    options?: { limit?: number; before?: string }
+  ): Promise<ConversationMessagesPage> {
     const conversation = await this.prisma.conversation.findFirst({
       where: {
         id: conversationId,
@@ -262,15 +271,47 @@ export class InboxService {
       throw new NotFoundException("Conversation not found");
     }
 
-    return this.prisma.message.findMany({
+    const limit = Math.min(Math.max(options?.limit ?? 50, 1), 200);
+
+    let cursorCreatedAt: Date | undefined;
+    if (options?.before) {
+      const cursorMessage = await this.prisma.message.findFirst({
+        where: {
+          id: options.before,
+          tenantId,
+          conversationId,
+          deletedAt: null
+        },
+        select: { createdAt: true }
+      });
+
+      if (!cursorMessage) {
+        throw new NotFoundException("Message not found");
+      }
+
+      cursorCreatedAt = cursorMessage.createdAt;
+    }
+
+    const fetched = await this.prisma.message.findMany({
       where: {
         tenantId,
         conversationId,
-        deletedAt: null
+        deletedAt: null,
+        ...(cursorCreatedAt ? { createdAt: { lt: cursorCreatedAt } } : {})
       },
-      orderBy: { createdAt: "asc" },
-      take: 200
+      orderBy: { createdAt: "desc" },
+      take: limit + 1
     });
+
+    const hasMore = fetched.length > limit;
+    const page = hasMore ? fetched.slice(0, limit) : fetched;
+    const messages = page.reverse();
+
+    return {
+      messages,
+      hasMore,
+      oldestId: messages.length > 0 ? messages[0].id : null
+    };
   }
 
   async renameCustomer(
@@ -929,6 +970,7 @@ export class InboxService {
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
+        enableHybridAutoDraft: true,
         enableAiScenarios: true,
         aiProvider: true,
         aiAgentGender: true,
@@ -937,13 +979,15 @@ export class InboxService {
         aiAutoReplyBusinessHourStart: true,
         aiAutoReplyBusinessHourEnd: true,
         aiAutoReplyInstructions: true,
-        aiEscalationKeywords: true
+        aiEscalationKeywords: true,
+        aiAutoReplyConfidenceThreshold: true
       }
     });
 
     return {
       inProgressAlertMinutes: settings?.inProgressAlertMinutes ?? 10,
       enableAiSuggest: settings?.enableAiSuggest ?? true,
+      enableHybridAutoDraft: settings?.enableHybridAutoDraft ?? true,
       enableAiScenarios: settings?.enableAiScenarios ?? true,
       aiProvider: settings?.aiProvider ?? "gemini",
       aiAgentGender: settings?.aiAgentGender ?? AiAgentGender.FEMALE,
@@ -954,7 +998,8 @@ export class InboxService {
       aiAutoReplyBusinessHourEnd:
         settings?.aiAutoReplyBusinessHourEnd ?? DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
       aiAutoReplyInstructions: settings?.aiAutoReplyInstructions ?? null,
-      aiEscalationKeywords: resolveEscalationKeywords(settings?.aiEscalationKeywords)
+      aiEscalationKeywords: resolveEscalationKeywords(settings?.aiEscalationKeywords),
+      aiAutoReplyConfidenceThreshold: settings?.aiAutoReplyConfidenceThreshold ?? 0.80
     };
   }
 
@@ -974,6 +1019,7 @@ export class InboxService {
         tenantId,
         inProgressAlertMinutes: dto.inProgressAlertMinutes ?? 10,
         enableAiSuggest: dto.enableAiSuggest ?? true,
+        enableHybridAutoDraft: dto.enableHybridAutoDraft ?? true,
         enableAiScenarios: dto.enableAiScenarios ?? true,
         aiProvider: dto.aiProvider ?? "gemini",
         aiAgentGender: dto.aiAgentGender ?? AiAgentGender.FEMALE,
@@ -985,11 +1031,13 @@ export class InboxService {
           dto.aiAutoReplyBusinessHourEnd ?? DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
         aiAutoReplyInstructions: dto.aiAutoReplyInstructions ?? null,
         aiEscalationKeywords:
-          normalizedEscalationKeywords ?? [...DEFAULT_AI_ESCALATION_KEYWORDS]
+          normalizedEscalationKeywords ?? [...DEFAULT_AI_ESCALATION_KEYWORDS],
+        aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold ?? 0.80
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
         enableAiSuggest: dto.enableAiSuggest,
+        enableHybridAutoDraft: dto.enableHybridAutoDraft,
         enableAiScenarios: dto.enableAiScenarios,
         aiProvider: dto.aiProvider,
         aiAgentGender: dto.aiAgentGender,
@@ -998,11 +1046,13 @@ export class InboxService {
         aiAutoReplyBusinessHourStart: dto.aiAutoReplyBusinessHourStart,
         aiAutoReplyBusinessHourEnd: dto.aiAutoReplyBusinessHourEnd,
         aiAutoReplyInstructions: dto.aiAutoReplyInstructions,
-        aiEscalationKeywords: normalizedEscalationKeywords
+        aiEscalationKeywords: normalizedEscalationKeywords,
+        aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold
       },
       select: {
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
+        enableHybridAutoDraft: true,
         enableAiScenarios: true,
         aiProvider: true,
         aiAgentGender: true,
@@ -1011,7 +1061,8 @@ export class InboxService {
         aiAutoReplyBusinessHourStart: true,
         aiAutoReplyBusinessHourEnd: true,
         aiAutoReplyInstructions: true,
-        aiEscalationKeywords: true
+        aiEscalationKeywords: true,
+        aiAutoReplyConfidenceThreshold: true
       }
     });
 
@@ -1025,6 +1076,7 @@ export class InboxService {
         metadata: {
           inProgressAlertMinutes: dto.inProgressAlertMinutes,
           enableAiSuggest: dto.enableAiSuggest,
+          enableHybridAutoDraft: dto.enableHybridAutoDraft,
           enableAiScenarios: dto.enableAiScenarios,
           aiProvider: dto.aiProvider,
           aiAgentGender: dto.aiAgentGender,
@@ -1041,6 +1093,7 @@ export class InboxService {
     return {
       inProgressAlertMinutes: settings.inProgressAlertMinutes,
       enableAiSuggest: settings.enableAiSuggest,
+      enableHybridAutoDraft: settings.enableHybridAutoDraft,
       enableAiScenarios: settings.enableAiScenarios,
       aiProvider: settings.aiProvider,
       aiAgentGender: settings.aiAgentGender,
@@ -1049,7 +1102,8 @@ export class InboxService {
       aiAutoReplyBusinessHourStart: settings.aiAutoReplyBusinessHourStart,
       aiAutoReplyBusinessHourEnd: settings.aiAutoReplyBusinessHourEnd,
       aiAutoReplyInstructions: settings.aiAutoReplyInstructions,
-      aiEscalationKeywords: resolveEscalationKeywords(settings.aiEscalationKeywords)
+      aiEscalationKeywords: resolveEscalationKeywords(settings.aiEscalationKeywords),
+      aiAutoReplyConfidenceThreshold: settings.aiAutoReplyConfidenceThreshold
     };
   }
 
@@ -1323,7 +1377,8 @@ export class InboxService {
       currentText: dto.current_text,
       aiAgentGender,
       provider,
-      applyScenarioActions: true
+      applyScenarioActions: true,
+      includeConfidence: actionType === "generate"
     });
 
     if (generateResult.outcome === "knowledge_only") {
@@ -1354,7 +1409,7 @@ export class InboxService {
       throw buildLlmHttpException(generateResult.llmError);
     }
 
-    const { suggestionText, compiledPrompt, knowledgeCitations, latencyMs } = generateResult;
+    const { suggestionText, compiledPrompt, knowledgeCitations, latencyMs, confidence } = generateResult;
 
     // 7. Save suggestion if LLM succeeded (Addendum 2 requirement: DO NOT save row if LLM call failed)
     if (dto.previous_suggestion_id) {
@@ -1378,7 +1433,9 @@ export class InboxService {
         suggestionText,
         status: "shown",
         provider,
-        latencyMs
+        latencyMs,
+        citations: knowledgeCitations as any,
+        confidence: confidence ?? null
       }
     });
 
@@ -1568,7 +1625,28 @@ Summarize the conversation history between the merchant and the customer in Engl
     suggestion_id: string | null;
     suggestion_text: string | null;
     knowledge_citations: any[];
+    confidence?: number | null;
+    confidence_threshold?: number;
   }> {
+    const [settings, conversation] = await Promise.all([
+      this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: { aiAutoReplyConfidenceThreshold: true }
+      }),
+      this.prisma.conversation.findFirst({
+        where: {
+          id: conversationId,
+          tenantId,
+          deletedAt: null
+        },
+        select: { status: true }
+      })
+    ]);
+
+    if (!conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+
     const activeSuggestion = await this.prisma.aiSuggestion.findFirst({
       where: {
         conversationId,
@@ -1580,18 +1658,26 @@ Summarize the conversation history between the merchant and the customer in Engl
       }
     });
 
+    const confidenceThreshold = settings?.aiAutoReplyConfidenceThreshold ?? 0.80;
+
     if (!activeSuggestion) {
       return {
         suggestion_id: null,
         suggestion_text: null,
-        knowledge_citations: []
+        knowledge_citations: [],
+        confidence: null,
+        confidence_threshold: confidenceThreshold
       };
     }
 
+    const isResolved = conversation.status === "RESOLVED";
+
     return {
       suggestion_id: activeSuggestion.id,
-      suggestion_text: activeSuggestion.suggestionText,
-      knowledge_citations: (activeSuggestion.citations as any) || []
+      suggestion_text: isResolved ? null : activeSuggestion.suggestionText,
+      knowledge_citations: (activeSuggestion.citations as any) || [],
+      confidence: activeSuggestion.confidence,
+      confidence_threshold: confidenceThreshold
     };
   }
 

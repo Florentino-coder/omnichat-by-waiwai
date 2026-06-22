@@ -18,6 +18,8 @@ type AiSuggestionResponse = {
     score?: number;
     excerpt?: string;
   }>;
+  confidence?: number | null;
+  confidence_threshold?: number;
 };
 
 interface ReplyComposerProps {
@@ -78,6 +80,8 @@ export function ReplyComposer({
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
   const [knowledgeOnlyMode, setKnowledgeOnlyMode] = useState(false);
   const [cameFromAiGenerate, setCameFromAiGenerate] = useState(false);
+  const [confidence, setConfidence] = useState<number | null>(null);
+  const [confidenceThreshold, setConfidenceThreshold] = useState<number | null>(null);
   const isProgrammaticRef = useRef(false);
 
   useEffect(() => {
@@ -105,29 +109,36 @@ export function ReplyComposer({
         suggestion_id: string | null;
         suggestion_text: string | null;
         knowledge_citations: any[];
+        confidence?: number | null;
+        confidence_threshold?: number;
       }>(`/api/v1/inbox/conversations/${convId}/active-suggestion`);
 
-      if (res && res.suggestion_id) {
-        // Composer Overwrite Prevention Policy
-        const currentVal = textareaRef.current ? textareaRef.current.value : text;
-        const isComposerEmptyOrUnmodified =
-          currentVal.trim() === "" || currentVal === lastSuggestionText;
+      if (res) {
+        setConfidence(res.confidence ?? null);
+        setConfidenceThreshold(res.confidence_threshold ?? null);
 
-        if (isComposerEmptyOrUnmodified) {
-          setSuggestionId(res.suggestion_id);
-          setKnowledgeCitations(res.knowledge_citations || []);
-          if (res.suggestion_text) {
-            isProgrammaticRef.current = true;
-            setText(res.suggestion_text);
-            setLastSuggestionText(res.suggestion_text);
-            setKnowledgeOnlyMode(false);
-          } else {
-            isProgrammaticRef.current = true;
-            setText("");
-            setLastSuggestionText("");
-            setKnowledgeOnlyMode(true);
+        if (res.suggestion_id) {
+          // Composer Overwrite Prevention Policy
+          const currentVal = textareaRef.current ? textareaRef.current.value : text;
+          const isComposerEmptyOrUnmodified =
+            currentVal.trim() === "" || currentVal === lastSuggestionText;
+
+          if (isComposerEmptyOrUnmodified) {
+            setSuggestionId(res.suggestion_id);
+            setKnowledgeCitations(res.knowledge_citations || []);
+            if (res.suggestion_text) {
+              isProgrammaticRef.current = true;
+              setText(res.suggestion_text);
+              setLastSuggestionText(res.suggestion_text);
+              setKnowledgeOnlyMode(false);
+            } else {
+              isProgrammaticRef.current = true;
+              setText("");
+              setLastSuggestionText("");
+              setKnowledgeOnlyMode(true);
+            }
+            setCameFromAiGenerate(true);
           }
-          setCameFromAiGenerate(true);
         }
       }
     } catch (err) {
@@ -142,6 +153,11 @@ export function ReplyComposer({
     setKnowledgeCitations([]);
     setKnowledgeOnlyMode(false);
     setCameFromAiGenerate(false);
+    setConfidence(null);
+    setConfidenceThreshold(null);
+    setText("");
+    setImageUrl("");
+    isProgrammaticRef.current = false;
 
     if (conversationId) {
       void loadActiveSuggestion(conversationId);
@@ -245,6 +261,9 @@ export function ReplyComposer({
         }
       );
 
+      setConfidence(data.confidence ?? null);
+      setConfidenceThreshold(data.confidence_threshold ?? null);
+
       if (data.mode === "knowledge_only") {
         setKnowledgeOnlyMode(true);
         setSuggestionId(null);
@@ -298,6 +317,8 @@ export function ReplyComposer({
     setLastSuggestionText(null);
     setKnowledgeCitations([]);
     setKnowledgeOnlyMode(false);
+    setConfidence(null);
+    setConfidenceThreshold(null);
     isProgrammaticRef.current = true;
     setText("");
   }
@@ -305,6 +326,8 @@ export function ReplyComposer({
   function handleDismissKnowledgeFallback() {
     setKnowledgeOnlyMode(false);
     setKnowledgeCitations([]);
+    setConfidence(null);
+    setConfidenceThreshold(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -342,6 +365,8 @@ export function ReplyComposer({
         }).catch(() => {});
         setSuggestionId(null);
         setLastSuggestionText(null);
+        setConfidence(null);
+        setConfidenceThreshold(null);
       }
 
       isProgrammaticRef.current = true;
@@ -473,6 +498,12 @@ export function ReplyComposer({
             </button>
           </div>
         ) : null}
+        {suggestionId && confidence !== null && confidenceThreshold !== null && confidence < confidenceThreshold && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs font-medium text-amber-900 shadow-sm">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">⚠️</span>
+            <span>{t.aiComposerConfidenceLowWarning}</span>
+          </div>
+        )}
         {knowledgeCitations.length > 0 ? (
           <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs text-indigo-900">
             <p className="mb-2 font-semibold">{t.knowledgeCitationsTitle}</p>
@@ -498,6 +529,32 @@ export function ReplyComposer({
         {(suggestionId || text.trim().length > 0) && (
           <div className="flex flex-wrap items-center gap-2 rounded-xl bg-purple-50 p-3 border border-purple-100 text-xs font-semibold text-purple-700">
             <span className="mr-1">{t.toneRefineHeader}</span>
+            {confidence !== null && (
+              <div
+                className={[
+                  "flex items-center gap-1.5 rounded-lg px-2.5 py-1 border select-none transition-all duration-200 text-[10px] sm:text-xs",
+                  confidenceThreshold !== null && confidence >= confidenceThreshold
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm"
+                    : "bg-amber-50 border-amber-200 text-amber-700 shadow-sm animate-pulse"
+                ].join(" ")}
+                title={
+                  confidenceThreshold !== null && confidence < confidenceThreshold
+                    ? t.aiComposerConfidenceLowWarning
+                    : undefined
+                }
+              >
+                <span className={`w-1.5 h-1.5 rounded-full bg-current`} />
+                <span>
+                  {t.aiComposerConfidence} {Math.round(confidence * 100)}%
+                </span>
+              </div>
+            )}
+            {knowledgeOnlyMode && (
+              <div className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 select-none shadow-sm text-[10px] sm:text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                <span>{t.aiComposerCitationsOnly}</span>
+              </div>
+            )}
             <button
               type="button"
               className="rounded-lg bg-white px-2.5 py-1.5 border border-purple-200 hover:bg-purple-100 transition-colors"

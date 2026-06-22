@@ -107,7 +107,7 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   if (isEnvelope<T>(body)) {
     if (!body.success) {
-      throw new Error(body.error?.message ?? "Request failed");
+      throw new Error(normalizeErrorText(body.error?.message) ?? "Request failed");
     }
     return body.data;
   }
@@ -132,7 +132,7 @@ function isEnvelope<T>(body: ApiEnvelope<T> | T | null): body is ApiEnvelope<T> 
 function readErrorMessage<T>(body: ApiEnvelope<T> | T | null): string | null {
   if (isEnvelope<T>(body) && !body.success) {
     const code = body.error?.code;
-    const message = body.error?.message ?? null;
+    const message = normalizeErrorText(body.error?.message);
     const details = (body.error as { details?: unknown } | undefined)?.details;
     if (Array.isArray(details) && details.length > 0) {
       const detailText = details.map(String).join("; ");
@@ -144,4 +144,22 @@ function readErrorMessage<T>(body: ApiEnvelope<T> | T | null): string | null {
     return message;
   }
   return null;
+}
+
+function normalizeErrorText(message: unknown): string | null {
+  if (typeof message === "string") {
+    return message;
+  }
+  if (message && typeof message === "object") {
+    const nested = (message as { message?: unknown }).message;
+    if (typeof nested === "string") {
+      return nested;
+    }
+    try {
+      return JSON.stringify(message);
+    } catch {
+      return null;
+    }
+  }
+  return message != null ? String(message) : null;
 }

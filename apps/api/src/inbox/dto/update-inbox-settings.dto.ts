@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Max,
@@ -22,6 +23,10 @@ export class UpdateInboxSettingsDto {
   @IsBoolean()
   @IsOptional()
   enableAiSuggest?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  enableHybridAutoDraft?: boolean;
 
   @IsBoolean()
   @IsOptional()
@@ -66,4 +71,10 @@ export class UpdateInboxSettingsDto {
   @IsString({ each: true })
   @MaxLength(50, { each: true })
   aiEscalationKeywords?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.0)
+  @Max(1.0)
+  aiAutoReplyConfidenceThreshold?: number;
 }

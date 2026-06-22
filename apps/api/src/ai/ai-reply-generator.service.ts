@@ -71,7 +71,8 @@ export class AiReplyGeneratorService {
       aiAgentGender,
       provider,
       applyScenarioActions = true,
-      extraInstructions
+      extraInstructions,
+      includeConfidence
     } = input;
 
     const conversation = await this.prisma.conversation.findFirst({
@@ -252,10 +253,19 @@ export class AiReplyGeneratorService {
 
     const promptWithGreeting = `${compiledPrompt}\n\n${greetingInstruction}`;
 
-    const compiledPromptWithInstructions =
+    let compiledPromptWithInstructions =
       extraInstructions?.trim()
         ? `${promptWithGreeting}\n\nคำสั่งเพิ่มเติมจากร้าน:\n${extraInstructions.trim()}`
         : promptWithGreeting;
+
+    if (includeConfidence) {
+      compiledPromptWithInstructions += "\n\n[CRITICAL REQUIREMENT]\n" +
+        "You must evaluate your confidence score in the accuracy of your response based on the Knowledge Base and conversation history.\n" +
+        "Format the first line of your output exactly as: [CONFIDENCE: <score between 0.00 and 1.00>]\n" +
+        "Followed by the reply text. Example:\n" +
+        "[CONFIDENCE: 0.95]\n" +
+        "สวัสดีค่ะ...";
+    }
 
     const historyForLlm = formatMessagesForLlm(history);
 
@@ -271,7 +281,22 @@ export class AiReplyGeneratorService {
         systemPrompt: compiledPromptWithInstructions,
         conversationHistory: historyForLlm
       });
-      const suggestionText = normalizeThaiPoliteParticles(rawSuggestion, aiAgentGender);
+
+      let confidence: number | undefined;
+      let textToNormalize = rawSuggestion;
+
+      if (includeConfidence) {
+        const match = rawSuggestion.match(/^\[CONFIDENCE:\s*([\d\.]+)\]/i);
+        if (match) {
+          const parsedValue = parseFloat(match[1]);
+          confidence = Math.min(1.0, Math.max(0.0, parsedValue));
+          textToNormalize = rawSuggestion.replace(/^\[CONFIDENCE:\s*([\d\.]+)\]\s*\n?/i, "");
+        } else {
+          confidence = 0.0;
+        }
+      }
+
+      const suggestionText = normalizeThaiPoliteParticles(textToNormalize, aiAgentGender);
 
       return {
         outcome: "success",
@@ -279,7 +304,8 @@ export class AiReplyGeneratorService {
         compiledPrompt: compiledPromptWithInstructions,
         knowledgeCitations: knowledgeResult.citations,
         latencyMs: Date.now() - llmStartedAt,
-        provider
+        provider,
+        confidence
       };
     } catch (llmError) {
       const errorCode = extractLlmErrorCode(llmError);

@@ -5,7 +5,6 @@ import {
   ConversationPriority,
   ConversationTag,
   ConversationTagLink,
-  Message,
   Role,
   SavedReply
 } from "@prisma/client";
@@ -29,6 +28,7 @@ import { UpdateSavedReplyDto } from "./dto/update-saved-reply.dto";
 import {
   AiTestResult,
   AiUsageSnapshot,
+  ConversationMessagesPage,
   InboxConversation,
   InboxService,
   InboxSettings
@@ -64,9 +64,15 @@ export class InboxController {
   @Roles(Role.ADMIN, Role.AGENT, Role.QC)
   getConversationMessages(
     @TenantCtx() ctx: JwtTenantPayload,
-    @Param("id") id: string
-  ): Promise<Message[]> {
-    return this.inboxService.getConversationMessages(ctx.tenantId, id);
+    @Param("id") id: string,
+    @Query("limit") limit?: string,
+    @Query("before") before?: string
+  ): Promise<ConversationMessagesPage> {
+    const parsedLimit = limit ? Math.min(Math.max(Number.parseInt(limit, 10) || 50, 1), 200) : 50;
+    return this.inboxService.getConversationMessages(ctx.tenantId, id, {
+      limit: parsedLimit,
+      before: before || undefined
+    });
   }
 
   @Get("tags")

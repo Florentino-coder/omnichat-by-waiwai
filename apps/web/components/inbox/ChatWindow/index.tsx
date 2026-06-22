@@ -36,6 +36,11 @@ interface ChatWindowProps {
   emptyText?: string;
   isLoading?: boolean;
   loadingText?: string;
+  hasMoreMessages?: boolean;
+  isLoadingOlderMessages?: boolean;
+  loadOlderText?: string;
+  loadingOlderText?: string;
+  onLoadOlder?: () => void;
   messagesScrollRef?: RefObject<HTMLDivElement | null>;
   messagesEndRef?: RefObject<HTMLDivElement | null>;
   statusElapsed?: string | null;
@@ -65,6 +70,11 @@ export function ChatWindow({
   emptyText,
   isLoading = false,
   loadingText = "กำลังโหลดข้อความ...",
+  hasMoreMessages = false,
+  isLoadingOlderMessages = false,
+  loadOlderText = "Load older messages",
+  loadingOlderText = "Loading older messages...",
+  onLoadOlder,
   messagesScrollRef,
   messagesEndRef,
   statusElapsed,
@@ -101,6 +111,18 @@ export function ChatWindow({
       />
       <div ref={messagesScrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
         <DateSeparator label="15 มิ.ย. · เริ่มแชท" />
+        {hasMoreMessages && onLoadOlder ? (
+          <div className="flex justify-center pb-2">
+            <button
+              type="button"
+              onClick={onLoadOlder}
+              disabled={isLoadingOlderMessages}
+              className="rounded-full border border-[#DEDDE6] bg-white px-4 py-1.5 text-xs font-medium text-[#767A8C] hover:bg-[#F7F6FB] disabled:opacity-60"
+            >
+              {isLoadingOlderMessages ? loadingOlderText : loadOlderText}
+            </button>
+          </div>
+        ) : null}
         {isLoading ? <ChatWindowSkeleton label={loadingText} /> : null}
         {!isLoading && emptyText ? <p className="text-sm text-muted-foreground">{emptyText}</p> : null}
         {!isLoading &&

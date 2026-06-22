@@ -165,6 +165,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [messages, setMessages] = useState<InboxMessage[]>([]);
   const [isLoadingConversations, setIsLoadingConversations] = useState(initialConversations.length === 0);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState("");
@@ -206,6 +208,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
+  const isPrependingMessagesRef = useRef(false);
   const markingReadRef = useRef(new Set<string>());
   const pendingFlowIdRef = useRef<string | undefined>(undefined);
   const sseReceivedMapRef = useRef(new Map<string, number>());
@@ -388,7 +391,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       }
       setError(null);
       try {
-        const data = await apiFetch<InboxMessage[]>(`/api/v1/inbox/conversations/${conversationId}/messages`);
+        const data = await apiFetch<{
+          messages: InboxMessage[];
+          hasMore: boolean;
+          oldestId: string | null;
+        }>(`/api/v1/inbox/conversations/${conversationId}/messages?limit=50`);
         if (isMountedRef.current && selectedIdRef.current === conversationId) {
           const pendingFlowId = pendingFlowIdRef.current;
           if (pendingFlowId) {
@@ -397,7 +404,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             trace(pendingFlowId, "STATE_UPDATE");
             stateUpdateMapRef.current.set(pendingFlowId, now);
           }
-          setMessages(Array.isArray(data) ? data : []);
+          setMessages(Array.isArray(data.messages) ? data.messages : []);
+          setHasMoreMessages(Boolean(data.hasMore));
         }
       } catch (loadError) {
         if (isMountedRef.current && !options?.quiet) {
@@ -411,6 +419,50 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     },
     [trace]
   );
+
+  const loadOlderMessages = useCallback(async (): Promise<void> => {
+    const conversationId = selectedIdRef.current;
+    const oldestId = messages[0]?.id;
+    if (!conversationId || !oldestId || !hasMoreMessages || isLoadingOlderMessages) {
+      return;
+    }
+
+    const scrollContainer = messagesScrollRef.current;
+    const previousScrollHeight = scrollContainer?.scrollHeight ?? 0;
+
+    setIsLoadingOlderMessages(true);
+    isPrependingMessagesRef.current = true;
+    try {
+      const data = await apiFetch<{
+        messages: InboxMessage[];
+        hasMore: boolean;
+        oldestId: string | null;
+      }>(
+        `/api/v1/inbox/conversations/${conversationId}/messages?limit=50&before=${encodeURIComponent(oldestId)}`
+      );
+
+      if (selectedIdRef.current !== conversationId) {
+        return;
+      }
+
+      setMessages((current) => [...(Array.isArray(data.messages) ? data.messages : []), ...current]);
+      setHasMoreMessages(Boolean(data.hasMore));
+
+      window.requestAnimationFrame(() => {
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight - previousScrollHeight;
+        }
+        isPrependingMessagesRef.current = false;
+      });
+    } catch (loadError) {
+      isPrependingMessagesRef.current = false;
+      if (isMountedRef.current) {
+        setError(readMessage(loadError, "Could not load older messages."));
+      }
+    } finally {
+      setIsLoadingOlderMessages(false);
+    }
+  }, [hasMoreMessages, isLoadingOlderMessages, messages]);
 
   const refreshThread = useCallback(
     async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
@@ -708,10 +760,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   useEffect(() => {
     if (!selectedId) {
       setMessages([]);
+      setHasMoreMessages(false);
       return;
     }
 
     prevMessageCountRef.current = 0;
+    setHasMoreMessages(false);
     void loadMessages(selectedId);
     const refreshTimer = window.setInterval(() => {
       if (document.visibilityState === "visible") {
@@ -722,6 +776,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }, [selectedId, loadMessages]);
 
   useEffect(() => {
+    if (isPrependingMessagesRef.current) {
+      prevMessageCountRef.current = messages.length;
+      return;
+    }
     if (messages.length > prevMessageCountRef.current) {
       window.requestAnimationFrame(() => {
         const scrollContainer = messagesScrollRef.current;
@@ -1467,6 +1525,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                 }
                 isLoading={isLoadingMessages}
                 loadingText={t.loadingMessages}
+                hasMoreMessages={hasMoreMessages}
+                isLoadingOlderMessages={isLoadingOlderMessages}
+                loadOlderText={t.loadOlderMessages}
+                loadingOlderText={t.loadingOlderMessages}
+                onLoadOlder={() => void loadOlderMessages()}
                 messages={chatMessages}
                 messagesScrollRef={messagesScrollRef}
                 messagesEndRef={messagesEndRef}
