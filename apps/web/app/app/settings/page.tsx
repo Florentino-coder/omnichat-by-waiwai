@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Children, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
@@ -17,6 +17,42 @@ import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
 type SettingsTab = "channels" | "replies" | "knowledge" | "scenarios" | "automation" | "team" | "profile" | "ai" | "ai-curation";
+
+function tabButtonClass(active: boolean): string {
+  return `flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
+    active
+      ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
+      : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
+  }`;
+}
+
+function SettingsTabGroup({
+  label,
+  accent,
+  children
+}: {
+  label: string;
+  accent?: boolean;
+  children: ReactNode;
+}) {
+  const items = Children.toArray(children);
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-2">
+      <p
+        className={`px-1 text-[11px] font-bold uppercase tracking-wider ${
+          accent ? "text-[#4636D7]" : "text-[#767A8C]"
+        }`}
+      >
+        {label}
+      </p>
+      <div className="flex flex-wrap gap-1.5">{items}</div>
+    </div>
+  );
+}
 
 function SettingsContent() {
   const { locale } = useLanguage();
@@ -76,134 +112,115 @@ function SettingsContent() {
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex w-full flex-wrap gap-1.5 rounded-xl border border-[#DEDDE6] bg-white p-1.5 shadow-sm">
-          {(role === "OWNER" || role === "ADMIN") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("channels")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "channels"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <MessageSquareCode size={16} />
-              {t.lineOaTab}
-            </button>
-          )}
-          {(role === "OWNER" || role === "ADMIN" || role === "AGENT") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("replies")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "replies"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <MessageSquareQuote size={16} />
-              {t.quickReplyTab}
-            </button>
-          )}
-          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("knowledge")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "knowledge"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <BookOpen size={16} />
-              {t.knowledgeTab}
-            </button>
-          )}
-          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("scenarios")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "scenarios"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <GitBranch size={16} />
-              {t.scenariosTab}
-            </button>
-          )}
-          {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("automation")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "automation"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <Workflow size={16} />
-              {t.automationTab}
-            </button>
-          )}
-          {(role === "OWNER" || role === "ADMIN") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("team")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "team"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <Users size={16} />
-              {t.teamTab}
-            </button>
-          )}
-          {(role === "OWNER" || role === "ADMIN") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("ai")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "ai"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <Sparkles size={16} />
-              {t.aiAssistantTab}
-            </button>
-          )}
-          {(role === "OWNER" || role === "ADMIN" || role === "QC") && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("ai-curation")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "ai-curation"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <Sparkles size={16} />
-              {locale === "th" ? "คัดสรรข้อมูล AI" : "AI Curation"}
-            </button>
-          )}
-          {role && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("profile")}
-              className={`flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
-                activeTab === "profile"
-                  ? "bg-[#4636D7] text-white shadow-md shadow-[#4636D7]/20"
-                  : "text-[#767A8C] hover:bg-[#F6F5FA] hover:text-[#16182B]"
-              }`}
-            >
-              <UserIcon size={16} />
-              {t.profileTab}
-            </button>
-          )}
+        {/* Tab Switcher — grouped by purpose */}
+        <div className="space-y-4 rounded-xl border border-[#DEDDE6] bg-white p-3 shadow-sm sm:p-4">
+          <SettingsTabGroup label={t.settingsGroupChannel}>
+            {(role === "OWNER" || role === "ADMIN") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("channels")}
+                className={tabButtonClass(activeTab === "channels")}
+              >
+                <MessageSquareCode size={16} />
+                {t.lineOaTab}
+              </button>
+            )}
+            {(role === "OWNER" || role === "ADMIN" || role === "AGENT") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("replies")}
+                className={tabButtonClass(activeTab === "replies")}
+              >
+                <MessageSquareQuote size={16} />
+                {t.quickReplyTab}
+              </button>
+            )}
+            {(role === "OWNER" || role === "ADMIN") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("team")}
+                className={tabButtonClass(activeTab === "team")}
+              >
+                <Users size={16} />
+                {t.teamTab}
+              </button>
+            )}
+          </SettingsTabGroup>
+
+          <div className="border-t border-[#DEDDE6]/80" />
+
+          <SettingsTabGroup label={t.settingsGroupAi} accent>
+            {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("knowledge")}
+                className={tabButtonClass(activeTab === "knowledge")}
+              >
+                <BookOpen size={16} />
+                {t.knowledgeTab}
+              </button>
+            )}
+            {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("scenarios")}
+                className={tabButtonClass(activeTab === "scenarios")}
+              >
+                <GitBranch size={16} />
+                {t.scenariosTab}
+              </button>
+            )}
+            {(role === "OWNER" || role === "ADMIN") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("ai")}
+                className={tabButtonClass(activeTab === "ai")}
+              >
+                <Sparkles size={16} />
+                {t.aiAssistantTab}
+              </button>
+            )}
+            {(role === "OWNER" || role === "ADMIN" || role === "QC") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("ai-curation")}
+                className={tabButtonClass(activeTab === "ai-curation")}
+              >
+                <Sparkles size={16} />
+                {t.aiCurationTab}
+              </button>
+            )}
+          </SettingsTabGroup>
+
+          <div className="border-t border-[#DEDDE6]/80" />
+
+          <SettingsTabGroup label={t.settingsGroupWorkflow}>
+            {(role === "OWNER" || role === "ADMIN" || role === "AGENT" || role === "QC" || role === "VIEWER") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("automation")}
+                className={tabButtonClass(activeTab === "automation")}
+              >
+                <Workflow size={16} />
+                {t.automationTab}
+              </button>
+            )}
+          </SettingsTabGroup>
+
+          <div className="border-t border-[#DEDDE6]/80" />
+
+          <SettingsTabGroup label={t.settingsGroupAccount}>
+            {role && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("profile")}
+                className={tabButtonClass(activeTab === "profile")}
+              >
+                <UserIcon size={16} />
+                {t.profileTab}
+              </button>
+            )}
+          </SettingsTabGroup>
         </div>
 
         {/* Tab Content Panels (Mounted for mock fetch sequence, hidden via CSS) */}

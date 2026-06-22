@@ -110,11 +110,16 @@ export const messages = {
     selectAgent: "เลือกแอดมิน",
     noAutoAssign: "ไม่มอบหมายอัตโนมัติ",
 
-    // Settings tabs
-    knowledgeTab: "Knowledge",
-    scenariosTab: "Scenarios",
+    // Settings tabs & groups
+    settingsGroupChannel: "ช่องทาง & ทีม",
+    settingsGroupAi: "AI & ความรู้",
+    settingsGroupWorkflow: "Workflow อัตโนมัติ",
+    settingsGroupAccount: "บัญชีผู้ใช้",
+    knowledgeTab: "คลังความรู้",
+    scenariosTab: "AI Scenarios",
     automationTab: "Automation",
-    aiAssistantTab: "AI Assistant",
+    aiAssistantTab: "ตั้งค่า AI",
+    aiCurationTab: "คัดสรรข้อมูล AI",
 
     // Knowledge
     knowledgeTitle: "Knowledge Base",
@@ -516,11 +521,16 @@ export const messages = {
     selectAgent: "Select agent",
     noAutoAssign: "No auto-assign",
 
-    // Settings tabs
-    knowledgeTab: "Knowledge",
-    scenariosTab: "Scenarios",
+    // Settings tabs & groups
+    settingsGroupChannel: "Channel & Team",
+    settingsGroupAi: "AI & Knowledge",
+    settingsGroupWorkflow: "Workflow",
+    settingsGroupAccount: "Account",
+    knowledgeTab: "Knowledge Base",
+    scenariosTab: "AI Scenarios",
     automationTab: "Automation",
-    aiAssistantTab: "AI Assistant",
+    aiAssistantTab: "AI Settings",
+    aiCurationTab: "AI Curation",
 
     // Knowledge
     knowledgeTitle: "Knowledge Base",
