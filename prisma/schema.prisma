@@ -935,12 +935,14 @@ model AiSuggestion {
   provider       String?
   latencyMs      Int?         @map("latency_ms")
   errorCode      String?      @map("error_code")
+  citations      Json?        @map("citations")
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@index([tenantId])
   @@index([conversationId])
   @@index([createdAt])
   @@index([provider])
+  @@index([conversationId, status])
   @@map("ai_suggestions")
 }
 

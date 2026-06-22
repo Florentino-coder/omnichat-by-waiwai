@@ -16,6 +16,7 @@ import { ScenarioService } from "../scenario/scenario.service";
 import { AutomationService } from "../automation/automation.service";
 import { AutomationTriggerType } from "@prisma/client";
 import { AiAutoReplyService } from "../ai/ai-auto-reply.service";
+import { AiHybridDraftService } from "../ai/ai-hybrid-draft.service";
 
 type LineWebhookPayload = {
   events?: LineWebhookEvent[];
@@ -61,7 +62,8 @@ export class LineWebhookService {
     private readonly scenarioService?: ScenarioService,
     @Inject(forwardRef(() => AutomationService))
     private readonly automationService?: AutomationService,
-    private readonly aiAutoReplyService?: AiAutoReplyService
+    private readonly aiAutoReplyService?: AiAutoReplyService,
+    private readonly aiHybridDraftService?: AiHybridDraftService
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
@@ -413,7 +415,7 @@ export class LineWebhookService {
             });
 
           if (this.aiAutoReplyService) {
-            await this.aiAutoReplyService
+            const autoReplyResult = await this.aiAutoReplyService
               .tryAutoReply({
                 tenantId: channel.tenantId,
                 conversationId: conversation.id,
@@ -425,7 +427,30 @@ export class LineWebhookService {
                   "Failed to process AI auto-reply for inbound message",
                   error instanceof Error ? error.stack : error
                 );
+                return { outcome: "failed" as const, reason: "error" };
               });
+
+            const shouldTriggerHybrid =
+              autoReplyResult.outcome === "skipped" &&
+              (autoReplyResult.reason === "disabled" || autoReplyResult.reason === "mode_blocked");
+
+            if (shouldTriggerHybrid && this.aiHybridDraftService) {
+              const settings = await this.prisma.tenantSettings.findUnique({
+                where: { tenantId: channel.tenantId }
+              });
+              if (settings?.enableAiSuggest) {
+                await this.aiHybridDraftService
+                  .tryHybridDraft(
+                    channel.tenantId,
+                    conversation.id,
+                    message.id,
+                    lineMessage.text ?? ""
+                  )
+                  .catch((err) =>
+                    this.logger.error("Failed to trigger background auto-draft suggestion", err)
+                  );
+              }
+            }
           }
         }
       }

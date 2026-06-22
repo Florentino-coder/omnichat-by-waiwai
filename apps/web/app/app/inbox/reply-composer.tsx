@@ -28,6 +28,7 @@ interface ReplyComposerProps {
   enableAiSuggest?: boolean;
   onSendStart?: (payload: { text: string; conversationId: string }) => void;
   onSent?: () => Promise<void> | void;
+  refreshSuggestionNonce?: number;
 }
 
 type SavedReply = {
@@ -46,7 +47,8 @@ export function ReplyComposer({
   lineChannelName,
   enableAiSuggest = true,
   onSendStart,
-  onSent
+  onSent,
+  refreshSuggestionNonce = 0
 }: ReplyComposerProps) {
   const { locale } = useLanguage();
   const t = getMessages(locale);
@@ -96,6 +98,43 @@ export function ReplyComposer({
     };
   }, [rateLimitLock, rateLimitCountdown]);
 
+  // Load active suggestion helper
+  const loadActiveSuggestion = async (convId: string) => {
+    try {
+      const res = await apiFetch<{
+        suggestion_id: string | null;
+        suggestion_text: string | null;
+        knowledge_citations: any[];
+      }>(`/api/v1/inbox/conversations/${convId}/active-suggestion`);
+
+      if (res && res.suggestion_id) {
+        // Composer Overwrite Prevention Policy
+        const currentVal = textareaRef.current ? textareaRef.current.value : text;
+        const isComposerEmptyOrUnmodified =
+          currentVal.trim() === "" || currentVal === lastSuggestionText;
+
+        if (isComposerEmptyOrUnmodified) {
+          setSuggestionId(res.suggestion_id);
+          setKnowledgeCitations(res.knowledge_citations || []);
+          if (res.suggestion_text) {
+            isProgrammaticRef.current = true;
+            setText(res.suggestion_text);
+            setLastSuggestionText(res.suggestion_text);
+            setKnowledgeOnlyMode(false);
+          } else {
+            isProgrammaticRef.current = true;
+            setText("");
+            setLastSuggestionText("");
+            setKnowledgeOnlyMode(true);
+          }
+          setCameFromAiGenerate(true);
+        }
+      }
+    } catch (err) {
+      // Ignore
+    }
+  };
+
   // Reset suggestion when conversation changes
   useEffect(() => {
     setSuggestionId(null);
@@ -103,7 +142,18 @@ export function ReplyComposer({
     setKnowledgeCitations([]);
     setKnowledgeOnlyMode(false);
     setCameFromAiGenerate(false);
+
+    if (conversationId) {
+      void loadActiveSuggestion(conversationId);
+    }
   }, [conversationId]);
+
+  // Load active suggestion on refresh nonce
+  useEffect(() => {
+    if (conversationId && refreshSuggestionNonce && refreshSuggestionNonce > 0) {
+      void loadActiveSuggestion(conversationId);
+    }
+  }, [refreshSuggestionNonce]);
 
   // Fetch all saved replies for autocomplete
   useEffect(() => {

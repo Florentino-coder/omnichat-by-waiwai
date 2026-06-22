@@ -52,11 +52,13 @@ export class AiAutoReplyService {
     private readonly lineReplyService: LineReplyService
   ) {}
 
-  async tryAutoReply(input: AiAutoReplyInput): Promise<void> {
+  async tryAutoReply(
+    input: AiAutoReplyInput
+  ): Promise<{ outcome: "sent" | "skipped" | "failed"; reason?: string }> {
     const trimmedText = input.messageText.trim();
     if (!trimmedText) {
       await this.logSkipped(input, "non_text");
-      return;
+      return { outcome: "skipped", reason: "non_text" };
     }
 
     const [settings, conversation, tenant] = await Promise.all([
@@ -93,12 +95,12 @@ export class AiAutoReplyService {
     ]);
 
     if (!conversation || !tenant) {
-      return;
+      return { outcome: "skipped", reason: "not_found" };
     }
 
     if (!settings?.enableAiAutoReply || settings.aiAutoReplyMode === AiAutoReplyMode.OFF) {
       await this.logSkipped(input, "disabled");
-      return;
+      return { outcome: "skipped", reason: "disabled" };
     }
 
     const currentHour = getTenantLocalHour(settings?.timezone ?? "Asia/Bangkok");
@@ -118,30 +120,30 @@ export class AiAutoReplyService {
         currentHour,
         assignedToMemberId: conversation.assignedToMemberId
       });
-      return;
+      return { outcome: "skipped", reason: "mode_blocked" };
     }
 
     const escalationKeywords = getEscalationKeywordsForMatching(settings.aiEscalationKeywords);
     if (matchesEscalationKeyword(trimmedText, escalationKeywords)) {
       const matchedKeywords = getMatchedEscalationKeywords(trimmedText, escalationKeywords);
       await this.handleEscalation(input, trimmedText, matchedKeywords);
-      return;
+      return { outcome: "skipped", reason: "escalated" };
     }
 
     if (await this.isDebounced(input.conversationId, input.tenantId)) {
       await this.logSkipped(input, "debounce");
-      return;
+      return { outcome: "skipped", reason: "debounce" };
     }
 
     const creditAvailable = await this.hasAiCreditAvailable(input.tenantId, tenant.planId);
     if (!creditAvailable) {
       await this.logSkipped(input, "no_credits");
-      return;
+      return { outcome: "skipped", reason: "no_credits" };
     }
 
     if (await this.isRateLimited(input.tenantId, input.conversationId)) {
       await this.logSkipped(input, "rate_limited");
-      return;
+      return { outcome: "skipped", reason: "rate_limited" };
     }
 
     const aiAgentGender = settings.aiAgentGender ?? AiAgentGender.FEMALE;
@@ -163,7 +165,7 @@ export class AiAutoReplyService {
         errorCode: generateResult.errorCode,
         mode: "knowledge_only"
       });
-      return;
+      return { outcome: "skipped", reason: "provider_unavailable" };
     }
 
     if (generateResult.outcome === "llm_failed") {
@@ -180,13 +182,13 @@ export class AiAutoReplyService {
           }
         }
       });
-      return;
+      return { outcome: "failed", reason: "llm_failed" };
     }
 
     const replyText = sanitizeAutoReplyText(generateResult.suggestionText);
     if (!replyText) {
       await this.logSkipped(input, "provider_unavailable", { reason: "empty_reply" });
-      return;
+      return { outcome: "skipped", reason: "provider_unavailable" };
     }
 
     try {
@@ -214,7 +216,7 @@ export class AiAutoReplyService {
           }
         }
       });
-      return;
+      return { outcome: "failed", reason: "send_failed" };
     }
 
     await this.incrementAiCreditUsage(input.tenantId);
@@ -233,6 +235,8 @@ export class AiAutoReplyService {
         }
       }
     });
+
+    return { outcome: "sent" };
   }
 
   private async logSkipped(

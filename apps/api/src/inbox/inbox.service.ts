@@ -1561,6 +1561,40 @@ Summarize the conversation history between the merchant and the customer in Engl
     }
   }
 
+  async getActiveSuggestion(
+    tenantId: string,
+    conversationId: string
+  ): Promise<{
+    suggestion_id: string | null;
+    suggestion_text: string | null;
+    knowledge_citations: any[];
+  }> {
+    const activeSuggestion = await this.prisma.aiSuggestion.findFirst({
+      where: {
+        conversationId,
+        tenantId,
+        status: "shown"
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    if (!activeSuggestion) {
+      return {
+        suggestion_id: null,
+        suggestion_text: null,
+        knowledge_citations: []
+      };
+    }
+
+    return {
+      suggestion_id: activeSuggestion.id,
+      suggestion_text: activeSuggestion.suggestionText,
+      knowledge_citations: (activeSuggestion.citations as any) || []
+    };
+  }
+
   async getAiUsage(tenantId: string): Promise<AiUsageSnapshot> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },

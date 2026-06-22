@@ -186,6 +186,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [composerInsertText, setComposerInsertText] = useState("");
   const [composerInsertNonce, setComposerInsertNonce] = useState(0);
+  const [refreshSuggestionNonce, setRefreshSuggestionNonce] = useState(0);
   const [isQuickReplyAutoEnter, setIsQuickReplyAutoEnter] = useState(false);
   const [isSendingQuickReply, setIsSendingQuickReply] = useState(false);
   const [tags, setTags] = useState<ConversationTag[]>([]);
@@ -198,9 +199,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
   const isMountedRef = useRef(false);
+  const selectedIdRef = useRef<string | null>(null);
+  selectedIdRef.current = selectedId;
   const hasInitialConversationsRef = useRef(initialConversations.length > 0);
   const conversationsRef = useRef<InboxConversation[]>(initialConversations);
-  const selectedIdRef = useRef<string | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
@@ -572,6 +574,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             void refreshThread(eventConversationId, { quiet: true });
           } else {
             void loadConversations({ quiet: true });
+          }
+        }
+
+        if (event.type === "ai-suggestion.created") {
+          const eventConversationId = event.data?.conversationId;
+          if (eventConversationId && eventConversationId === selectedIdRef.current) {
+            setRefreshSuggestionNonce((prev) => prev + 1);
           }
         }
       })
@@ -1434,6 +1443,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                     insertText={composerInsertText}
                     lineChannelName={selectedConversation?.lineChannel.name ?? null}
                     enableAiSuggest={enableAiSuggest}
+                    refreshSuggestionNonce={refreshSuggestionNonce}
                     onSendStart={({ text, conversationId }) => {
                       addOptimisticOutboundMessage(conversationId, text);
                     }}

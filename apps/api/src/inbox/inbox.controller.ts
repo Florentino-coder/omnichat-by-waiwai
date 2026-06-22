@@ -281,6 +281,15 @@ export class InboxController {
     return this.inboxService.getConversationSummary(ctx.tenantId, ctx.sub, id, dto);
   }
 
+  @Get("conversations/:id/active-suggestion")
+  @Roles(Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC)
+  async getActiveSuggestion(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string
+  ) {
+    return this.inboxService.getActiveSuggestion(ctx.tenantId, id);
+  }
+
   @Post("conversations/:id/ai-suggest")
   @Roles(Role.OWNER, Role.ADMIN, Role.AGENT, Role.QC)
   async aiSuggest(

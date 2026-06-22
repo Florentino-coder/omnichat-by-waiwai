@@ -4,6 +4,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { LineWebhookService } from "./line-webhook.service";
 import { AiAutoReplyService } from "../ai/ai-auto-reply.service";
+import { AiHybridDraftService } from "../ai/ai-hybrid-draft.service";
 import { AutomationService } from "../automation/automation.service";
 
 type MockPrisma = {
@@ -29,6 +30,9 @@ type MockPrisma = {
     create: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  tenantSettings: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
+  };
 };
 
 const createPrisma = (): MockPrisma => ({
@@ -53,6 +57,9 @@ const createPrisma = (): MockPrisma => ({
   customer: {
     create: jest.fn().mockResolvedValue({ id: "customer-1" }),
     update: jest.fn().mockResolvedValue({ id: "customer-1" })
+  },
+  tenantSettings: {
+    findUnique: jest.fn().mockResolvedValue(null)
   }
 });
 
@@ -452,7 +459,7 @@ describe("LineWebhookService", () => {
     } as unknown as AutomationService;
 
     const aiAutoReplyService = {
-      tryAutoReply: jest.fn().mockResolvedValue(undefined)
+      tryAutoReply: jest.fn().mockResolvedValue({ outcome: "skipped", reason: "disabled" })
     } as unknown as AiAutoReplyService;
 
     await new LineWebhookService(
@@ -490,5 +497,78 @@ describe("LineWebhookService", () => {
       inboundMessageId: "message-1",
       messageText: "hello"
     });
+  });
+
+  it("triggers hybrid draft generation on skipped auto-reply if enabled", async () => {
+    const prisma = createPrisma();
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-1",
+      tenantId: "tenant-1",
+      workspaceId: "workspace-1",
+      encryptedChannelSecret: "encrypted-secret",
+      encryptedChannelAccessToken: "encrypted-token",
+      isActive: true
+    });
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: "conversation-1",
+      displayName: "John",
+      pictureUrl: "http://url"
+    });
+    prisma.conversation.upsert.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1"
+    });
+    prisma.message.upsert.mockResolvedValue({ id: "message-1" });
+    prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    prisma.tenantSettings.findUnique.mockResolvedValue({
+      enableAiSuggest: true
+    });
+
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-secret"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    const automationService = {
+      resumeWaitingRuns: jest.fn().mockResolvedValue(["rule-resumed"]),
+      dispatchEvent: jest.fn().mockResolvedValue(undefined)
+    } as unknown as AutomationService;
+
+    const aiAutoReplyService = {
+      tryAutoReply: jest.fn().mockResolvedValue({ outcome: "skipped", reason: "disabled" })
+    } as unknown as AiAutoReplyService;
+
+    const aiHybridDraftService = {
+      tryHybridDraft: jest.fn().mockResolvedValue(undefined)
+    } as unknown as AiHybridDraftService;
+
+    await new LineWebhookService(
+      prisma as unknown as PrismaService,
+      crypto,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      automationService,
+      aiAutoReplyService,
+      aiHybridDraftService
+    ).process("line-channel-1", {
+      events: [
+        {
+          type: "message",
+          source: { type: "user", userId: "U123" },
+          message: { id: "msg-1", type: "text", text: "hello" },
+          timestamp: 1700000000000
+        }
+      ]
+    });
+
+    expect(aiHybridDraftService.tryHybridDraft).toHaveBeenCalledWith(
+      "tenant-1",
+      "conversation-1",
+      "message-1",
+      "hello"
+    );
   });
 });

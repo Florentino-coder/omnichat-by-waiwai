@@ -322,7 +322,7 @@ describe("AiAutoReplyService", () => {
     expect(mocks.lineReplyService.replyText).not.toHaveBeenCalled();
   });
 
-  it("audits failure when LLM generation fails", async () => {
+  it("audits failure when LLM generation fails and returns failed", async () => {
     const mocks = createMocks();
     mockHappyPath(mocks);
     mocks.aiReplyGenerator.generate.mockResolvedValue({
@@ -333,13 +333,38 @@ describe("AiAutoReplyService", () => {
     });
     const service = createService(mocks);
 
-    await service.tryAutoReply(baseInput);
+    const result = await service.tryAutoReply(baseInput);
 
+    expect(result).toEqual({ outcome: "failed", reason: "llm_failed" });
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: AuditAction.AI_AUTO_REPLY_FAILED
       })
     });
+  });
+
+  it("returns sent on successful reply", async () => {
+    const mocks = createMocks();
+    mockHappyPath(mocks);
+    const service = createService(mocks);
+
+    const result = await service.tryAutoReply(baseInput);
+
+    expect(result).toEqual({ outcome: "sent" });
+  });
+
+  it("returns skipped with reasons correctly", async () => {
+    const mocks = createMocks();
+    mockHappyPath(mocks);
+    mocks.prisma.tenantSettings.findUnique.mockResolvedValue({
+      ...defaultSettings,
+      enableAiAutoReply: false
+    });
+    const service = createService(mocks);
+
+    const result = await service.tryAutoReply(baseInput);
+
+    expect(result).toEqual({ outcome: "skipped", reason: "disabled" });
   });
 });
 
