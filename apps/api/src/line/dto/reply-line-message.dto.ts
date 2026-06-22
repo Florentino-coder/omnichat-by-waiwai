@@ -11,4 +11,8 @@ export class ReplyLineMessageDto {
   @IsUrl({ require_protocol: true, protocols: ["https"] })
   @MaxLength(2048)
   imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  aiSuggestionId?: string;
 }

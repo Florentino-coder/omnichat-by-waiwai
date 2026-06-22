@@ -262,7 +262,11 @@ export function ReplyComposer({
       await apiFetch<null>(`/api/v1/line/conversations/${conversationId}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(trimmedImageUrl ? { imageUrl: trimmedImageUrl } : { text: trimmedText })
+        body: JSON.stringify(
+          trimmedImageUrl
+            ? { imageUrl: trimmedImageUrl, aiSuggestionId: suggestionId || undefined }
+            : { text: trimmedText, aiSuggestionId: suggestionId || undefined }
+        )
       });
 
       if (suggestionId) {

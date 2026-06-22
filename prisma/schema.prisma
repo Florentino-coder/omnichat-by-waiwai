@@ -228,6 +228,7 @@ model Tenant {
   aiScenarios               AiScenario[]
   automationRules           AutomationRule[]
   automationRuns            AutomationRun[]
+  aiTrainingPairs           AiTrainingPair[]
 
   @@index([slug])
   @@index([planId])
@@ -518,6 +519,7 @@ model Conversation {
   files         File[]
   aiSuggestions AiSuggestion[]
   automationRuns AutomationRun[]
+  aiTrainingPairs AiTrainingPair[]
 
   @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
@@ -952,3 +954,25 @@ model PromptTemplate {
   @@unique([tenantId, name])
   @@map("prompt_templates")
 }
+
+model AiTrainingPair {
+  id               String       @id @default(uuid())
+  tenantId         String       @map("tenant_id")
+  tenant           Tenant       @relation(fields: [tenantId], references: [id])
+  conversationId   String       @map("conversation_id")
+  conversation     Conversation @relation(fields: [conversationId], references: [id])
+  customerMessage  String       @map("customer_message")
+  assistantReply   String       @map("assistant_reply")
+  suggestionId     String?      @map("suggestion_id")
+  isSuggestionUsed Boolean      @default(false) @map("is_suggestion_used")
+  isEdited         Boolean      @default(false) @map("is_edited")
+  status           String       @default("pending") // pending, approved, rejected
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  deletedAt        DateTime?    @map("deleted_at")
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("ai_training_pairs")
+}
+

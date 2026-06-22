@@ -94,17 +94,54 @@ export class AiReplyGeneratorService {
 
     const customer = conversation.customer;
 
-    const messages = await this.prisma.message.findMany({
-      where: {
-        conversationId,
-        tenantId,
-        deletedAt: null
-      },
-      orderBy: { createdAt: "desc" },
-      take: 15
-    });
+    const [settings, messages] = await Promise.all([
+      this.prisma.tenantSettings.findUnique({
+        where: { tenantId }
+      }),
+      this.prisma.message.findMany({
+        where: {
+          conversationId,
+          tenantId,
+          deletedAt: null
+        },
+        orderBy: { createdAt: "desc" },
+        take: 15
+      })
+    ]);
 
+    const descMessages = [...messages];
     const history = messages.reverse();
+
+    const tz = settings?.timezone || "Asia/Bangkok";
+    let includeGreeting = false;
+    if (descMessages.length === 0) {
+      includeGreeting = true;
+    } else {
+      const latestMsg = descMessages[0];
+      const prevMsg = descMessages[1];
+      if (!prevMsg) {
+        includeGreeting = true;
+      } else {
+        const latestTime = latestMsg.createdAt.getTime();
+        const prevTime = prevMsg.createdAt.getTime();
+        const diffHours = (latestTime - prevTime) / (1000 * 60 * 60);
+
+        const getLocalDayString = (date: Date, timezone: string) => {
+          try {
+            return date.toLocaleDateString("sv-SE", { timeZone: timezone });
+          } catch (e) {
+            return date.toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
+          }
+        };
+
+        const latestDay = getLocalDayString(latestMsg.createdAt, tz);
+        const prevDay = getLocalDayString(prevMsg.createdAt, tz);
+
+        if (latestDay !== prevDay || diffHours > 3) {
+          includeGreeting = true;
+        }
+      }
+    }
 
     const customerConvs = await this.prisma.conversation.findMany({
       where: {
@@ -208,10 +245,16 @@ export class AiReplyGeneratorService {
       ? promptWithScenario
       : `${agentGenderInstruction}\n\n${promptWithScenario}`;
 
+    const greetingInstruction = includeGreeting
+      ? "คำแนะนำเรื่องการทักทาย: เนื่องจากเป็นแชทแรกของวันหรือไม่มีการคุยกันเกิน 3 ชั่วโมง ให้กล่าวทักทายลูกค้าด้วยคำว่า 'สวัสดี' หรือ 'สวัสดีค่ะ/ครับ' ก่อนเริ่มตอบคำถามอย่างเป็นมิตรและสุภาพ"
+      : "คำแนะนำเรื่องการทักทาย: ห้ามใส่คำทักทาย (เช่น สวัสดี, สวัสดีค่ะ, สวัสดีครับ) ในคำตอบเด็ดขาด ให้เข้าสู่เนื้อหาคำตอบทันทีเพื่อไม่ให้เป็นการทักทายซ้ำซ้อนและน่ารำคาญ";
+
+    const promptWithGreeting = `${compiledPrompt}\n\n${greetingInstruction}`;
+
     const compiledPromptWithInstructions =
       extraInstructions?.trim()
-        ? `${compiledPrompt}\n\nคำสั่งเพิ่มเติมจากร้าน:\n${extraInstructions.trim()}`
-        : compiledPrompt;
+        ? `${promptWithGreeting}\n\nคำสั่งเพิ่มเติมจากร้าน:\n${extraInstructions.trim()}`
+        : promptWithGreeting;
 
     const historyForLlm = history.map((msg) => ({
       role: msg.direction === "INBOUND" ? ("customer" as const) : ("agent" as const),

@@ -102,6 +102,53 @@ export class LineReplyService {
       data: { lastMessageAt: sentAt }
     });
 
+    // Curation / QA learning pair logging
+    if (!isSystem && dto.text) {
+      const lastInbound = await this.prisma.message.findFirst({
+        where: {
+          conversationId: conversation.id,
+          tenantId,
+          direction: MessageDirection.INBOUND,
+          deletedAt: null
+        },
+        orderBy: { createdAt: "desc" }
+      });
+
+      if (lastInbound?.text) {
+        let isSuggestionUsed = false;
+        let isEdited = true;
+        let status = "pending";
+
+        if (dto.aiSuggestionId) {
+          const suggestion = await this.prisma.aiSuggestion.findFirst({
+            where: {
+              id: dto.aiSuggestionId,
+              tenantId
+            }
+          });
+
+          if (suggestion) {
+            isSuggestionUsed = true;
+            isEdited = dto.text.trim() !== (suggestion.suggestionText || "").trim();
+            status = isEdited ? "pending" : "approved";
+          }
+        }
+
+        await this.prisma.aiTrainingPair.create({
+          data: {
+            tenantId,
+            conversationId: conversation.id,
+            customerMessage: lastInbound.text.trim(),
+            assistantReply: dto.text.trim(),
+            suggestionId: dto.aiSuggestionId || null,
+            isSuggestionUsed,
+            isEdited,
+            status
+          }
+        });
+      }
+    }
+
     await this.prisma.auditLog.create({
       data: {
         tenantId,

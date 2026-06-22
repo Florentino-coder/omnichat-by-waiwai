@@ -14,6 +14,13 @@ type MockPrisma = {
   };
   message: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  aiSuggestion: {
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  aiTrainingPair: {
+    create: jest.Mock<Promise<unknown>, [unknown]>;
   };
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
@@ -29,6 +36,13 @@ const createPrisma = (): MockPrisma => ({
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
   },
   message: {
+    create: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  aiSuggestion: {
+    findFirst: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  aiTrainingPair: {
     create: jest.fn<Promise<unknown>, [unknown]>()
   },
   auditLog: {
@@ -269,4 +283,63 @@ describe("LineReplyService", () => {
       })
     });
   });
+
+  it("creates an AiTrainingPair when manual reply is sent and a last customer message exists", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1",
+      lineChannelId: "line-channel-1",
+      externalThreadId: "U123"
+    });
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-1",
+      tenantId: "tenant-1",
+      encryptedChannelAccessToken: "encrypted-token"
+    });
+    prisma.message.create.mockResolvedValue({ id: "message-2" });
+    prisma.conversation.update.mockResolvedValue({ id: "conversation-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: jest.fn().mockResolvedValue("")
+    }) as unknown as typeof fetch;
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-token"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    // Mock last customer message and AI suggestion
+    prisma.message.findFirst.mockResolvedValue({
+      id: "message-1",
+      text: "ขอราคาหน่อยครับ",
+      direction: MessageDirection.INBOUND
+    });
+    prisma.aiSuggestion.findFirst.mockResolvedValue({
+      id: "sug-1",
+      suggestionText: "ราคา 290 บาทค่ะ"
+    });
+
+    await new LineReplyService(prisma as unknown as PrismaService, crypto).replyText(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      { text: "ราคา 290 บาทครับ", aiSuggestionId: "sug-1" }
+    );
+
+    expect(prisma.aiTrainingPair.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        customerMessage: "ขอราคาหน่อยครับ",
+        assistantReply: "ราคา 290 บาทครับ",
+        suggestionId: "sug-1",
+        isSuggestionUsed: true,
+        isEdited: true,
+        status: "pending"
+      })
+    });
+  });
 });
+
