@@ -1477,6 +1477,137 @@ describe("InboxService", () => {
     });
   });
 
+  describe("getActiveSuggestion", () => {
+    it("excludes programmatic drafts when enableHybridAutoDraft is false", async () => {
+      const prisma = createPrisma();
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        aiAutoReplyConfidenceThreshold: 0.8,
+        enableHybridAutoDraft: false
+      });
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        status: "OPEN"
+      });
+      prisma.aiSuggestion.findFirst.mockResolvedValue(null);
+
+      const service = createService(prisma);
+      const result = await service.getActiveSuggestion("tenant-1", "conv-1");
+
+      expect(prisma.aiSuggestion.findFirst).toHaveBeenCalledWith({
+        where: {
+          conversationId: "conv-1",
+          tenantId: "tenant-1",
+          status: "shown",
+          isProgrammatic: false
+        },
+        orderBy: { createdAt: "desc" }
+      });
+      expect(result).toEqual({
+        suggestion_id: null,
+        suggestion_text: null,
+        knowledge_citations: [],
+        confidence: null,
+        confidence_threshold: 0.8
+      });
+    });
+
+    it("returns programmatic drafts when enableHybridAutoDraft is true", async () => {
+      const prisma = createPrisma();
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        aiAutoReplyConfidenceThreshold: 0.8,
+        enableHybridAutoDraft: true
+      });
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        status: "OPEN"
+      });
+      prisma.aiSuggestion.findFirst.mockResolvedValue({
+        id: "sug-1",
+        suggestionText: "auto draft",
+        citations: [{ title: "FAQ" }],
+        confidence: 0.9
+      });
+
+      const service = createService(prisma);
+      const result = await service.getActiveSuggestion("tenant-1", "conv-1");
+
+      expect(prisma.aiSuggestion.findFirst).toHaveBeenCalledWith({
+        where: {
+          conversationId: "conv-1",
+          tenantId: "tenant-1",
+          status: "shown"
+        },
+        orderBy: { createdAt: "desc" }
+      });
+      expect(result.suggestion_id).toBe("sug-1");
+      expect(result.suggestion_text).toBe("auto draft");
+    });
+  });
+
+  describe("updateSettings hybrid disable", () => {
+    it("supersedes shown programmatic suggestions when enableHybridAutoDraft is set to false", async () => {
+      const prisma = createPrisma();
+      prisma.tenantSettings.upsert.mockResolvedValue({
+        inProgressAlertMinutes: 10,
+        enableAiSuggest: true,
+        enableHybridAutoDraft: false,
+        enableAiScenarios: true,
+        aiProvider: "gemini",
+        aiAgentGender: "FEMALE",
+        enableAiAutoReply: false,
+        aiAutoReplyMode: "OFF_HOURS_ONLY",
+        aiAutoReplyBusinessHourStart: 8,
+        aiAutoReplyBusinessHourEnd: 23,
+        aiAutoReplyInstructions: null,
+        aiEscalationKeywords: ["แอดมิน"],
+        aiAutoReplyConfidenceThreshold: 0.8
+      });
+      prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+      prisma.aiSuggestion.updateMany.mockResolvedValue({ count: 2 });
+
+      const service = createService(prisma);
+      await service.updateSettings("tenant-1", "user-1", {
+        enableHybridAutoDraft: false
+      });
+
+      expect(prisma.aiSuggestion.updateMany).toHaveBeenCalledWith({
+        where: {
+          tenantId: "tenant-1",
+          status: "shown",
+          isProgrammatic: true
+        },
+        data: { status: "superseded" }
+      });
+    });
+
+    it("does not supersede programmatic suggestions when hybrid stays enabled", async () => {
+      const prisma = createPrisma();
+      prisma.tenantSettings.upsert.mockResolvedValue({
+        inProgressAlertMinutes: 10,
+        enableAiSuggest: true,
+        enableHybridAutoDraft: true,
+        enableAiScenarios: true,
+        aiProvider: "gemini",
+        aiAgentGender: "FEMALE",
+        enableAiAutoReply: false,
+        aiAutoReplyMode: "OFF_HOURS_ONLY",
+        aiAutoReplyBusinessHourStart: 8,
+        aiAutoReplyBusinessHourEnd: 23,
+        aiAutoReplyInstructions: null,
+        aiEscalationKeywords: ["แอดมิน"],
+        aiAutoReplyConfidenceThreshold: 0.8
+      });
+      prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+      const service = createService(prisma);
+      await service.updateSettings("tenant-1", "user-1", {
+        inProgressAlertMinutes: 15
+      });
+
+      expect(prisma.aiSuggestion.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe("AI Summary", () => {
     beforeEach(() => {
       jest.clearAllMocks();

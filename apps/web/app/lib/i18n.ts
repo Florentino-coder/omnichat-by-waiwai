@@ -333,6 +333,10 @@ export const messages = {
       "โควต้า AI ของ Google Gemini วันนี้เต็มแล้ว (free tier ~20 ครั้ง/วัน) ลองพรุ่งนี้หรือเปิด billing ที่ Google AI",
     aiProviderNotConfigured:
       "ยังไม่ได้ตั้งค่า AI API key บนเซิร์ฟเวอร์ ติดต่อผู้ดูแลระบบ",
+    knowledgeOnlyHint:
+      "แสดงแหล่งอ้างอิงจาก Knowledge เท่านั้น — กรุณาร่างคำตอบเองจากข้อมูลด้านล่าง",
+    aiQuotaExhaustedHint:
+      "โควต้า AI เต็มแล้ว — แสดงแหล่งอ้างอิงจาก Knowledge เท่านั้น กรุณาร่างคำตอบเองจากข้อมูลด้านล่าง",
     knowledgeOnlyFallbackHint:
       "โควต้า AI เต็มแล้ว — แสดงแหล่งอ้างอิงจาก Knowledge เท่านั้น กรุณาร่างคำตอบเองจากข้อมูลด้านล่าง",
     aiCreditSettingsHint:
@@ -744,6 +748,10 @@ export const messages = {
       "Google Gemini daily quota is exhausted (free tier ~20 requests/day). Try again tomorrow or enable billing.",
     aiProviderNotConfigured:
       "AI API key is not configured on the server. Contact your administrator.",
+    knowledgeOnlyHint:
+      "Showing Knowledge citations only — draft your reply using the references below.",
+    aiQuotaExhaustedHint:
+      "AI quota exhausted — showing Knowledge citations only. Draft your reply using the references below.",
     knowledgeOnlyFallbackHint:
       "AI quota exhausted — showing Knowledge citations only. Draft your reply using the references below.",
     aiCreditSettingsHint:

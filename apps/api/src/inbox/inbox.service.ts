@@ -1090,6 +1090,19 @@ export class InboxService {
       }
     });
 
+    if (dto.enableHybridAutoDraft === false) {
+      await this.prisma.aiSuggestion.updateMany({
+        where: {
+          tenantId,
+          status: "shown",
+          isProgrammatic: true
+        },
+        data: {
+          status: "superseded"
+        }
+      });
+    }
+
     return {
       inProgressAlertMinutes: settings.inProgressAlertMinutes,
       enableAiSuggest: settings.enableAiSuggest,
@@ -1631,7 +1644,7 @@ Summarize the conversation history between the merchant and the customer in Engl
     const [settings, conversation] = await Promise.all([
       this.prisma.tenantSettings.findUnique({
         where: { tenantId },
-        select: { aiAutoReplyConfidenceThreshold: true }
+        select: { aiAutoReplyConfidenceThreshold: true, enableHybridAutoDraft: true }
       }),
       this.prisma.conversation.findFirst({
         where: {
@@ -1647,11 +1660,14 @@ Summarize the conversation history between the merchant and the customer in Engl
       throw new NotFoundException("Conversation not found");
     }
 
+    const enableHybridAutoDraft = settings?.enableHybridAutoDraft ?? true;
+
     const activeSuggestion = await this.prisma.aiSuggestion.findFirst({
       where: {
         conversationId,
         tenantId,
-        status: "shown"
+        status: "shown",
+        ...(enableHybridAutoDraft ? {} : { isProgrammatic: false })
       },
       orderBy: {
         createdAt: "desc"

@@ -377,7 +377,8 @@ export class AiAutoReplyService {
           provider: params.suggestion.provider,
           latencyMs: params.suggestion.latencyMs,
           citations: params.suggestion.citations as any,
-          confidence: params.suggestion.confidence
+          confidence: params.suggestion.confidence,
+          isProgrammatic: true
         }
       });
       dbSuggestionId = newSuggest.id;

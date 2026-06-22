@@ -115,7 +115,11 @@ export class AiHybridDraftService implements OnModuleDestroy {
 
     // 5. Check outcome
     if (generateResult.outcome === "llm_failed") {
-      return; // LLM failed, skip saving row or charging credits
+      await this.realtimeService.publishTenantEvent(tenantId, "ai-suggestion.failed", {
+        conversationId,
+        reason: "llm_failed"
+      });
+      return;
     }
 
     // If successful (success or knowledge_only)
@@ -155,7 +159,8 @@ export class AiHybridDraftService implements OnModuleDestroy {
         status: "shown",
         provider: providerUsed,
         latencyMs,
-        citations: knowledgeCitations as any
+        citations: knowledgeCitations as any,
+        isProgrammatic: true
       }
     });
 

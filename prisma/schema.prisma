@@ -939,6 +939,7 @@ model AiSuggestion {
   errorCode      String?      @map("error_code")
   citations      Json?        @map("citations")
   confidence     Float?       @map("confidence")
+  isProgrammatic Boolean      @default(false) @map("is_programmatic")
   createdAt      DateTime     @default(now()) @map("created_at")
 
   @@index([tenantId])

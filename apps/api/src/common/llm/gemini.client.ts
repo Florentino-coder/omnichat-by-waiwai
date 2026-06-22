@@ -1,6 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { LLMClient } from "./llm.interface";
 
+const RETRYABLE_HTTP_STATUSES = new Set([429, 500, 503]);
+const HTTP_MAX_ATTEMPTS = 3;
+const EMPTY_CONTENT_MAX_ATTEMPTS = 2;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 @Injectable()
 export class GeminiClient implements LLMClient {
   private readonly logger = new Logger(GeminiClient.name);
@@ -53,20 +61,8 @@ export class GeminiClient implements LLMClient {
 
     let lastFinishReason: string | undefined;
 
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        this.logger.error(`Gemini API error: ${response.status} - ${errorText}`);
-        throw new Error(`Gemini API failed with status ${response.status}: ${errorText}`);
-      }
+    for (let contentAttempt = 0; contentAttempt < EMPTY_CONTENT_MAX_ATTEMPTS; contentAttempt++) {
+      const response = await this.fetchWithRetry(url, body);
 
       const data = (await response.json()) as {
         candidates?: Array<{
@@ -89,11 +85,11 @@ export class GeminiClient implements LLMClient {
       }
 
       this.logger.error(
-        `Gemini returned empty content (finishReason=${lastFinishReason ?? "unknown"}, attempt=${attempt + 1})`,
+        `Gemini returned empty content (finishReason=${lastFinishReason ?? "unknown"}, attempt=${contentAttempt + 1})`,
         JSON.stringify({ finishReason: lastFinishReason, usageMetadata: data.usageMetadata })
       );
 
-      if (attempt === 0) {
+      if (contentAttempt < EMPTY_CONTENT_MAX_ATTEMPTS - 1) {
         continue;
       }
     }
@@ -101,5 +97,45 @@ export class GeminiClient implements LLMClient {
     throw new Error(
       `Gemini returned empty content (finishReason=${lastFinishReason ?? "unknown"})`
     );
+  }
+
+  private async fetchWithRetry(
+    url: string,
+    body: Record<string, unknown>
+  ): Promise<Response> {
+    let lastErrorText = "";
+
+    for (let attempt = 0; attempt < HTTP_MAX_ATTEMPTS; attempt++) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (response.ok) {
+        return response;
+      }
+
+      const errorText = await response.text();
+      lastErrorText = errorText;
+      const isRetryable =
+        RETRYABLE_HTTP_STATUSES.has(response.status) && attempt < HTTP_MAX_ATTEMPTS - 1;
+
+      if (isRetryable) {
+        const delayMs = 1000 * Math.pow(2, attempt);
+        this.logger.warn(
+          `Gemini API ${response.status}, retrying in ${delayMs}ms (attempt ${attempt + 1}/${HTTP_MAX_ATTEMPTS})`
+        );
+        await sleep(delayMs);
+        continue;
+      }
+
+      this.logger.error(`Gemini API error: ${response.status} - ${errorText}`);
+      throw new Error(`Gemini API failed with status ${response.status}: ${errorText}`);
+    }
+
+    throw new Error(`Gemini API failed after retries: ${lastErrorText}`);
   }
 }

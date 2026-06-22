@@ -63,6 +63,63 @@ describe("GeminiClient", () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("retries on HTTP 503 with exponential backoff then succeeds", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: async () => "Service Unavailable"
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => "Rate Limited"
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          candidates: [{ finishReason: "STOP", content: { parts: [{ text: "after retry" }] } }]
+        })
+      }) as unknown as typeof fetch;
+
+    const client = new GeminiClient();
+    const promise = client.generateReply({
+      systemPrompt: "system",
+      conversationHistory: [{ role: "customer", text: "hello" }]
+    });
+    const assertion = expect(promise).resolves.toBe("after retry");
+
+    await jest.advanceTimersByTimeAsync(1000);
+    await jest.advanceTimersByTimeAsync(2000);
+    await assertion;
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    jest.useRealTimers();
+  });
+
+  it("throws after exhausting HTTP retries on 503", async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: async () => "Service Unavailable"
+    }) as unknown as typeof fetch;
+
+    const client = new GeminiClient();
+    const promise = client.generateReply({
+      systemPrompt: "system",
+      conversationHistory: [{ role: "customer", text: "hello" }]
+    });
+    const assertion = expect(promise).rejects.toThrow("Gemini API failed with status 503");
+
+    await jest.advanceTimersByTimeAsync(1000);
+    await jest.advanceTimersByTimeAsync(2000);
+    await assertion;
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    jest.useRealTimers();
+  });
+
   it("succeeds on retry after first empty response", async () => {
     global.fetch = jest
       .fn()

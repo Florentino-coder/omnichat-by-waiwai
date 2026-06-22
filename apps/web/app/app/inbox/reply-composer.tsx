@@ -28,6 +28,8 @@ interface ReplyComposerProps {
   insertNonce?: number;
   lineChannelName?: string | null;
   enableAiSuggest?: boolean;
+  enableHybridAutoDraft?: boolean;
+  hybridDraftFailedNonce?: number;
   onSendStart?: (payload: { text: string; conversationId: string }) => void;
   onSent?: () => Promise<void> | void;
   refreshSuggestionNonce?: number;
@@ -48,6 +50,8 @@ export function ReplyComposer({
   insertNonce,
   lineChannelName,
   enableAiSuggest = true,
+  enableHybridAutoDraft = true,
+  hybridDraftFailedNonce = 0,
   onSendStart,
   onSent,
   refreshSuggestionNonce = 0
@@ -79,6 +83,7 @@ export function ReplyComposer({
   const [rateLimitLock, setRateLimitLock] = useState(false);
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
   const [knowledgeOnlyMode, setKnowledgeOnlyMode] = useState(false);
+  const [knowledgeOnlyFromQuota, setKnowledgeOnlyFromQuota] = useState(false);
   const [cameFromAiGenerate, setCameFromAiGenerate] = useState(false);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [confidenceThreshold, setConfidenceThreshold] = useState<number | null>(null);
@@ -104,6 +109,9 @@ export function ReplyComposer({
 
   // Load active suggestion helper
   const loadActiveSuggestion = async (convId: string) => {
+    if (!enableHybridAutoDraft) {
+      return;
+    }
     try {
       const res = await apiFetch<{
         suggestion_id: string | null;
@@ -131,11 +139,13 @@ export function ReplyComposer({
               setText(res.suggestion_text);
               setLastSuggestionText(res.suggestion_text);
               setKnowledgeOnlyMode(false);
+              setKnowledgeOnlyFromQuota(false);
             } else {
               isProgrammaticRef.current = true;
               setText("");
               setLastSuggestionText("");
               setKnowledgeOnlyMode(true);
+              setKnowledgeOnlyFromQuota(false);
             }
             setCameFromAiGenerate(true);
           }
@@ -152,6 +162,7 @@ export function ReplyComposer({
     setLastSuggestionText(null);
     setKnowledgeCitations([]);
     setKnowledgeOnlyMode(false);
+    setKnowledgeOnlyFromQuota(false);
     setCameFromAiGenerate(false);
     setConfidence(null);
     setConfidenceThreshold(null);
@@ -162,14 +173,20 @@ export function ReplyComposer({
     if (conversationId) {
       void loadActiveSuggestion(conversationId);
     }
-  }, [conversationId]);
+  }, [conversationId, enableHybridAutoDraft]);
 
   // Load active suggestion on refresh nonce
   useEffect(() => {
     if (conversationId && refreshSuggestionNonce && refreshSuggestionNonce > 0) {
       void loadActiveSuggestion(conversationId);
     }
-  }, [refreshSuggestionNonce]);
+  }, [refreshSuggestionNonce, enableHybridAutoDraft]);
+
+  useEffect(() => {
+    if (hybridDraftFailedNonce > 0) {
+      setError("สร้างคำตอบอัตโนมัติไม่สำเร็จ ลองกด AI ร่างคำตอบเอง");
+    }
+  }, [hybridDraftFailedNonce]);
 
   // Fetch all saved replies for autocomplete
   useEffect(() => {
@@ -266,6 +283,7 @@ export function ReplyComposer({
 
       if (data.mode === "knowledge_only") {
         setKnowledgeOnlyMode(true);
+        setKnowledgeOnlyFromQuota(true);
         setSuggestionId(null);
         setLastSuggestionText(null);
         setKnowledgeCitations(data.knowledge_citations ?? []);
@@ -274,6 +292,7 @@ export function ReplyComposer({
       }
 
       setKnowledgeOnlyMode(false);
+      setKnowledgeOnlyFromQuota(false);
       isProgrammaticRef.current = true;
       setText(data.suggestion_text || "");
       setSuggestionId(data.suggestion_id);
@@ -317,6 +336,7 @@ export function ReplyComposer({
     setLastSuggestionText(null);
     setKnowledgeCitations([]);
     setKnowledgeOnlyMode(false);
+    setKnowledgeOnlyFromQuota(false);
     setConfidence(null);
     setConfidenceThreshold(null);
     isProgrammaticRef.current = true;
@@ -325,6 +345,7 @@ export function ReplyComposer({
 
   function handleDismissKnowledgeFallback() {
     setKnowledgeOnlyMode(false);
+    setKnowledgeOnlyFromQuota(false);
     setKnowledgeCitations([]);
     setConfidence(null);
     setConfidenceThreshold(null);
@@ -488,7 +509,9 @@ export function ReplyComposer({
       <div className="flex flex-col gap-3 p-5">
         {knowledgeOnlyMode ? (
           <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-900">
-            <span className="flex-1">{t.knowledgeOnlyFallbackHint}</span>
+            <span className="flex-1">
+              {knowledgeOnlyFromQuota ? t.aiQuotaExhaustedHint : t.knowledgeOnlyHint}
+            </span>
             <button
               type="button"
               className="rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-amber-800 transition-colors hover:bg-amber-100"

@@ -171,7 +171,8 @@ describe("AiHybridDraftService", () => {
       data: expect.objectContaining({
         suggestionText: "สวัสดีค่ะ ยินดีให้บริการค่ะ",
         citations: [{ documentId: "doc-1", title: "FAQ", snippet: "..." }],
-        status: "shown"
+        status: "shown",
+        isProgrammatic: true
       })
     });
     expect(mocks.prisma.usageCounter.upsert).toHaveBeenCalled();
@@ -213,7 +214,8 @@ describe("AiHybridDraftService", () => {
       data: expect.objectContaining({
         suggestionText: null,
         citations: [{ documentId: "doc-1", title: "FAQ", snippet: "..." }],
-        status: "shown"
+        status: "shown",
+        isProgrammatic: true
       })
     });
     expect(mocks.prisma.usageCounter.upsert).not.toHaveBeenCalled();
@@ -228,5 +230,27 @@ describe("AiHybridDraftService", () => {
       })
     });
     expect(mocks.realtimeService.publishTenantEvent).toHaveBeenCalled();
+  });
+
+  it("emits ai-suggestion.failed SSE on outcome: llm_failed", async () => {
+    const mocks = createMocks();
+    mockHappyPath(mocks);
+    mocks.aiReplyGenerator.generate.mockResolvedValue({
+      outcome: "llm_failed",
+      provider: "gemini",
+      errorCode: "AI_GENERATION_FAILED",
+      llmError: new Error("Gemini API failed")
+    });
+    const service = createService(mocks);
+
+    void service.tryHybridDraft("tenant-1", "conv-1", "msg-1", "hello");
+    await jest.runAllTimersAsync();
+
+    expect(mocks.prisma.aiSuggestion.create).not.toHaveBeenCalled();
+    expect(mocks.realtimeService.publishTenantEvent).toHaveBeenCalledWith(
+      "tenant-1",
+      "ai-suggestion.failed",
+      { conversationId: "conv-1", reason: "llm_failed" }
+    );
   });
 });

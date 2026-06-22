@@ -181,6 +181,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [alertMinutesDraft, setAlertMinutesDraft] = useState("10");
   const [isSavingAlertMinutes, setIsSavingAlertMinutes] = useState(false);
   const [enableAiSuggest, setEnableAiSuggest] = useState(true);
+  const [enableHybridAutoDraft, setEnableHybridAutoDraft] = useState(true);
   const [assigneeDraft, setAssigneeDraft] = useState("");
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
   const [isSavingPriority, setIsSavingPriority] = useState(false);
@@ -189,6 +190,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [composerInsertText, setComposerInsertText] = useState("");
   const [composerInsertNonce, setComposerInsertNonce] = useState(0);
   const [refreshSuggestionNonce, setRefreshSuggestionNonce] = useState(0);
+  const [hybridDraftFailedNonce, setHybridDraftFailedNonce] = useState(0);
   const [isQuickReplyAutoEnter, setIsQuickReplyAutoEnter] = useState(false);
   const [isSendingQuickReply, setIsSendingQuickReply] = useState(false);
   const [tags, setTags] = useState<ConversationTag[]>([]);
@@ -635,6 +637,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             setRefreshSuggestionNonce((prev) => prev + 1);
           }
         }
+
+        if (event.type === "ai-suggestion.failed") {
+          const eventConversationId = event.data?.conversationId;
+          if (eventConversationId && eventConversationId === selectedIdRef.current) {
+            setHybridDraftFailedNonce((prev) => prev + 1);
+          }
+        }
       })
         .then(() => {
           if (!abortController.signal.aborted) {
@@ -741,11 +750,16 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     let isCurrent = true;
     async function loadSettings() {
       try {
-        const data = await apiFetch<{ inProgressAlertMinutes: number; enableAiSuggest: boolean }>("/api/v1/inbox/settings");
+        const data = await apiFetch<{
+          inProgressAlertMinutes: number;
+          enableAiSuggest: boolean;
+          enableHybridAutoDraft?: boolean;
+        }>("/api/v1/inbox/settings");
         if (isCurrent) {
           setInProgressAlertMinutes(data.inProgressAlertMinutes ?? 10);
           setAlertMinutesDraft(String(data.inProgressAlertMinutes ?? 10));
           setEnableAiSuggest(data.enableAiSuggest !== false);
+          setEnableHybridAutoDraft(data.enableHybridAutoDraft !== false);
         }
       } catch (err) {
         // Ignore settings load errors, keep defaults
@@ -1501,6 +1515,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                     insertText={composerInsertText}
                     lineChannelName={selectedConversation?.lineChannel.name ?? null}
                     enableAiSuggest={enableAiSuggest}
+                    enableHybridAutoDraft={enableHybridAutoDraft}
+                    hybridDraftFailedNonce={hybridDraftFailedNonce}
                     refreshSuggestionNonce={refreshSuggestionNonce}
                     onSendStart={({ text, conversationId }) => {
                       addOptimisticOutboundMessage(conversationId, text);
