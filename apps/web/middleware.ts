@@ -1,33 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE_NAMES } from "./app/lib/auth-cookie-names";
-import { readCookieValue } from "./app/lib/auth-cookies.server";
-import { verifyAccessToken } from "./app/lib/jwt-edge";
-
-type MiddlewareSession = {
-  isSuperOwner: boolean;
-  tenantId?: string;
-  workspaceId?: string;
-};
+import { resolveMiddlewareSession } from "./app/lib/middleware-session";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const cookieHeader = request.headers.get("cookie") ?? undefined;
-  const accessToken = readCookieValue(cookieHeader, AUTH_COOKIE_NAMES.accessToken);
-  const jwtSecret =
-    process.env.JWT_SECRET ??
-    (process.env.NODE_ENV !== "production" ? "replace-with-local-dev-secret" : undefined);
-
-  let session: MiddlewareSession | null = null;
-  if (accessToken && jwtSecret) {
-    const payload = await verifyAccessToken(accessToken, jwtSecret);
-    if (payload) {
-      session = {
-        isSuperOwner: Boolean(payload.isSuperOwner),
-        tenantId: payload.tenantId,
-        workspaceId: payload.workspaceId
-      };
-    }
-  }
+  const session = await resolveMiddlewareSession(cookieHeader);
 
   if (pathname.startsWith("/super-admin")) {
     if (!session) {

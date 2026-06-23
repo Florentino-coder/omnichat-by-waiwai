@@ -51,7 +51,7 @@ export function setAuthCookiesOnResponse(response: NextResponse, tokens: AuthTok
   response.cookies.set(
     AUTH_COOKIE_NAMES.refreshToken,
     tokens.refreshToken,
-    httpOnlyCookieOptions(REFRESH_TOKEN_MAX_AGE_SECONDS, "/api/v1/auth")
+    httpOnlyCookieOptions(REFRESH_TOKEN_MAX_AGE_SECONDS)
   );
 }
 
@@ -105,6 +105,7 @@ export function clearAuthCookiesOnResponse(response: NextResponse): void {
   for (const name of names) {
     response.cookies.set(name, "", { path: "/", maxAge: 0 });
     if (name === AUTH_COOKIE_NAMES.refreshToken) {
+      // Clear legacy narrow-path refresh cookies from earlier deployments.
       response.cookies.set(name, "", { path: "/api/v1/auth", maxAge: 0 });
     }
   }
