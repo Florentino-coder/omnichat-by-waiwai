@@ -4,9 +4,7 @@ export const AUTH_COOKIE_NAMES = {
   session: "omnichat.session",
   superOwner: "omnichat.isSuperOwner",
   tenantId: "omnichat.tenantId",
-  workspaceId: "omnichat.workspaceId",
-  /** Legacy cookie — cleared on login; never set for new sessions. */
-  legacyAccessToken: "omnichat.accessToken"
+  workspaceId: "omnichat.workspaceId"
 } as const;
 
 export const ACCESS_TOKEN_MAX_AGE_SECONDS = 15 * 60;

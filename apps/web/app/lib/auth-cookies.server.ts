@@ -53,10 +53,6 @@ export function setAuthCookiesOnResponse(response: NextResponse, tokens: AuthTok
     tokens.refreshToken,
     httpOnlyCookieOptions(REFRESH_TOKEN_MAX_AGE_SECONDS, "/api/v1/auth")
   );
-  response.cookies.set(AUTH_COOKIE_NAMES.legacyAccessToken, "", {
-    ...httpOnlyCookieOptions(0),
-    maxAge: 0
-  });
 }
 
 export function setSessionMarkerCookiesOnResponse(
@@ -103,8 +99,7 @@ export function clearAuthCookiesOnResponse(response: NextResponse): void {
     AUTH_COOKIE_NAMES.session,
     AUTH_COOKIE_NAMES.superOwner,
     AUTH_COOKIE_NAMES.tenantId,
-    AUTH_COOKIE_NAMES.workspaceId,
-    AUTH_COOKIE_NAMES.legacyAccessToken
+    AUTH_COOKIE_NAMES.workspaceId
   ];
 
   for (const name of names) {
