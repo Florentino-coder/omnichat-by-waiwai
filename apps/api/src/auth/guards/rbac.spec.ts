@@ -6,6 +6,7 @@ import { Role } from "@prisma/client";
 import request from "supertest";
 import { HttpExceptionFilter } from "../../common/http/http-exception.filter";
 import { ResponseEnvelopeInterceptor } from "../../common/http/response-envelope.interceptor";
+import { PrismaService } from "../../prisma/prisma.service";
 import { Roles } from "../decorators/roles.decorator";
 import { TenantCtx } from "../decorators/tenant-context.decorator";
 import { JwtTenantPayload } from "../types/auth.types";
@@ -51,6 +52,23 @@ describe("RBAC and tenant guards", () => {
           useValue: {
             get: (key: string): string | undefined =>
               key === "JWT_SECRET" ? jwtSecret : undefined
+          }
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            user: {
+              findUnique: jest.fn().mockResolvedValue({
+                id: "user-1",
+                isActive: true,
+                deletedAt: null,
+                emailVerified: true,
+                isSuperOwner: false
+              })
+            },
+            workspaceMember: {
+              findFirst: jest.fn().mockResolvedValue({ id: "member-1" })
+            }
           }
         }
       ]
@@ -122,12 +140,12 @@ describe("RBAC and tenant guards", () => {
     await request(app.getHttpServer())
       .get("/guard-check/tenant")
       .set("Authorization", `Bearer ${token}`)
-      .expect(403)
+      .expect(401)
       .expect({
         success: false,
         error: {
-          code: "FORBIDDEN",
-          message: "Tenant context is required"
+          code: "UNAUTHORIZED",
+          message: "Invalid token context"
         }
       });
   });

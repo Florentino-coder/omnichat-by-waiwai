@@ -484,10 +484,9 @@ model LineChannel {
   aiScenarios        AiScenario[]
   automationRules    AutomationRule[]
 
-  @@unique([tenantId, lineChannelId])
+  @@unique([lineChannelId])
   @@index([tenantId])
   @@index([workspaceId])
-  @@index([lineChannelId])
   @@map("line_channels")
 }
 
@@ -917,7 +916,7 @@ model CustomerChannel {
   channelType   String   @map("channel_type")
   channelUserId String   @map("channel_user_id")
 
-  @@unique([channelType, channelUserId])
+  @@unique([tenantId, channelType, channelUserId])
   @@index([tenantId])
   @@index([customerId])
   @@map("customer_channels")

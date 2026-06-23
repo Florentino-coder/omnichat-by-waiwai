@@ -221,7 +221,7 @@ export class AuthService {
       return tokens;
     }
 
-    const membership = this.getPrimaryMembership(user);
+    const membership = this.resolveMembershipFromSession(user, session);
     const tokens = await this.issueTokens(user, membership);
     await this.revokeRefreshToken(tokenHash);
     await this.refreshSessionService.delete(tokenHash, session.userId);
@@ -379,6 +379,28 @@ export class AuthService {
     }
 
     return membership;
+  }
+
+  private resolveMembershipFromSession(
+    user: Pick<User, "id"> & { memberships: ActiveMembership[] },
+    session: { tenantId?: string; workspaceId?: string; role?: ActiveMembership["role"] }
+  ): ActiveMembership {
+    if (session.tenantId && session.workspaceId) {
+      const membership = user.memberships.find(
+        (item) =>
+          item.isActive &&
+          item.tenantId === session.tenantId &&
+          item.workspaceId === session.workspaceId
+      );
+
+      if (!membership) {
+        throw new UnauthorizedException("Workspace membership is no longer active");
+      }
+
+      return membership;
+    }
+
+    return this.getPrimaryMembership(user);
   }
 
   private async issueTokens(

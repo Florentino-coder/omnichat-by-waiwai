@@ -11,6 +11,7 @@ type MockPrisma = {
     create: jest.Mock<Promise<unknown>, [unknown]>;
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
+    updateMany: jest.Mock<Promise<unknown>, [unknown]>;
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
   auditLog: {
@@ -26,6 +27,7 @@ const createPrisma = (): MockPrisma => ({
     create: jest.fn<Promise<unknown>, [unknown]>(),
     findUnique: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>(),
+    updateMany: jest.fn<Promise<unknown>, [unknown]>(),
     findMany: jest.fn<Promise<unknown>, [unknown]>()
   },
   auditLog: {
@@ -71,6 +73,7 @@ describe("LineBroadcastService", () => {
         encryptedChannelAccessToken: "encrypted-token"
       }
     });
+    prisma.broadcastJob.updateMany.mockResolvedValue({ count: 1 });
     prisma.broadcastJob.update.mockResolvedValue({ id: "job-1" });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
@@ -110,6 +113,16 @@ describe("LineBroadcastService", () => {
         })
       })
     );
+
+    // Verify atomic claim before send
+    expect(prisma.broadcastJob.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "job-1",
+        status: BroadcastStatus.PENDING,
+        deletedAt: null
+      },
+      data: { status: BroadcastStatus.PROCESSING }
+    });
 
     // Verify it updated job status to sent and logged the sent audit
     expect(prisma.broadcastJob.update).toHaveBeenCalledWith({
@@ -174,6 +187,23 @@ describe("LineBroadcastService", () => {
     });
 
     // Verify LINE API fetch was NOT called since it's scheduled for the future
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("skips broadcast execution when another worker already claimed the job", async () => {
+    const prisma = createPrisma();
+    prisma.broadcastJob.updateMany.mockResolvedValue({ count: 0 });
+
+    global.fetch = jest.fn();
+    const crypto = {
+      decrypt: jest.fn(),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+    await service.executeBroadcastJob("job-1");
+
+    expect(prisma.broadcastJob.findUnique).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
   });
 });

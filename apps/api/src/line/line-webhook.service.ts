@@ -67,13 +67,13 @@ export class LineWebhookService {
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
-    const channel = await this.prisma.lineChannel.findFirst({
-      where: {
-        lineChannelId,
-        deletedAt: null,
-        isActive: true
-      }
+    const channel = await this.prisma.lineChannel.findUnique({
+      where: { lineChannelId }
     });
+
+    if (channel && (channel.deletedAt !== null || !channel.isActive)) {
+      throw new NotFoundException("LINE channel not found");
+    }
 
     if (!channel) {
       throw new NotFoundException("LINE channel not found");
@@ -83,15 +83,11 @@ export class LineWebhookService {
   }
 
   async process(lineChannelId: string, payload: LineWebhookPayload, flowId?: string): Promise<void> {
-    const channel = await this.prisma.lineChannel.findFirst({
-      where: {
-        lineChannelId,
-        deletedAt: null,
-        isActive: true
-      }
+    const channel = await this.prisma.lineChannel.findUnique({
+      where: { lineChannelId }
     });
 
-    if (!channel) {
+    if (!channel || channel.deletedAt !== null || !channel.isActive) {
       throw new NotFoundException("LINE channel not found");
     }
 
@@ -709,7 +705,7 @@ export class LineWebhookService {
         return existingChannel.customerId;
       } else {
         // Customer was soft-deleted! We must delete the old CustomerChannel first
-        // to avoid unique constraint violations on @@unique([channelType, channelUserId])
+        // to avoid unique constraint violations on @@unique([tenantId, channelType, channelUserId])
         await this.prisma.customerChannel.delete({
           where: { id: existingChannel.id }
         });

@@ -119,20 +119,27 @@ export class LineBroadcastService {
   }
 
   async executeBroadcastJob(jobId: string): Promise<void> {
+    const claim = await this.prisma.broadcastJob.updateMany({
+      where: {
+        id: jobId,
+        status: BroadcastStatus.PENDING,
+        deletedAt: null
+      },
+      data: { status: BroadcastStatus.PROCESSING }
+    });
+
+    if (claim.count === 0) {
+      return;
+    }
+
     const job = await this.prisma.broadcastJob.findUnique({
       where: { id: jobId },
       include: { lineChannel: true }
     });
 
-    if (!job || job.status === BroadcastStatus.SENT || job.status === BroadcastStatus.PROCESSING) {
+    if (!job) {
       return;
     }
-
-    // Set status to PROCESSING to prevent concurrent execution
-    await this.prisma.broadcastJob.update({
-      where: { id: jobId },
-      data: { status: BroadcastStatus.PROCESSING }
-    });
 
     try {
       const token = this.cryptoSecret.decrypt(job.lineChannel.encryptedChannelAccessToken);

@@ -9,7 +9,7 @@ import { AutomationService } from "../automation/automation.service";
 
 type MockPrisma = {
   lineChannel: {
-    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
   };
   conversation: {
@@ -37,7 +37,7 @@ type MockPrisma = {
 
 const createPrisma = (): MockPrisma => ({
   lineChannel: {
-    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    findUnique: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
   },
   conversation: {
@@ -63,16 +63,22 @@ const createPrisma = (): MockPrisma => ({
   }
 });
 
+const activeLineChannel = (overrides: Record<string, unknown> = {}) => ({
+  id: "line-channel-1",
+  tenantId: "tenant-1",
+  workspaceId: "workspace-1",
+  lineChannelId: "line-channel-1",
+  deletedAt: null,
+  isActive: true,
+  encryptedChannelSecret: "encrypted-secret",
+  encryptedChannelAccessToken: "encrypted-token",
+  ...overrides
+});
+
 describe("LineWebhookService", () => {
   it("stores inbound LINE text messages inside tenant scope", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-1",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token"
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
     prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
     prisma.message.upsert.mockResolvedValue({ id: "message-1" });
     prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
@@ -149,13 +155,7 @@ describe("LineWebhookService", () => {
 
   it("reopens resolved conversations to open when a new inbound message arrives", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-1",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token"
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
     prisma.conversation.findUnique.mockResolvedValue({
       id: "conversation-1",
       displayName: "Customer",
@@ -213,13 +213,7 @@ describe("LineWebhookService", () => {
 
   it("broadcasts inbound messages to tenant SSE streams", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-1",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token"
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
     prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
     prisma.message.upsert.mockResolvedValue({ id: "message-1" });
     prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
@@ -274,13 +268,7 @@ describe("LineWebhookService", () => {
       value: fetchMock
     });
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-1",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token"
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
     prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
     prisma.message.upsert.mockResolvedValue({ id: "message-1" });
     prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
@@ -335,13 +323,9 @@ describe("LineWebhookService", () => {
 
   it("stores inbound LINE sticker messages so non-text chats still appear", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-2",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token"
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(
+      activeLineChannel({ id: "line-channel-2", lineChannelId: "1656471223" })
+    );
     prisma.conversation.upsert.mockResolvedValue({ id: "conversation-2" });
     prisma.message.upsert.mockResolvedValue({ id: "message-2" });
     prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-2" });
@@ -406,21 +390,23 @@ describe("LineWebhookService", () => {
 
   it("keeps the same LINE user in separate conversations for separate OA channels", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst
-      .mockResolvedValueOnce({
-        id: "line-channel-1",
-        tenantId: "tenant-1",
-        workspaceId: "workspace-1",
-        encryptedChannelSecret: "encrypted-secret-1",
-        encryptedChannelAccessToken: "encrypted-token-1"
-      })
-      .mockResolvedValueOnce({
-        id: "line-channel-2",
-        tenantId: "tenant-1",
-        workspaceId: "workspace-1",
-        encryptedChannelSecret: "encrypted-secret-2",
-        encryptedChannelAccessToken: "encrypted-token-2"
-      });
+    prisma.lineChannel.findUnique
+      .mockResolvedValueOnce(
+        activeLineChannel({
+          id: "line-channel-1",
+          lineChannelId: "2009897327",
+          encryptedChannelSecret: "encrypted-secret-1",
+          encryptedChannelAccessToken: "encrypted-token-1"
+        })
+      )
+      .mockResolvedValueOnce(
+        activeLineChannel({
+          id: "line-channel-2",
+          lineChannelId: "1656471223",
+          encryptedChannelSecret: "encrypted-secret-2",
+          encryptedChannelAccessToken: "encrypted-token-2"
+        })
+      );
     prisma.conversation.upsert
       .mockResolvedValueOnce({ id: "conversation-1" })
       .mockResolvedValueOnce({ id: "conversation-2" });
@@ -500,13 +486,7 @@ describe("LineWebhookService", () => {
 
   it("invokes AI auto-reply after automation dispatch for inbound text", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-1",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token"
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
     prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
     prisma.message.upsert.mockResolvedValue({ id: "message-1" });
     prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
@@ -565,14 +545,7 @@ describe("LineWebhookService", () => {
 
   it("triggers hybrid draft generation on skipped auto-reply if enabled", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-1",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token",
-      isActive: true
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
     prisma.conversation.findUnique.mockResolvedValue({
       id: "conversation-1",
       displayName: "John",
@@ -639,14 +612,7 @@ describe("LineWebhookService", () => {
 
   it("skips hybrid draft generation on low_confidence auto-reply skip outcome", async () => {
     const prisma = createPrisma();
-    prisma.lineChannel.findFirst.mockResolvedValue({
-      id: "line-channel-1",
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1",
-      encryptedChannelSecret: "encrypted-secret",
-      encryptedChannelAccessToken: "encrypted-token",
-      isActive: true
-    });
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
     prisma.conversation.findUnique.mockResolvedValue({
       id: "conversation-1",
       displayName: "John",

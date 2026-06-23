@@ -243,7 +243,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
     void fetch(`${apiBaseUrl}/api/v1/telemetry/client-trace`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: telemetryAuthHeaders(),
       body: JSON.stringify({ flowId, stage, timestamp })
     }).catch(() => {});
   }, []);
@@ -622,7 +622,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
           void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: telemetryAuthHeaders(),
             body: JSON.stringify({ flowId, timestamp: now })
           });
           pendingFlowIdRef.current = flowId;
@@ -714,7 +714,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
         void fetch(`${apiBaseUrl}/api/v1/monitor/ui-rendered`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: telemetryAuthHeaders(),
           body: JSON.stringify({
             flowId: pendingFlowId,
             duration,
@@ -1798,6 +1798,15 @@ function readCurrentUser(): AuthUser | null {
   } catch {
     return null;
   }
+}
+
+function telemetryAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const token = window.localStorage.getItem("omnichat.accessToken");
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
 }
 
 async function streamTenantEvents(

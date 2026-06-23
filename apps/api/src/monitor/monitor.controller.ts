@@ -8,9 +8,10 @@ export class MonitorController {
   constructor(private readonly monitorService: MonitorService) {}
 
   // ============================================================
-  // Telemetry Ingestion Endpoints (Public)
+  // Telemetry Ingestion Endpoints (Authenticated)
   // ============================================================
 
+  @UseGuards(JwtAuthGuard)
   @Post("monitor/browser-received")
   async browserReceived(
     @Body() payload: { flowId: string; timestamp: number }
@@ -22,6 +23,7 @@ export class MonitorController {
     return { success: true };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post("telemetry/client-trace")
   async clientTrace(
     @Body() payload: { flowId: string; stage: string; timestamp: number }
@@ -33,6 +35,7 @@ export class MonitorController {
     return { success: true };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post("monitor/ui-rendered")
   async uiRendered(
     @Body() payload: {

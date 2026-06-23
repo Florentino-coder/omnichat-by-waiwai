@@ -408,6 +408,69 @@ describe("AuthService", () => {
     expect(refreshSessions.delete).toHaveBeenCalledWith(hashToken("old-refresh-token"), "user-1");
   });
 
+  it("reissues tokens using the refresh session tenant context instead of primary membership", async () => {
+    const prisma = createPrisma();
+    const refreshSessions = createRefreshSessions();
+    const secondaryMembership = {
+      tenantId: "tenant-2",
+      workspaceId: "workspace-2",
+      role: Role.AGENT,
+      isActive: true
+    };
+    refreshSessions.get.mockResolvedValue({
+      userId: "user-1",
+      tenantId: "tenant-2",
+      workspaceId: "workspace-2",
+      role: Role.AGENT,
+      expiresAt: new Date(Date.now() + 60_000).toISOString()
+    });
+    prisma.refreshToken.findUnique.mockResolvedValue({
+      userId: "user-1",
+      tokenHash: hashToken("session-refresh-token"),
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: await createLoginUser({
+        memberships: [activeMembership, secondaryMembership]
+      })
+    });
+    prisma.refreshToken.create.mockResolvedValue({ id: "new-token" });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+
+    await createService(prisma, refreshSessions).refresh("session-refresh-token");
+
+    expect(refreshSessions.store).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        tenantId: "tenant-2",
+        workspaceId: "workspace-2",
+        role: Role.AGENT
+      })
+    );
+  });
+
+  it("rejects refresh when the session tenant membership is no longer active", async () => {
+    const prisma = createPrisma();
+    const refreshSessions = createRefreshSessions();
+    refreshSessions.get.mockResolvedValue({
+      userId: "user-1",
+      tenantId: "tenant-2",
+      workspaceId: "workspace-2",
+      role: Role.AGENT,
+      expiresAt: new Date(Date.now() + 60_000).toISOString()
+    });
+    prisma.refreshToken.findUnique.mockResolvedValue({
+      userId: "user-1",
+      tokenHash: hashToken("session-refresh-token"),
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: await createLoginUser()
+    });
+
+    await expect(
+      createService(prisma, refreshSessions).refresh("session-refresh-token")
+    ).rejects.toThrow("Workspace membership is no longer active");
+  });
+
   it("refreshes tokens for 2FA-enabled users without requiring a TOTP code", async () => {
     const prisma = createPrisma();
     const refreshSessions = createRefreshSessions();
