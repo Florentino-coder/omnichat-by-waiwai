@@ -6,6 +6,10 @@ jest.mock("../app/lib/language-context", () => ({
   LanguageProvider: ({ children }: any) => <>{children}</>
 }));
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() })
+}));
+
 describe("TeamSettingsPage", () => {
   beforeEach(() => {
     window.localStorage.clear();

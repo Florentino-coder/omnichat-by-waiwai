@@ -4,6 +4,7 @@ import { BookOpen, ChartNoAxesColumn, Inbox, Settings, Users, Megaphone } from "
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { UserMenu } from "./user-menu";
+import { clearAuthSessionCookies } from "../lib/session-cookies";
 import { LanguageProvider, useLanguage } from "../lib/language-context";
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -39,8 +40,9 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     { label: locale === "th" ? "ตั้งค่า" : "Settings", icon: Settings, disabled: false, href: "/app/settings", roles: ["OWNER", "ADMIN", "AGENT", "QC"] }
   ];
 
-  const currentRole = role || "OWNER";
-  const filteredNavItems = navItems.filter((item) => item.roles.includes(currentRole));
+  const filteredNavItems = role
+    ? navItems.filter((item) => item.roles.includes(role))
+    : navItems.filter((item) => item.href === "/app/inbox" || item.href === "/app/settings");
 
 
   useEffect(() => {
@@ -57,10 +59,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       window.localStorage.removeItem("omnichat.accessToken");
       window.localStorage.removeItem("omnichat.refreshToken");
       window.localStorage.removeItem("omnichat.user");
-
-      document.cookie = "omnichat.accessToken=; path=/; max-age=0";
-      document.cookie = "omnichat.tenantId=; path=/; max-age=0";
-      document.cookie = "omnichat.workspaceId=; path=/; max-age=0";
+      clearAuthSessionCookies();
 
       window.location.href = "/login";
     }

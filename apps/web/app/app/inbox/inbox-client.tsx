@@ -10,7 +10,12 @@ import {
 } from "../../../components/inbox/ConversationList";
 import { CustomerPanel } from "../../../components/inbox/CustomerPanel";
 import { BottomNav, type MobileInboxTab } from "../../../components/inbox/mobile/BottomNav";
-import { apiFetch } from "../../lib/api-client";
+import {
+  apiFetch,
+  authorizedFetch,
+  getAccessToken,
+  handleLogoutRedirect
+} from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 import { ReplyComposer } from "./reply-composer";
@@ -659,13 +664,14 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           }
         }
       })
-        .then(() => {
-          if (!abortController.signal.aborted) {
-            const discTime = Date.now();
-            console.log(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
-            console.log(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
-            reconnectTimeoutId = window.setTimeout(startStream, 1000);
+        .then((result) => {
+          if (result === "auth_failed" || abortController.signal.aborted) {
+            return;
           }
+          const discTime = Date.now();
+          console.log(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
+          console.log(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
+          reconnectTimeoutId = window.setTimeout(startStream, 1000);
         })
         .catch(() => {
           if (!abortController.signal.aborted) {
@@ -1802,29 +1808,43 @@ function readCurrentUser(): AuthUser | null {
 
 function telemetryAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const token = window.localStorage.getItem("omnichat.accessToken");
+  const token = getAccessToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
   return headers;
 }
 
+type StreamTenantEventsResult = "completed" | "auth_failed" | "aborted";
+
 async function streamTenantEvents(
   tenantId: string,
   signal: AbortSignal,
   onEvent: (event: TenantRealtimeEvent) => void
-): Promise<void> {
+): Promise<StreamTenantEventsResult> {
+  if (signal.aborted) {
+    return "aborted";
+  }
+
   try {
-    const token = window.localStorage.getItem("omnichat.accessToken");
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-    const response = await fetch(`${apiBaseUrl}/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      signal
-    });
+    const streamUrl = `${apiBaseUrl}/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`;
+    const response = await authorizedFetch(streamUrl, { signal });
+
+    if (signal.aborted) {
+      return "aborted";
+    }
+
+    if (response.status === 401) {
+      handleLogoutRedirect();
+      return "auth_failed";
+    }
+
     const reader = response.body?.getReader();
     if (!response.ok || !reader) {
-      return;
+      return "completed";
     }
+
     console.log("[TRACE] SSE_OPEN", Date.now());
 
     const decoder = new TextDecoder();
@@ -1858,10 +1878,12 @@ async function streamTenantEvents(
       }
     }
     reader.releaseLock();
+    return signal.aborted ? "aborted" : "completed";
   } catch {
     if (!signal.aborted) {
       // Polling remains as fallback when the realtime stream is unavailable.
     }
+    return signal.aborted ? "aborted" : "completed";
   }
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Save, KeyRound } from "lucide-react";
 import { Button, Input, Label, Card } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
+import { clearAuthSessionCookies } from "../../lib/session-cookies";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 
@@ -149,10 +150,7 @@ export function ProfileEditor({ active }: { active: boolean }) {
         window.localStorage.removeItem("omnichat.accessToken");
         window.localStorage.removeItem("omnichat.refreshToken");
         window.localStorage.removeItem("omnichat.user");
-
-        document.cookie = "omnichat.accessToken=; path=/; max-age=0";
-        document.cookie = "omnichat.tenantId=; path=/; max-age=0";
-        document.cookie = "omnichat.workspaceId=; path=/; max-age=0";
+        clearAuthSessionCookies();
 
         window.location.href = "/login";
       }, 2000);

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@omnichat/ui";
 import { useLanguage } from "../lib/language-context";
 import { getMessages } from "../lib/i18n";
+import { clearAuthSessionCookies } from "../lib/session-cookies";
 
 type UserData = {
   displayName?: string;
@@ -38,10 +39,7 @@ export function UserMenu() {
     window.localStorage.removeItem("omnichat.accessToken");
     window.localStorage.removeItem("omnichat.refreshToken");
     window.localStorage.removeItem("omnichat.user");
-
-    document.cookie = "omnichat.accessToken=; path=/; max-age=0";
-    document.cookie = "omnichat.tenantId=; path=/; max-age=0";
-    document.cookie = "omnichat.workspaceId=; path=/; max-age=0";
+    clearAuthSessionCookies();
 
     window.location.href = "/login";
   }

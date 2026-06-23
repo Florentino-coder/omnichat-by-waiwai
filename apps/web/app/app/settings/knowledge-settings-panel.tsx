@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BookOpen, FileText } from "lucide-react";
 import { useLanguage } from "../../lib/language-context";
@@ -10,11 +10,11 @@ import { KnowledgeDocumentManager } from "./knowledge-document-manager";
 
 type KnowledgeTab = "articles" | "documents";
 
-export function KnowledgeSettingsPanel() {
+function KnowledgeSettingsPanelContent() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
   const searchParams = useSearchParams();
-  const subParam = searchParams.get("sub") || searchParams.get("section");
+  const subParam = searchParams?.get("sub") ?? searchParams?.get("section");
   const [activeTab, setActiveTab] = useState<KnowledgeTab>("articles");
 
   useEffect(() => {
@@ -56,5 +56,17 @@ export function KnowledgeSettingsPanel() {
 
       {activeTab === "articles" ? <KnowledgeManager /> : <KnowledgeDocumentManager />}
     </div>
+  );
+}
+
+export function KnowledgeSettingsPanel() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-8 text-center text-sm text-[#767A8C]">Loading knowledge settings...</div>
+      }
+    >
+      <KnowledgeSettingsPanelContent />
+    </Suspense>
   );
 }

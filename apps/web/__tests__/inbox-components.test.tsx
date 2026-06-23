@@ -4,6 +4,15 @@ import { ConversationCard } from "../components/inbox/ConversationList";
 import { CustomerPanel } from "../components/inbox/CustomerPanel";
 import { BottomNav } from "../components/inbox/mobile/BottomNav";
 import { STATUS_CONFIG } from "../components/inbox/status-config";
+import { LanguageProvider } from "../app/lib/language-context";
+
+jest.mock("../app/lib/language-context", () => {
+  const actual = jest.requireActual("../app/lib/language-context");
+  return {
+    ...actual,
+    useLanguage: () => ({ locale: "th", setLocale: () => {} })
+  };
+});
 
 describe("Inbox components", () => {
   it("exposes the Stage 2 status helper values", () => {
@@ -76,10 +85,10 @@ describe("Inbox components", () => {
     const onChange = jest.fn();
 
     render(
-      <>
+      <LanguageProvider>
         <CustomerPanel customerName="Somchai" customerInitial="S" lineLabel="JB-SV" />
         <BottomNav activeTab="chats" onChange={onChange} />
-      </>
+      </LanguageProvider>
     );
 
     expect(screen.getAllByText("Somchai").length).toBeGreaterThan(0);

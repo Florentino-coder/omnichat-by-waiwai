@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { loginSchema } from "../../../lib/schemas/auth";
+import { setAuthSessionCookies } from "../../lib/session-cookies";
 
 interface LoginSuccess {
   success: true;
@@ -71,7 +72,7 @@ export function LoginForm() {
       window.localStorage.setItem(SESSION_KEYS.accessToken, login.data.tokens.accessToken);
       window.localStorage.setItem(SESSION_KEYS.refreshToken, login.data.tokens.refreshToken);
       window.localStorage.setItem(SESSION_KEYS.user, JSON.stringify(login.data.user));
-      document.cookie = `omnichat.accessToken=${encodeURIComponent(login.data.tokens.accessToken)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
+      setAuthSessionCookies({ isSuperOwner: Boolean(login.data.user.isSuperOwner) });
       if (login.data.user.isSuperOwner) {
         router.push("/super-admin");
       } else {

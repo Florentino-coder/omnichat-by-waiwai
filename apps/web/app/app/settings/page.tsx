@@ -15,8 +15,12 @@ import { AiSettings } from "./ai-settings";
 import { AiCurationManager } from "./ai-curation-manager";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
+import {
+  resolveSettingsTab,
+  type SettingsTab
+} from "../../lib/settings-rbac";
 
-type SettingsTab = "channels" | "replies" | "knowledge" | "scenarios" | "automation" | "team" | "profile" | "ai" | "ai-curation";
+type SettingsTabId = SettingsTab;
 
 function tabButtonClass(active: boolean): string {
   return `flex items-center justify-center gap-2 rounded-lg py-2.5 px-4 text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap ${
@@ -58,38 +62,22 @@ function SettingsContent() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
   const [role, setRole] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<SettingsTab>("replies");
+  const [activeTab, setActiveTab] = useState<SettingsTabId>("profile");
   const searchParams = useSearchParams();
 
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem("omnichat.user");
-      let userRole = "OWNER";
+      let userRole: string | null = null;
       if (stored) {
         const parsed = JSON.parse(stored);
-        userRole = parsed.role ?? "AGENT";
+        userRole = parsed.role ?? null;
       }
       setRole(userRole);
-
-      const tabParam = searchParams.get("tab") as SettingsTab | null;
-      if (tabParam && ["channels", "replies", "knowledge", "scenarios", "automation", "team", "profile", "ai", "ai-curation"].includes(tabParam)) {
-        if (tabParam === "knowledge" && userRole === "VIEWER") {
-          setActiveTab("profile");
-        } else {
-          setActiveTab(tabParam);
-        }
-      } else {
-        if (userRole === "OWNER" || userRole === "ADMIN") {
-          setActiveTab("channels");
-        } else if (userRole === "QC" || userRole === "VIEWER") {
-          setActiveTab("profile");
-        } else {
-          setActiveTab("replies");
-        }
-      }
+      setActiveTab(resolveSettingsTab(searchParams.get("tab"), userRole));
     } catch {
-      setRole("OWNER");
-      setActiveTab("channels");
+      setRole(null);
+      setActiveTab("profile");
     }
   }, [searchParams]);
 

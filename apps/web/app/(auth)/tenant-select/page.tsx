@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
+import { setAuthSessionCookies } from "../../lib/session-cookies";
 
 type TenantMembership = {
   membershipId: string;
@@ -99,9 +100,10 @@ export default function TenantSelectPage() {
       window.localStorage.setItem(SESSION_KEYS.accessToken, nextSession.tokens.accessToken);
       window.localStorage.setItem(SESSION_KEYS.refreshToken, nextSession.tokens.refreshToken);
       window.localStorage.setItem(SESSION_KEYS.user, JSON.stringify(nextSession.user));
-      document.cookie = `omnichat.accessToken=${encodeURIComponent(nextSession.tokens.accessToken)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
-      document.cookie = `omnichat.tenantId=${encodeURIComponent(nextSession.user.tenantId)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
-      document.cookie = `omnichat.workspaceId=${encodeURIComponent(nextSession.user.workspaceId)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
+      setAuthSessionCookies({
+        tenantId: nextSession.user.tenantId,
+        workspaceId: nextSession.user.workspaceId
+      });
       router.push("/app/inbox");
     } catch (switchError) {
       setError(switchError instanceof Error ? switchError.message : "Could not switch tenant.");

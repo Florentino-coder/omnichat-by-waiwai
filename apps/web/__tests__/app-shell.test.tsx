@@ -8,6 +8,11 @@ jest.mock("../app/lib/language-context", () => ({
   LanguageProvider: ({ children }: any) => <>{children}</>
 }));
 
+jest.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() })
+}));
+
 describe("App shell", () => {
   let mockWorkspaces: any[] = [];
   let mockLineChannels: any[] = [];
@@ -21,6 +26,7 @@ describe("App shell", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.localStorage.setItem("omnichat.accessToken", "access-token");
+    window.localStorage.setItem("omnichat.user", JSON.stringify({ role: "OWNER" }));
     window.localStorage.setItem("chatwai.locale", "en");
 
     mockWorkspaces = [{ id: "workspace-1", name: "Default Workspace", isDefault: true }];
@@ -180,11 +186,18 @@ describe("App shell", () => {
       "/app/settings"
     );
 
-    for (const label of ["Customers", "Reports", "Knowledge"]) {
-      const button = within(nav).getByRole("button", { name: label });
-      expect(button).toBeInTheDocument();
-      expect(button).toBeDisabled();
-    }
+    const customersButton = within(nav).getByRole("button", { name: "Customers" });
+    expect(customersButton).toBeInTheDocument();
+    expect(customersButton).toBeDisabled();
+
+    expect(within(nav).getByRole("link", { name: "Reports" })).toHaveAttribute(
+      "href",
+      "/app/reports"
+    );
+    expect(within(nav).getByRole("link", { name: "Knowledge" })).toHaveAttribute(
+      "href",
+      "/app/settings?tab=knowledge&sub=documents"
+    );
 
     expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
     expect(await screen.findByText("No LINE channel connected yet.")).toBeInTheDocument();

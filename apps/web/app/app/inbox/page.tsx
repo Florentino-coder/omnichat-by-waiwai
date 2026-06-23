@@ -64,7 +64,7 @@ export default async function InboxPage() {
 
 async function loadInitialConversations(): Promise<InboxConversation[]> {
   const token = await readAccessTokenCookie();
-  if (!token || token === "1") {
+  if (!token) {
     return [];
   }
 
@@ -94,6 +94,10 @@ async function loadInitialConversations(): Promise<InboxConversation[]> {
 async function readAccessTokenCookie(): Promise<string | null> {
   try {
     const store = await cookies();
+    const session = store.get("omnichat.session")?.value;
+    if (session === "1") {
+      return null;
+    }
     return store.get("omnichat.accessToken")?.value ?? null;
   } catch {
     return null;

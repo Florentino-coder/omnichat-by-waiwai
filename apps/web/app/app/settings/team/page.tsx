@@ -1,6 +1,7 @@
 "use client";
 
 import { MailPlus, Shield, Trash2, UserCog, Copy } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../../lib/api-client";
@@ -43,6 +44,7 @@ type AuthUser = {
 const roles: Role[] = ["OWNER", "ADMIN", "AGENT", "QC", "VIEWER"];
 
 export default function TeamSettingsPage() {
+  const router = useRouter();
   const { locale } = useLanguage();
   const t = getMessages(locale);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -57,8 +59,18 @@ export default function TeamSettingsPage() {
 
   const currentUser = useMemo(readCurrentUser, []);
   const canInviteOwner = currentUser.role === "OWNER";
+  const canManageTeam = currentUser.role === "OWNER" || currentUser.role === "ADMIN";
 
   useEffect(() => {
+    if (!canManageTeam) {
+      router.replace("/app/settings");
+    }
+  }, [canManageTeam, router]);
+
+  useEffect(() => {
+    if (!canManageTeam) {
+      return;
+    }
     let active = true;
     async function loadInitial(): Promise<void> {
       setError(null);

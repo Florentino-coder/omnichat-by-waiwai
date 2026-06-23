@@ -4,29 +4,53 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import AdminMonitor from "../../../../components/monitor/admin-monitor";
+import { verifySuperOwnerAccess } from "../../../lib/super-owner-access";
 
 export default function AdminMonitorPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const userStr = window.localStorage.getItem("omnichat.user");
-    if (!userStr) {
-      router.replace("/login");
-      return;
-    }
-    try {
-      const user = JSON.parse(userStr);
-      if (user.isSuperOwner === true) {
-        setIsAuthorized(true);
-      } else {
-        setIsAuthorized(false);
-        // Redirect non-superowners back to the standard inbox
-        router.replace("/app/inbox");
+    let active = true;
+
+    async function verifyAccess(): Promise<void> {
+      const userStr = window.localStorage.getItem("omnichat.user");
+      if (!userStr) {
+        router.replace("/login");
+        return;
       }
-    } catch {
-      router.replace("/login");
+
+      try {
+        const user = JSON.parse(userStr) as { isSuperOwner?: boolean };
+        if (user.isSuperOwner !== true) {
+          if (active) {
+            setIsAuthorized(false);
+          }
+          router.replace("/app/inbox");
+          return;
+        }
+      } catch {
+        router.replace("/login");
+        return;
+      }
+
+      const allowed = await verifySuperOwnerAccess();
+      if (!active) {
+        return;
+      }
+      if (!allowed) {
+        setIsAuthorized(false);
+        router.replace("/app/inbox");
+        return;
+      }
+      setIsAuthorized(true);
     }
+
+    void verifyAccess();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   if (isAuthorized === null) {

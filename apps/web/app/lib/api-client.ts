@@ -1,5 +1,7 @@
 "use client";
 
+import { clearAuthSessionCookies, setAuthSessionCookies } from "./session-cookies";
+
 type ApiEnvelope<T> =
   | {
       success: true;
@@ -18,9 +20,90 @@ type ApiOptions = Omit<RequestInit, "headers"> & {
 };
 
 const ACCESS_TOKEN_KEY = "omnichat.accessToken";
+const REFRESH_TOKEN_KEY = "omnichat.refreshToken";
+
+export function getAccessToken(): string | null {
+  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = window.localStorage.getItem(REFRESH_TOKEN_KEY);
+  if (!refreshToken) {
+    return null;
+  }
+
+  try {
+    const refreshResponse = await fetch("/api/v1/auth/refresh", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken })
+    });
+
+    if (!refreshResponse.ok) {
+      return null;
+    }
+
+    const envelope = (await refreshResponse.json().catch(() => null)) as {
+      success: boolean;
+      data?: { accessToken: string; refreshToken: string };
+    } | null;
+
+    if (!envelope?.success || !envelope.data) {
+      return null;
+    }
+
+    window.localStorage.setItem(ACCESS_TOKEN_KEY, envelope.data.accessToken);
+    window.localStorage.setItem(REFRESH_TOKEN_KEY, envelope.data.refreshToken);
+    setAuthSessionCookies();
+    return envelope.data.accessToken;
+  } catch {
+    return null;
+  }
+}
+
+export async function authorizedFetch(path: string, options: ApiOptions = {}): Promise<Response> {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {
+    ...(options.headers ?? {})
+  };
+
+  let response = await fetch(path, {
+    ...options,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers
+    }
+  });
+
+  if (
+    response.status === 401 &&
+    path !== "/api/v1/auth/refresh" &&
+    path !== "/api/v1/auth/login"
+  ) {
+    const nextToken = await refreshAccessToken();
+    if (!nextToken) {
+      handleLogoutRedirect();
+      return response;
+    }
+
+    response = await fetch(path, {
+      ...options,
+      headers: {
+        Authorization: `Bearer ${nextToken}`,
+        ...headers
+      }
+    });
+
+    if (response.status === 401) {
+      handleLogoutRedirect();
+    }
+  }
+
+  return response;
+}
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const token = window.localStorage.getItem(ACCESS_TOKEN_KEY);
+  const token = getAccessToken();
   const headers: Record<string, string> = {
     ...(options.headers ?? {})
   };
@@ -57,43 +140,15 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     path !== "/api/v1/auth/refresh" &&
     path !== "/api/v1/auth/login"
   ) {
-    const refreshToken = window.localStorage.getItem("omnichat.refreshToken");
-    if (refreshToken) {
-      try {
-        const refreshResponse = await fetch("/api/v1/auth/refresh", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken })
-        });
-        if (refreshResponse.ok) {
-          const envelope = (await refreshResponse.json().catch(() => null)) as {
-            success: boolean;
-            data?: { accessToken: string; refreshToken: string };
-          } | null;
-
-          if (envelope && envelope.success && envelope.data) {
-            const tokens = envelope.data;
-            window.localStorage.setItem("omnichat.accessToken", tokens.accessToken);
-            window.localStorage.setItem("omnichat.refreshToken", tokens.refreshToken);
-            document.cookie = `omnichat.accessToken=${encodeURIComponent(tokens.accessToken)}; path=/; max-age=${15 * 60}; SameSite=Lax`;
-
-            // Retry the original request
-            response = await fetch(path, {
-              ...options,
-              headers: {
-                ...(tokens.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {}),
-                ...options.headers
-              }
-            });
-          } else {
-            handleLogoutRedirect();
-          }
-        } else {
-          handleLogoutRedirect();
+    const nextToken = await refreshAccessToken();
+    if (nextToken) {
+      response = await fetch(path, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${nextToken}`,
+          ...options.headers
         }
-      } catch {
-        handleLogoutRedirect();
-      }
+      });
     } else {
       handleLogoutRedirect();
     }
@@ -115,13 +170,11 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
   return body as T;
 }
 
-function handleLogoutRedirect() {
-  window.localStorage.removeItem("omnichat.accessToken");
-  window.localStorage.removeItem("omnichat.refreshToken");
+export function handleLogoutRedirect(): void {
+  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
   window.localStorage.removeItem("omnichat.user");
-  document.cookie = "omnichat.accessToken=; path=/; max-age=0";
-  document.cookie = "omnichat.tenantId=; path=/; max-age=0";
-  document.cookie = "omnichat.workspaceId=; path=/; max-age=0";
+  clearAuthSessionCookies();
   window.location.href = "/login";
 }
 

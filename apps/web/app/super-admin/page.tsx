@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Building2, Plus, Users, LogOut, ArrowRight, ShieldCheck, RefreshCw, Activity, Brain } from "lucide-react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../lib/api-client";
+import { clearAuthSessionCookies } from "../lib/session-cookies";
+import { verifySuperOwnerAccess } from "../lib/super-owner-access";
 
 interface TenantInfo {
   id: string;
@@ -33,21 +35,42 @@ export default function SuperAdminPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const userStr = window.localStorage.getItem("omnichat.user");
-    if (!userStr) {
-      router.push("/login");
-      return;
-    }
-    try {
-      const user = JSON.parse(userStr);
-      if (!user.isSuperOwner) {
+    let active = true;
+
+    async function verifyAccess(): Promise<void> {
+      const userStr = window.localStorage.getItem("omnichat.user");
+      if (!userStr) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        const user = JSON.parse(userStr) as { isSuperOwner?: boolean };
+        if (!user.isSuperOwner) {
+          router.push("/login");
+          return;
+        }
+      } catch {
+        router.push("/login");
+        return;
+      }
+
+      const allowed = await verifySuperOwnerAccess();
+      if (!active) {
+        return;
+      }
+      if (!allowed) {
         router.push("/login");
         return;
       }
       setIsAuthenticated(true);
-    } catch {
-      router.push("/login");
     }
+
+    void verifyAccess();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   const loadTenants = async () => {
@@ -73,9 +96,7 @@ export default function SuperAdminPage() {
     window.localStorage.removeItem("omnichat.accessToken");
     window.localStorage.removeItem("omnichat.refreshToken");
     window.localStorage.removeItem("omnichat.user");
-    document.cookie = "omnichat.accessToken=; path=/; max-age=0";
-    document.cookie = "omnichat.tenantId=; path=/; max-age=0";
-    document.cookie = "omnichat.workspaceId=; path=/; max-age=0";
+    clearAuthSessionCookies();
     router.push("/login");
   };
 
