@@ -1,4 +1,16 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  UnauthorizedException,
+  UseGuards
+} from "@nestjs/common";
+import type { Request } from "express";
+import { readRefreshTokenFromCookieHeader } from "./auth-cookie.util";
 import { TenantCtx } from "./decorators/tenant-context.decorator";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
@@ -11,6 +23,7 @@ import { TenantGuard } from "./guards/tenant.guard";
 import {
   AuthResponse,
   AuthTokens,
+  AuthUserResponse,
   JwtTenantPayload,
   TenantMembershipResponse
 } from "./types/auth.types";
@@ -27,14 +40,30 @@ export class AuthController {
 
   @Post("refresh")
   @HttpCode(HttpStatus.OK)
-  refresh(@Body() dto: RefreshTokenDto): Promise<AuthTokens> {
-    return this.authService.refresh(dto.refreshToken);
+  refresh(@Body() dto: RefreshTokenDto, @Req() req: Request): Promise<AuthTokens> {
+    const refreshToken =
+      dto.refreshToken ?? readRefreshTokenFromCookieHeader(req.headers.cookie);
+    if (!refreshToken) {
+      throw new UnauthorizedException("Missing refresh token");
+    }
+    return this.authService.refresh(refreshToken);
   }
 
   @Post("logout")
   @HttpCode(HttpStatus.NO_CONTENT)
-  async logout(@Body() dto: RefreshTokenDto): Promise<void> {
-    await this.authService.logout(dto.refreshToken);
+  async logout(@Body() dto: RefreshTokenDto, @Req() req: Request): Promise<void> {
+    const refreshToken =
+      dto.refreshToken ?? readRefreshTokenFromCookieHeader(req.headers.cookie);
+    if (!refreshToken) {
+      return;
+    }
+    await this.authService.logout(refreshToken);
+  }
+
+  @Get("me")
+  @UseGuards(JwtAuthGuard)
+  getMe(@TenantCtx() ctx: JwtTenantPayload): Promise<AuthUserResponse> {
+    return this.authService.getMe(ctx);
   }
 
   @Get("memberships")

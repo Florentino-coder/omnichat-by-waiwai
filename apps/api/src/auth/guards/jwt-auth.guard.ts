@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../prisma/prisma.service";
+import { readAccessTokenFromCookieHeader } from "../auth-cookie.util";
 import { JwtTenantPayload, RequestWithUser } from "../types/auth.types";
 
 @Injectable()
@@ -14,8 +15,7 @@ export class JwtAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser & { headers: Record<string, string | undefined> }>();
-    const authHeader = request.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
+    const token = this.extractAccessToken(request.headers);
 
     if (!token) {
       throw new UnauthorizedException("Missing bearer token");
@@ -71,6 +71,14 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = payload;
     return true;
+  }
+
+  private extractAccessToken(headers: Record<string, string | undefined>): string | undefined {
+    const authHeader = headers.authorization;
+    if (authHeader?.startsWith("Bearer ")) {
+      return authHeader.slice(7);
+    }
+    return readAccessTokenFromCookieHeader(headers.cookie);
   }
 
   private getJwtSecret(): string {

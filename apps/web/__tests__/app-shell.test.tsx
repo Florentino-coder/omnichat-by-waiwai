@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { authFetchOptions } from "./auth-fetch-expect";
 import AppLayout from "../app/app/layout";
 import SettingsPage from "../app/app/settings/page";
 import { LanguageProvider } from "../app/lib/language-context";
@@ -11,6 +12,19 @@ jest.mock("../app/lib/language-context", () => ({
 jest.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() })
+}));
+
+jest.mock("../app/lib/use-auth-session", () => ({
+  useAuthSession: () => ({
+    user: {
+      id: "user-1",
+      email: "owner@omnichat.local",
+      displayName: "Owner",
+      role: "OWNER"
+    },
+    isLoading: false,
+    error: null
+  })
 }));
 
 describe("App shell", () => {
@@ -55,6 +69,36 @@ describe("App shell", () => {
 
     fetchMock = jest.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       const method = init?.method?.toUpperCase() ?? "GET";
+
+      if (url.includes("/api/v1/auth/me")) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              id: "user-1",
+              email: "owner@omnichat.local",
+              displayName: "Owner",
+              role: "OWNER"
+            }
+          })
+        };
+      }
+
+      if (url.includes("/api/v1/users/me")) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              id: "user-1",
+              email: "owner@omnichat.local",
+              displayName: "Owner",
+              role: "OWNER"
+            }
+          })
+        };
+      }
 
       if (url.includes("/api/v1/workspaces")) {
         return {
@@ -186,7 +230,7 @@ describe("App shell", () => {
       "/app/settings"
     );
 
-    const customersButton = within(nav).getByRole("button", { name: "Customers" });
+    const customersButton = await within(nav).findByRole("button", { name: "Customers" });
     expect(customersButton).toBeInTheDocument();
     expect(customersButton).toBeDisabled();
 
@@ -230,7 +274,7 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add LINE OA channel" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/channels", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/channels", authFetchOptions({
         body: JSON.stringify({
           channelAccessToken: "line-access-token-value",
           channelSecret: "line-secret-value",
@@ -239,16 +283,11 @@ describe("App shell", () => {
           name: "Main LINE OA",
           workspaceId: "workspace-1"
         }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/workspaces", {
-      headers: { Authorization: "Bearer access-token" }
-    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/workspaces", authFetchOptions());
     expect(await screen.findByText("LINE channel saved. Webhook ready for production test.")).toBeInTheDocument();
     expect(
       await screen.findByText(`${window.location.origin}/api/v1/line/webhook/1234567890`)
@@ -291,7 +330,7 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add LINE OA channel" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/channels", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/channels", authFetchOptions({
         body: JSON.stringify({
           channelAccessToken: "line-access-token-two",
           channelSecret: "line-secret-two",
@@ -300,12 +339,9 @@ describe("App shell", () => {
           name: "Line OA 2",
           workspaceId: "workspace-1"
         }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
     expect(await screen.findByText("2 connected")).toBeInTheDocument();
     expect(nameInput).toHaveValue("");
@@ -352,28 +388,24 @@ describe("App shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Quick Reply" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/saved-replies", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/saved-replies", authFetchOptions({
         body: JSON.stringify({
           lineChannelId: "line-channel-1",
           title: "Price",
           body: "Price details"
         }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
     expect(await screen.findByText("Line OA 1 : Quick Reply Price")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete Quick Reply Greeting" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/saved-replies/reply-1", {
-        headers: { Authorization: "Bearer access-token" },
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/saved-replies/reply-1", authFetchOptions({
         method: "DELETE"
-      });
+      }));
     });
   });
 });

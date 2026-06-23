@@ -1,10 +1,28 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { authFetchOptions, withAuthMeHandler } from "./auth-fetch-expect";
 import InboxPage from "../app/app/inbox/page";
 import InboxClient, {
   formatConversationPreview,
   messageSummary
 } from "../app/app/inbox/inbox-client";
 import { getMessages } from "../app/lib/i18n";
+
+function installFetchMock(impl: jest.Mock): jest.Mock {
+  const fetchMock = withAuthMeHandler(impl);
+  Object.defineProperty(globalThis, "fetch", {
+    configurable: true,
+    value: fetchMock
+  });
+  return fetchMock;
+}
+
+jest.mock("../app/lib/auth-cookies.server", () => ({
+  readAccessTokenFromCookies: jest.fn().mockResolvedValue("access-token")
+}));
+
+jest.mock("../app/lib/api-proxy.server", () => ({
+  readApiBaseUrl: jest.fn().mockReturnValue("")
+}));
 
 jest.mock("../app/lib/language-context", () => ({
   useLanguage: () => ({ locale: "th", setLocale: () => {} }),
@@ -63,7 +81,7 @@ describe("InboxPage", () => {
   });
 
   it("loads tenant conversations and messages from the inbox API", async () => {
-    const fetchMock = jest.fn((url: string) => {
+    const fetchMock = installFetchMock(jest.fn((url: string) => {
       if (url.includes("/api/v1/inbox/conversations/conversation-1/messages")) {
         return Promise.resolve({
           ok: true,
@@ -123,11 +141,7 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -143,14 +157,10 @@ describe("InboxPage", () => {
       expect(screen.getAllByText("สวัสดีครับ").length).toBeGreaterThanOrEqual(1);
     });
     expect(screen.queryByText("Messages from LINE will render here after API binding.")).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations?limit=10&offset=0", {
-      headers: { Authorization: "Bearer access-token" }
-    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations?limit=10&offset=0", authFetchOptions());
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/inbox/conversations/conversation-1/messages"),
-      expect.objectContaining({
-        headers: { Authorization: "Bearer access-token" }
-      })
+      expect.objectContaining(authFetchOptions())
     );
     expect(screen.getByText("ข้อมูลลูกค้า")).toBeInTheDocument();
     expect(screen.getAllByText("Main LINE").length).toBeGreaterThan(0);
@@ -166,7 +176,7 @@ describe("InboxPage", () => {
   it("refreshes the inbox so newly received LINE conversations appear", async () => {
     jest.useFakeTimers();
     let callsCount = 0;
-    const fetchMock = jest.fn((url: string) => {
+    installFetchMock(jest.fn((url: string) => {
       if (url.includes("/api/v1/inbox/conversations/conversation-2/messages")) {
         return Promise.resolve({
           ok: true,
@@ -217,11 +227,7 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -243,7 +249,7 @@ describe("InboxPage", () => {
   it("refreshes the selected message thread without a browser reload", async () => {
     jest.useFakeTimers();
     let messageFetchCount = 0;
-    const fetchMock = jest.fn((url: string) => {
+    installFetchMock(jest.fn((url: string) => {
       if (url.includes("/api/v1/inbox/conversations/conversation-1/messages")) {
         messageFetchCount++;
         const data = messageFetchCount === 1
@@ -302,11 +308,7 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -323,7 +325,7 @@ describe("InboxPage", () => {
   });
 
   it("marks an unread LINE conversation as read when opened", async () => {
-    const fetchMock = jest.fn((url) => {
+    const fetchMock = installFetchMock(jest.fn((url) => {
       if (url.includes("/api/v1/inbox/conversations?")) {
         return Promise.resolve({
           ok: true,
@@ -372,28 +374,18 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation Unread Customer" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-unread/mark-as-read", {
-        headers: { Authorization: "Bearer access-token" },
-        method: "PATCH"
-      });
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-unread/status", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-unread/mark-as-read", authFetchOptions({ method: "PATCH" }));
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-unread/status", authFetchOptions({
         body: JSON.stringify({ status: "IN_PROGRESS" }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "PATCH"
-      });
+      }));
     });
   });
 
@@ -402,7 +394,7 @@ describe("InboxPage", () => {
     const sseReader = createSseReader([
       'event: message.created\ndata: {"conversationId":"conversation-1"}\n\n'
     ]);
-    const fetchMock = jest.fn((url) => {
+    const fetchMock = installFetchMock(jest.fn((url) => {
       if (url.includes("/api/v1/sse/tenant/tenant-1")) {
         return Promise.resolve({
           ok: true,
@@ -451,20 +443,13 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation Realtime Customer" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/sse/tenant/tenant-1", {
-        headers: { Authorization: "Bearer access-token" },
-        signal: expect.any(AbortSignal)
-      });
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/sse/tenant/tenant-1", authFetchOptions({ signal: expect.any(AbortSignal) }));
     });
     expect(await screen.findByText("live via sse")).toBeInTheDocument();
   });
@@ -474,7 +459,7 @@ describe("InboxPage", () => {
     const firstMessages = new Promise<{ success: true; data: unknown[] }>((resolve) => {
       resolveFirstMessages = resolve;
     });
-    const fetchMock = jest.fn((url: string) => {
+    installFetchMock(jest.fn((url: string) => {
       if (url.includes("/api/v1/inbox/conversations/conversation-a/messages")) {
         return Promise.resolve({
           ok: true,
@@ -534,11 +519,7 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -568,7 +549,7 @@ describe("InboxPage", () => {
   });
 
   it("renders sticker messages and applies the LINE OA badge color", async () => {
-    const fetchMock = jest.fn((url: string) => {
+    installFetchMock(jest.fn((url: string) => {
       if (url.includes("/api/v1/inbox/conversations/conversation-2/messages")) {
         return Promise.resolve({
           ok: true,
@@ -637,11 +618,7 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -657,7 +634,7 @@ describe("InboxPage", () => {
   });
 
   it("keeps the same LINE customer visible as separate rows for each OA channel", async () => {
-    const fetchMock = jest.fn((url: string) => {
+    const fetchMock = installFetchMock(jest.fn((url: string) => {
       if (url.includes("/api/v1/inbox/conversations/conversation-oa-2/messages")) {
         return Promise.resolve({
           ok: true,
@@ -735,11 +712,7 @@ describe("InboxPage", () => {
         });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -751,23 +724,17 @@ describe("InboxPage", () => {
     expect(screen.getAllByText("F").length).toBeGreaterThanOrEqual(3);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/inbox/conversations/conversation-oa-2/messages"),
-      expect.objectContaining({
-        headers: { Authorization: "Bearer access-token" }
-      })
+      expect.objectContaining(authFetchOptions())
     );
   });
 
   it("uses a viewport-fit inbox layout instead of a fixed wide board", async () => {
-    const fetchMock = jest
+    installFetchMock(jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: [] })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+      }));
 
     render(await InboxPage());
 
@@ -782,7 +749,7 @@ describe("InboxPage", () => {
   });
 
   it("shows selected LINE channel in the premium composer toolbar", async () => {
-    const fetchMock = jest
+    installFetchMock(jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -808,11 +775,7 @@ describe("InboxPage", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: [] })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+      }));
 
     render(await InboxPage());
 
@@ -827,7 +790,7 @@ describe("InboxPage", () => {
     let mockStatus = "OPEN";
     let mockInProgressStartedAt: string | null = null;
 
-    const fetchMock = jest.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+    const fetchMock = installFetchMock(jest.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       const method = init?.method?.toUpperCase() ?? "GET";
       
       if (url.includes("/api/v1/inbox/conversations/conversation-1/status")) {
@@ -897,12 +860,7 @@ describe("InboxPage", () => {
         ok: true,
         json: async () => ({ success: true, data: [] })
       };
-    });
-
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -917,14 +875,11 @@ describe("InboxPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/v1/inbox/conversations/conversation-1/status",
-        {
+        authFetchOptions({
           body: JSON.stringify({ status: "IN_PROGRESS" }),
-          headers: {
-            Authorization: "Bearer access-token",
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           method: "PATCH"
-        }
+        })
       );
     });
     expect(await screen.findAllByText(/กำลังดำเนินการ/)).not.toHaveLength(0);
@@ -935,14 +890,11 @@ describe("InboxPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save alert minutes" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/settings", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/settings", authFetchOptions({
         body: JSON.stringify({ inProgressAlertMinutes: 5 }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "PATCH"
-      });
+      }));
     });
   });
 
@@ -961,7 +913,7 @@ describe("InboxPage", () => {
       messages: []
     }));
 
-    const fetchMock = jest.fn().mockImplementation(async (url: string) => {
+    const fetchMock = installFetchMock(jest.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/v1/inbox/conversations")) {
         if (url.includes("offset=10")) {
           return {
@@ -995,12 +947,7 @@ describe("InboxPage", () => {
         ok: true,
         json: async () => ({ success: true, data: [] })
       };
-    });
-
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
 
@@ -1008,15 +955,13 @@ describe("InboxPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Load older conversations" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations?limit=10&offset=10", {
-        headers: { Authorization: "Bearer access-token" }
-      });
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations?limit=10&offset=10", authFetchOptions());
     });
     expect(await screen.findByText("Customer 11")).toBeInTheDocument();
   });
 
   it("renames the selected customer from the inbox context panel", async () => {
-    const fetchMock = jest
+    const fetchMock = installFetchMock(jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -1056,11 +1001,7 @@ describe("InboxPage", () => {
             nickname: "Customer F"
           }
         })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+      }));
 
     render(await InboxPage());
 
@@ -1077,21 +1018,18 @@ describe("InboxPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/v1/inbox/conversations/conversation-1/customer-name",
-        {
+        authFetchOptions({
           body: JSON.stringify({ nickname: "Customer F" }),
-          headers: {
-            Authorization: "Bearer access-token",
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           method: "PATCH"
-        }
+        })
       );
     });
     expect((await screen.findAllByText("Customer F")).length).toBeGreaterThan(0);
   });
 
   it("shows inbox operation controls for assignment, priority, tags, notes, and saved replies", async () => {
-    const fetchMock = jest
+    installFetchMock(jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -1119,11 +1057,7 @@ describe("InboxPage", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: [] })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+      }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation Customer Ops" }));
@@ -1137,7 +1071,7 @@ describe("InboxPage", () => {
   });
 
   it("loads usable inbox operation data for tags, notes, and saved replies", async () => {
-    const fetchMock = jest.fn((url) => {
+    const fetchMock = installFetchMock(jest.fn((url) => {
       if (url.includes("/api/v1/inbox/conversations?")) {
         return Promise.resolve({
           ok: true,
@@ -1213,11 +1147,7 @@ describe("InboxPage", () => {
         ok: true,
         json: async () => ({ success: true, data: { id: "link-1" } })
       });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation Customer Ops" }));
@@ -1232,10 +1162,7 @@ describe("InboxPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/v1/inbox/conversations/conversation-1/tags/tag-vip",
-        {
-          headers: { Authorization: "Bearer access-token" },
-          method: "POST"
-        }
+        authFetchOptions({ method: "POST" })
       );
     });
 
@@ -1247,7 +1174,7 @@ describe("InboxPage", () => {
 
   it("loads LINE OA quick replies, inserts with plus, and auto-enters when enabled", async () => {
     let messagesCallCount = 0;
-    const fetchMock = jest.fn((url) => {
+    const fetchMock = installFetchMock(jest.fn((url) => {
       if (url.includes("/api/v1/inbox/conversations?")) {
         return Promise.resolve({
           ok: true,
@@ -1308,11 +1235,7 @@ describe("InboxPage", () => {
         return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: null }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation Customer QR" }));
@@ -1321,9 +1244,7 @@ describe("InboxPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/api/v1/inbox/saved-replies?lineChannelId=line-channel-1",
-        {
-          headers: { Authorization: "Bearer access-token" }
-        }
+        authFetchOptions()
       );
     });
 
@@ -1340,19 +1261,16 @@ describe("InboxPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Add Line OA 1 Quick Reply Greeting" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", authFetchOptions({
         body: JSON.stringify({ text: "Hello from Line OA 1" }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
   });
 
   it("posts reply text through the existing LINE conversation reply route with auth", async () => {
-    const fetchMock = jest
+    const fetchMock = installFetchMock(jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -1401,11 +1319,7 @@ describe("InboxPage", () => {
             }
           ]
         })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+      }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation U123" }));
@@ -1417,19 +1331,16 @@ describe("InboxPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send reply" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", authFetchOptions({
         body: JSON.stringify({ text: "Hello from inbox" }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
   });
 
   it("sends a reply with Enter and sends HTTPS image URLs as LINE image replies", async () => {
-    const fetchMock = jest.fn((url) => {
+    const fetchMock = installFetchMock(jest.fn((url) => {
       if (url.includes("/api/v1/inbox/conversations?")) {
         return Promise.resolve({
           ok: true,
@@ -1468,11 +1379,7 @@ describe("InboxPage", () => {
         return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
       }
       return Promise.resolve({ ok: true, json: async () => ({ success: true, data: null }) });
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation U123" }));
@@ -1486,14 +1393,11 @@ describe("InboxPage", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", authFetchOptions({
         body: JSON.stringify({ text: "Enter reply" }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
 
     fireEvent.click(screen.getByRole("button", { name: "เพิ่มรูปภาพด้วย URL" }));
@@ -1503,19 +1407,16 @@ describe("InboxPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send reply" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/line/conversations/conversation-1/reply", authFetchOptions({
         body: JSON.stringify({ imageUrl: "https://cdn.example.com/image.png" }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
   });
 
   it("keeps the image URL field behind an attachment button", async () => {
-    const fetchMock = jest
+    installFetchMock(jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -1540,11 +1441,7 @@ describe("InboxPage", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: [] })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+      }));
 
     render(await InboxPage());
     fireEvent.click(await screen.findByRole("button", { name: "Open conversation U123" }));
@@ -1558,14 +1455,10 @@ describe("InboxPage", () => {
   });
 
   it("renders server-provided initial conversations before the client refresh", async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
+    const fetchMock = installFetchMock(jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true, data: [] })
-    });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+    }));
 
     render(
       <InboxClient
@@ -1602,15 +1495,13 @@ describe("InboxPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/api/v1/inbox/conversations/conversation-initial/messages"),
-        expect.objectContaining({
-          headers: { Authorization: "Bearer access-token" }
-        })
+        expect.objectContaining(authFetchOptions())
       );
     });
   });
 
   it("uses the Phase 2 mobile bottom nav to switch between chats and customer context", async () => {
-    const fetchMock = jest
+    installFetchMock(jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -1636,11 +1527,7 @@ describe("InboxPage", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: [] })
-      });
-    Object.defineProperty(globalThis, "fetch", {
-      configurable: true,
-      value: fetchMock
-    });
+      }));
 
     render(await InboxPage());
 

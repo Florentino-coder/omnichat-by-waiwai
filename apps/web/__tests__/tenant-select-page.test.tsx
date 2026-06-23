@@ -13,7 +13,6 @@ describe("TenantSelectPage", () => {
   beforeEach(() => {
     pushMock.mockClear();
     window.localStorage.clear();
-    window.localStorage.setItem("omnichat.accessToken", "access-token");
   });
 
   afterEach(() => {
@@ -23,6 +22,18 @@ describe("TenantSelectPage", () => {
   it("renders memberships and switches the active tenant workspace", async () => {
     const fetchMock = jest
       .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: {
+            id: "user-1",
+            email: "owner@omnichat.local",
+            displayName: "Owner",
+            role: "OWNER"
+          }
+        })
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -47,10 +58,6 @@ describe("TenantSelectPage", () => {
         json: async () => ({
           success: true,
           data: {
-            tokens: {
-              accessToken: "new-access-token",
-              refreshToken: "new-refresh-token"
-            },
             user: {
               id: "user-1",
               email: "owner@omnichat.local",
@@ -76,19 +83,16 @@ describe("TenantSelectPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/auth/switch-tenant", {
         body: JSON.stringify({ workspaceId: "workspace-1" }),
+        credentials: "include",
         headers: {
-          Authorization: "Bearer access-token",
           "Content-Type": "application/json"
         },
         method: "POST"
       });
     });
-    expect(window.localStorage.getItem("omnichat.accessToken")).toBe("new-access-token");
-    expect(window.localStorage.getItem("omnichat.refreshToken")).toBe("new-refresh-token");
-    expect(JSON.parse(window.localStorage.getItem("omnichat.user") ?? "{}")).toMatchObject({
-      tenantId: "tenant-1",
-      workspaceId: "workspace-1"
-    });
+    expect(window.localStorage.getItem("omnichat.accessToken")).toBeNull();
+    expect(window.localStorage.getItem("omnichat.refreshToken")).toBeNull();
+    expect(window.localStorage.getItem("omnichat.user")).toBeNull();
     expect(pushMock).toHaveBeenCalledWith("/app/inbox");
   });
 });

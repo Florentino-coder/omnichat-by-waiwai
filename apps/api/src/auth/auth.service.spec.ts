@@ -725,4 +725,31 @@ describe("AuthService", () => {
     expect(crypto.decrypt).toHaveBeenCalledWith("encrypted:totp-secret");
     expect(totp.verify).toHaveBeenCalledWith("totp-secret", "123456");
   });
+
+  it("returns verified session details from JWT context", async () => {
+    const prisma = createPrisma();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "owner@omnichat.local",
+      displayName: "Owner",
+      isSuperOwner: false
+    });
+
+    await expect(
+      createService(prisma).getMe({
+        sub: "user-1",
+        email: "owner@omnichat.local",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        role: Role.OWNER
+      })
+    ).resolves.toEqual({
+      id: "user-1",
+      email: "owner@omnichat.local",
+      displayName: "Owner",
+      tenantId: "tenant-1",
+      workspaceId: "workspace-1",
+      role: Role.OWNER
+    });
+  });
 });

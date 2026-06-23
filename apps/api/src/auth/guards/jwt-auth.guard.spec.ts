@@ -133,4 +133,39 @@ describe("JwtAuthGuard", () => {
       workspaceId: "workspace-1"
     });
   });
+
+  it("accepts access tokens from HttpOnly cookies", async () => {
+    const prisma = createPrisma();
+    const token = await jwtService.signAsync(
+      {
+        sub: "user-1",
+        email: "owner@omnichat.local",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        role: Role.OWNER
+      },
+      { secret: "test-jwt-secret" }
+    );
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      isActive: true,
+      deletedAt: null,
+      emailVerified: true,
+      isSuperOwner: false
+    });
+    prisma.workspaceMember.findFirst.mockResolvedValue({ id: "member-1" });
+
+    const request = {
+      headers: { cookie: `omnichat.accessToken=${encodeURIComponent(token)}` },
+      user: undefined as never
+    };
+    const guard = new JwtAuthGuard(jwtService, configService, prisma as unknown as PrismaService);
+
+    await expect(
+      guard.canActivate({
+        switchToHttp: () => ({ getRequest: () => request })
+      } as never)
+    ).resolves.toBe(true);
+    expect((request.user as { sub: string }).sub).toBe("user-1");
+  });
 });

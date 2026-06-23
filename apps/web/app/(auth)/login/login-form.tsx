@@ -4,22 +4,20 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { loginSchema } from "../../../lib/schemas/auth";
+import { clearLegacyAuthStorage } from "../../lib/api-client";
 import { setAuthSessionCookies } from "../../lib/session-cookies";
 
 interface LoginSuccess {
   success: true;
   data: {
-    tokens: {
-      accessToken: string;
-      refreshToken: string;
-    };
     user: {
       id: string;
       email: string;
       displayName: string;
-      tenantId: string;
-      workspaceId: string;
-      role: string;
+      tenantId?: string;
+      workspaceId?: string;
+      role?: string;
+      isSuperOwner?: boolean;
     };
   };
 }
@@ -30,12 +28,6 @@ interface ErrorBody {
     message?: string;
   };
 }
-
-const SESSION_KEYS = {
-  accessToken: "omnichat.accessToken",
-  refreshToken: "omnichat.refreshToken",
-  user: "omnichat.user"
-} as const;
 
 export function LoginForm() {
   const router = useRouter();
@@ -58,6 +50,7 @@ export function LoginForm() {
     try {
       const response = await fetch("/api/v1/auth/login", {
         body: JSON.stringify(parsed.data),
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         method: "POST"
       });
@@ -68,10 +61,8 @@ export function LoginForm() {
         return;
       }
 
-      const login = body as LoginSuccess & { data: { user: { isSuperOwner?: boolean } } };
-      window.localStorage.setItem(SESSION_KEYS.accessToken, login.data.tokens.accessToken);
-      window.localStorage.setItem(SESSION_KEYS.refreshToken, login.data.tokens.refreshToken);
-      window.localStorage.setItem(SESSION_KEYS.user, JSON.stringify(login.data.user));
+      const login = body as LoginSuccess;
+      clearLegacyAuthStorage();
       setAuthSessionCookies({ isSuperOwner: Boolean(login.data.user.isSuperOwner) });
       if (login.data.user.isSuperOwner) {
         router.push("/super-admin");

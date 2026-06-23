@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { authFetchOptions } from "./auth-fetch-expect";
 import TeamSettingsPage from "../app/app/settings/team/page";
 
 jest.mock("../app/lib/language-context", () => ({
@@ -101,18 +102,15 @@ describe("TeamSettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/invitations", {
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/invitations", authFetchOptions({
         body: JSON.stringify({
           workspaceId: "workspace-1",
           email: "agent@omnichat.local",
           role: "AGENT"
         }),
-        headers: {
-          Authorization: "Bearer access-token",
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         method: "POST"
-      });
+      }));
     });
     expect(await screen.findByText("agent@omnichat.local")).toBeInTheDocument();
   });

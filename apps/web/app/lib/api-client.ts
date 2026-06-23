@@ -19,59 +19,76 @@ type ApiOptions = Omit<RequestInit, "headers"> & {
   headers?: Record<string, string>;
 };
 
-const ACCESS_TOKEN_KEY = "omnichat.accessToken";
-const REFRESH_TOKEN_KEY = "omnichat.refreshToken";
+const LEGACY_ACCESS_TOKEN_KEY = "omnichat.accessToken";
+const LEGACY_REFRESH_TOKEN_KEY = "omnichat.refreshToken";
+const LEGACY_USER_KEY = "omnichat.user";
 
-export function getAccessToken(): string | null {
-  return window.localStorage.getItem(ACCESS_TOKEN_KEY);
+const FETCH_CREDENTIALS: RequestCredentials = "include";
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+export function clearLegacyAuthStorage(): void {
+  window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  window.localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
+  window.localStorage.removeItem(LEGACY_USER_KEY);
 }
 
-export async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = window.localStorage.getItem(REFRESH_TOKEN_KEY);
-  if (!refreshToken) {
-    return null;
+export async function refreshAccessToken(): Promise<boolean> {
+  if (refreshInFlight) {
+    return refreshInFlight;
   }
 
+  refreshInFlight = (async () => {
+    try {
+      const refreshResponse = await fetch("/api/v1/auth/refresh", {
+        method: "POST",
+        credentials: FETCH_CREDENTIALS
+      });
+
+      if (!refreshResponse.ok) {
+        return false;
+      }
+
+      const envelope = (await refreshResponse.json().catch(() => null)) as {
+        success: boolean;
+      } | null;
+
+      if (!envelope?.success) {
+        return false;
+      }
+
+      setAuthSessionCookies();
+      clearLegacyAuthStorage();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
+
+export async function logoutSession(): Promise<void> {
   try {
-    const refreshResponse = await fetch("/api/v1/auth/refresh", {
+    await fetch("/api/v1/auth/logout", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken })
+      credentials: FETCH_CREDENTIALS
     });
-
-    if (!refreshResponse.ok) {
-      return null;
-    }
-
-    const envelope = (await refreshResponse.json().catch(() => null)) as {
-      success: boolean;
-      data?: { accessToken: string; refreshToken: string };
-    } | null;
-
-    if (!envelope?.success || !envelope.data) {
-      return null;
-    }
-
-    window.localStorage.setItem(ACCESS_TOKEN_KEY, envelope.data.accessToken);
-    window.localStorage.setItem(REFRESH_TOKEN_KEY, envelope.data.refreshToken);
-    setAuthSessionCookies();
-    return envelope.data.accessToken;
   } catch {
-    return null;
+    // Best-effort server logout.
   }
+  handleLogoutRedirect();
 }
 
 export async function authorizedFetch(path: string, options: ApiOptions = {}): Promise<Response> {
-  const token = getAccessToken();
-  const headers: Record<string, string> = {
-    ...(options.headers ?? {})
-  };
-
   let response = await fetch(path, {
     ...options,
+    credentials: FETCH_CREDENTIALS,
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers
+      ...buildAuthHeaders(),
+      ...(options.headers ?? {})
     }
   });
 
@@ -80,17 +97,18 @@ export async function authorizedFetch(path: string, options: ApiOptions = {}): P
     path !== "/api/v1/auth/refresh" &&
     path !== "/api/v1/auth/login"
   ) {
-    const nextToken = await refreshAccessToken();
-    if (!nextToken) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
       handleLogoutRedirect();
       return response;
     }
 
     response = await fetch(path, {
       ...options,
+      credentials: FETCH_CREDENTIALS,
       headers: {
-        Authorization: `Bearer ${nextToken}`,
-        ...headers
+        ...buildAuthHeaders(),
+        ...(options.headers ?? {})
       }
     });
 
@@ -103,7 +121,6 @@ export async function authorizedFetch(path: string, options: ApiOptions = {}): P
 }
 
 export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promise<T> {
-  const token = getAccessToken();
   const headers: Record<string, string> = {
     ...(options.headers ?? {})
   };
@@ -119,13 +136,13 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 
   let response = await fetch(path, {
     ...options,
+    credentials: FETCH_CREDENTIALS,
     headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...buildAuthHeaders(),
       ...headers
     }
   });
 
-  // Safety guard for Jest tests where fetch is mocked to return undefined for unmocked endpoints
   if (!response) {
     response = {
       ok: true,
@@ -134,19 +151,19 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     } as unknown as Response;
   }
 
-  // Automatically attempt token refresh if 401 and not calling login/refresh endpoint
   if (
     response.status === 401 &&
     path !== "/api/v1/auth/refresh" &&
     path !== "/api/v1/auth/login"
   ) {
-    const nextToken = await refreshAccessToken();
-    if (nextToken) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
       response = await fetch(path, {
         ...options,
+        credentials: FETCH_CREDENTIALS,
         headers: {
-          Authorization: `Bearer ${nextToken}`,
-          ...options.headers
+          ...buildAuthHeaders(),
+          ...headers
         }
       });
     } else {
@@ -171,11 +188,17 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
 }
 
 export function handleLogoutRedirect(): void {
-  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
-  window.localStorage.removeItem("omnichat.user");
+  clearLegacyAuthStorage();
   clearAuthSessionCookies();
   window.location.href = "/login";
+}
+
+function buildAuthHeaders(): Record<string, string> {
+  const legacyToken = window.localStorage.getItem(LEGACY_ACCESS_TOKEN_KEY);
+  if (legacyToken) {
+    return { Authorization: `Bearer ${legacyToken}` };
+  }
+  return {};
 }
 
 function isEnvelope<T>(body: ApiEnvelope<T> | T | null): body is ApiEnvelope<T> {

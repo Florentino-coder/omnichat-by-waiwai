@@ -13,7 +13,6 @@ import { BottomNav, type MobileInboxTab } from "../../../components/inbox/mobile
 import {
   apiFetch,
   authorizedFetch,
-  getAccessToken,
   handleLogoutRedirect
 } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
@@ -248,6 +247,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
     void fetch(`${apiBaseUrl}/api/v1/telemetry/client-trace`, {
       method: "POST",
+      credentials: "include",
       headers: telemetryAuthHeaders(),
       body: JSON.stringify({ flowId, stage, timestamp })
     }).catch(() => {});
@@ -545,6 +545,18 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   useEffect(() => {
     isMountedRef.current = true;
     setCurrentUser(readCurrentUser());
+    void apiFetch<AuthUser>("/api/v1/auth/me")
+      .then((sessionUser) => {
+        if (!isMountedRef.current || !sessionUser) {
+          return;
+        }
+        setCurrentUser((previous) => ({
+          displayName: sessionUser.displayName ?? previous?.displayName,
+          tenantId: sessionUser.tenantId ?? previous?.tenantId,
+          workspaceId: sessionUser.workspaceId ?? previous?.workspaceId
+        }));
+      })
+      .catch(() => {});
     setNow(Date.now());
     
     if (typeof window !== "undefined") {
@@ -627,6 +639,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
           void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
             method: "POST",
+            credentials: "include",
             headers: telemetryAuthHeaders(),
             body: JSON.stringify({ flowId, timestamp: now })
           });
@@ -720,6 +733,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
         void fetch(`${apiBaseUrl}/api/v1/monitor/ui-rendered`, {
           method: "POST",
+          credentials: "include",
           headers: telemetryAuthHeaders(),
           body: JSON.stringify({
             flowId: pendingFlowId,
@@ -1798,19 +1812,40 @@ function hasUnreadInboundMessages(conversation: InboxConversation): boolean {
 }
 
 function readCurrentUser(): AuthUser | null {
+  const tenantId = readClientCookie("omnichat.tenantId");
+  const workspaceId = readClientCookie("omnichat.workspaceId");
+
   try {
     const stored = window.localStorage.getItem("omnichat.user");
-    return stored ? (JSON.parse(stored) as AuthUser) : null;
+    const legacy = stored ? (JSON.parse(stored) as AuthUser) : null;
+    if (legacy || tenantId || workspaceId) {
+      return {
+        displayName: legacy?.displayName,
+        tenantId: tenantId ?? legacy?.tenantId ?? null,
+        workspaceId: workspaceId ?? legacy?.workspaceId ?? null
+      };
+    }
+    return null;
   } catch {
+    if (tenantId || workspaceId) {
+      return { tenantId, workspaceId };
+    }
     return null;
   }
 }
 
+function readClientCookie(name: string): string | null {
+  const match = document.cookie.match(
+    new RegExp(`(?:^|;\\s*)${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}=([^;]*)`)
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 function telemetryAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const token = getAccessToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  const legacyToken = window.localStorage.getItem("omnichat.accessToken");
+  if (legacyToken) {
+    headers.Authorization = `Bearer ${legacyToken}`;
   }
   return headers;
 }

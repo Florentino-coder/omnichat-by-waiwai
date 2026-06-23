@@ -19,16 +19,12 @@ describe("LoginPage", () => {
     delete (globalThis as { fetch?: typeof fetch }).fetch;
   });
 
-  it("signs in, stores the session, and opens the inbox", async () => {
+  it("signs in via BFF, keeps tokens out of localStorage, and opens tenant select", async () => {
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         success: true,
         data: {
-          tokens: {
-            accessToken: "access-token",
-            refreshToken: "refresh-token"
-          },
           user: {
             id: "user-1",
             email: "owner@omnichat.local",
@@ -61,17 +57,15 @@ describe("LoginPage", () => {
           email: "owner@omnichat.local",
           password: "ChangeMe123!"
         }),
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         method: "POST"
       });
     });
 
-    expect(window.localStorage.getItem("omnichat.accessToken")).toBe("access-token");
-    expect(window.localStorage.getItem("omnichat.refreshToken")).toBe("refresh-token");
-    expect(JSON.parse(window.localStorage.getItem("omnichat.user") ?? "{}")).toMatchObject({
-      email: "owner@omnichat.local",
-      role: "OWNER"
-    });
+    expect(window.localStorage.getItem("omnichat.accessToken")).toBeNull();
+    expect(window.localStorage.getItem("omnichat.refreshToken")).toBeNull();
+    expect(window.localStorage.getItem("omnichat.user")).toBeNull();
     expect(pushMock).toHaveBeenCalledWith("/tenant-select");
   });
 

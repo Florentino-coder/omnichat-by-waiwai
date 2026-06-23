@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { MonitorService } from "./monitor.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { SuperOwnerGuard } from "../super-admin/guards/super-owner.guard";
@@ -11,7 +12,8 @@ export class MonitorController {
   // Telemetry Ingestion Endpoints (Authenticated)
   // ============================================================
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ telemetry: { limit: 120, ttl: 60_000 } })
   @Post("monitor/browser-received")
   async browserReceived(
     @Body() payload: { flowId: string; timestamp: number }
@@ -23,7 +25,8 @@ export class MonitorController {
     return { success: true };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ telemetry: { limit: 120, ttl: 60_000 } })
   @Post("telemetry/client-trace")
   async clientTrace(
     @Body() payload: { flowId: string; stage: string; timestamp: number }
@@ -35,7 +38,8 @@ export class MonitorController {
     return { success: true };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ telemetry: { limit: 120, ttl: 60_000 } })
   @Post("monitor/ui-rendered")
   async uiRendered(
     @Body() payload: {

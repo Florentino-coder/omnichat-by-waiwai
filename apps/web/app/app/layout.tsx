@@ -2,10 +2,11 @@
 
 import { BookOpen, ChartNoAxesColumn, Inbox, Settings, Users, Megaphone } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { UserMenu } from "./user-menu";
-import { clearAuthSessionCookies } from "../lib/session-cookies";
+import { logoutSession } from "../lib/api-client";
 import { LanguageProvider, useLanguage } from "../lib/language-context";
+import { useAuthSession } from "../lib/use-auth-session";
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -17,19 +18,8 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
 
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const { locale, setLocale } = useLanguage();
-  const [role, setRole] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setRole(parsed.role ?? "AGENT");
-      }
-    } catch {
-      // Ignore
-    }
-  }, []);
+  const { user } = useAuthSession();
+  const role = user?.role ?? null;
 
   const navItems = [
     { label: locale === "th" ? "กล่องข้อความ" : "Inbox", icon: Inbox, disabled: false, href: "/app/inbox", roles: ["OWNER", "ADMIN", "AGENT", "QC"] },
@@ -44,24 +34,15 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     ? navItems.filter((item) => item.roles.includes(role))
     : navItems.filter((item) => item.href === "/app/inbox" || item.href === "/app/settings");
 
-
   useEffect(() => {
-    // 15 minutes = 15 * 60 * 1000 ms
     const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
     let timeoutId: NodeJS.Timeout;
 
     function handleResetTimer() {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(handleLogout, INACTIVITY_TIMEOUT);
-    }
-
-    function handleLogout() {
-      window.localStorage.removeItem("omnichat.accessToken");
-      window.localStorage.removeItem("omnichat.refreshToken");
-      window.localStorage.removeItem("omnichat.user");
-      clearAuthSessionCookies();
-
-      window.location.href = "/login";
+      timeoutId = setTimeout(() => {
+        void logoutSession();
+      }, INACTIVITY_TIMEOUT);
     }
 
     const events = ["mousemove", "keydown", "mousedown", "scroll", "click", "touchstart"];
@@ -130,7 +111,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             <UserMenu />
           </div>
         </header>
-        {/* Page content — no padding, pages manage their own layout */}
         <div className="flex-1 min-h-0 overflow-hidden">{children}</div>
       </section>
     </main>

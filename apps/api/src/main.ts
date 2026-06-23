@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import { Logger, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NextFunction, Request, Response } from "express";
 import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/http/http-exception.filter";
 import { ResponseEnvelopeInterceptor } from "./common/http/response-envelope.interceptor";
@@ -24,6 +25,12 @@ async function bootstrap(): Promise<void> {
       transform: true
     })
   );
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    next();
+  });
   app.enableShutdownHooks();
 
   const host = process.env.HOST ?? "0.0.0.0";

@@ -2,33 +2,16 @@
 
 import { Building2, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { Badge } from "@omnichat/ui";
 import { useLanguage } from "../lib/language-context";
 import { getMessages } from "../lib/i18n";
-import { clearAuthSessionCookies } from "../lib/session-cookies";
-
-type UserData = {
-  displayName?: string;
-  email?: string;
-  role?: string;
-};
+import { logoutSession } from "../lib/api-client";
+import { useAuthSession } from "../lib/use-auth-session";
 
 export function UserMenu() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
-  const [user, setUser] = useState<UserData | null>(null);
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      if (stored) {
-        setUser(JSON.parse(stored));
-      }
-    } catch {
-      // Ignore
-    }
-  }, []);
+  const { user } = useAuthSession();
 
   const displayName = user?.displayName ?? "User";
   const email = user?.email ?? "";
@@ -36,12 +19,7 @@ export function UserMenu() {
   const avatarChar = displayName.charAt(0).toUpperCase();
 
   function handleLogout(): void {
-    window.localStorage.removeItem("omnichat.accessToken");
-    window.localStorage.removeItem("omnichat.refreshToken");
-    window.localStorage.removeItem("omnichat.user");
-    clearAuthSessionCookies();
-
-    window.location.href = "/login";
+    void logoutSession();
   }
 
   return (
@@ -60,7 +38,6 @@ export function UserMenu() {
           {role}
         </Badge>
       </button>
-      {/* Dropdown */}
       <div className="absolute right-0 top-full z-50 mt-1 hidden w-52 rounded-lg border border-border bg-white shadow-lg group-focus-within:block">
         <div className="border-b border-border px-4 py-3">
           <p className="text-sm font-semibold text-foreground truncate">{displayName}</p>

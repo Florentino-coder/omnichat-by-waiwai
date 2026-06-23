@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { setAuthSessionCookies } from "../../lib/session-cookies";
+import type { AuthSessionUser } from "../../lib/use-auth-session";
 
 type TenantMembership = {
   membershipId: string;
@@ -20,10 +21,6 @@ type TenantMembership = {
 };
 
 type SwitchTenantResponse = {
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-  };
   user: {
     id: string;
     email: string;
@@ -33,12 +30,6 @@ type SwitchTenantResponse = {
     role: string;
   };
 };
-
-const SESSION_KEYS = {
-  accessToken: "omnichat.accessToken",
-  refreshToken: "omnichat.refreshToken",
-  user: "omnichat.user"
-} as const;
 
 export default function TenantSelectPage() {
   const router = useRouter();
@@ -53,18 +44,21 @@ export default function TenantSelectPage() {
   const [isCreatingTenant, setIsCreatingTenant] = useState(false);
 
   useEffect(() => {
-    const userStr = window.localStorage.getItem(SESSION_KEYS.user);
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        if (user.isSuperOwner) {
-          router.push("/super-admin");
+    let active = true;
+
+    apiFetch<AuthSessionUser>("/api/v1/auth/me")
+      .then((sessionUser) => {
+        if (!active) {
           return;
         }
-      } catch {}
-    }
+        if (sessionUser.isSuperOwner) {
+          router.push("/super-admin");
+        }
+      })
+      .catch(() => {
+        // Session may not be established yet on tenant-select.
+      });
 
-    let active = true;
     setIsLoading(true);
     apiFetch<TenantMembership[]>("/api/v1/auth/memberships")
       .then((data) => {
@@ -97,9 +91,6 @@ export default function TenantSelectPage() {
         headers: { "Content-Type": "application/json" },
         method: "POST"
       });
-      window.localStorage.setItem(SESSION_KEYS.accessToken, nextSession.tokens.accessToken);
-      window.localStorage.setItem(SESSION_KEYS.refreshToken, nextSession.tokens.refreshToken);
-      window.localStorage.setItem(SESSION_KEYS.user, JSON.stringify(nextSession.user));
       setAuthSessionCookies({
         tenantId: nextSession.user.tenantId,
         workspaceId: nextSession.user.workspaceId

@@ -19,6 +19,7 @@ import {
   resolveSettingsTab,
   type SettingsTab
 } from "../../lib/settings-rbac";
+import { useAuthSession } from "../../lib/use-auth-session";
 
 type SettingsTabId = SettingsTab;
 
@@ -61,25 +62,14 @@ function SettingsTabGroup({
 function SettingsContent() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
-  const [role, setRole] = useState<string | null>(null);
+  const { user } = useAuthSession();
+  const role = user?.role ?? null;
   const [activeTab, setActiveTab] = useState<SettingsTabId>("profile");
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      let userRole: string | null = null;
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        userRole = parsed.role ?? null;
-      }
-      setRole(userRole);
-      setActiveTab(resolveSettingsTab(searchParams.get("tab"), userRole));
-    } catch {
-      setRole(null);
-      setActiveTab("profile");
-    }
-  }, [searchParams]);
+    setActiveTab(resolveSettingsTab(searchParams.get("tab"), role));
+  }, [searchParams, role]);
 
   return (
     <div className="h-full overflow-y-auto bg-[#F7F7FA] p-4 sm:p-6 md:p-8">

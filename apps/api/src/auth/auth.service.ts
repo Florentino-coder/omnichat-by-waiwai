@@ -52,6 +52,44 @@ export class AuthService {
     private readonly totpService: TotpService
   ) {}
 
+  async getMe(ctx: JwtTenantPayload): Promise<AuthUserResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: ctx.sub },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        isSuperOwner: true
+      }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    if (ctx.isSuperOwner || user.isSuperOwner) {
+      return {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        isSuperOwner: true
+      };
+    }
+
+    if (!ctx.tenantId || !ctx.workspaceId || !ctx.role) {
+      throw new UnauthorizedException("Invalid token context");
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      tenantId: ctx.tenantId,
+      workspaceId: ctx.workspaceId,
+      role: ctx.role
+    };
+  }
+
   async listMemberships(userId: string): Promise<TenantMembershipResponse[]> {
     const memberships = await this.prisma.workspaceMember.findMany({
       where: {

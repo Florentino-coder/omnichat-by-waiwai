@@ -1,6 +1,7 @@
-import { cookies } from "next/headers";
 import { Suspense } from "react";
 import InboxClient, { type InboxConversation } from "./inbox-client";
+import { readAccessTokenFromCookies } from "../../lib/auth-cookies.server";
+import { readApiBaseUrl } from "../../lib/api-proxy.server";
 
 const CONVERSATION_PAGE_SIZE = 10;
 
@@ -63,7 +64,7 @@ export default async function InboxPage() {
 }
 
 async function loadInitialConversations(): Promise<InboxConversation[]> {
-  const token = await readAccessTokenCookie();
+  const token = await readAccessTokenFromCookies();
   if (!token) {
     return [];
   }
@@ -89,23 +90,4 @@ async function loadInitialConversations(): Promise<InboxConversation[]> {
   } catch {
     return [];
   }
-}
-
-async function readAccessTokenCookie(): Promise<string | null> {
-  try {
-    const store = await cookies();
-    const session = store.get("omnichat.session")?.value;
-    if (session === "1") {
-      return null;
-    }
-    return store.get("omnichat.accessToken")?.value ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function readApiBaseUrl(): string | null {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
-  const appBaseUrl = process.env.APP_BASE_URL?.replace(/\/+$/, "");
-  return apiBaseUrl ?? appBaseUrl ?? null;
 }
