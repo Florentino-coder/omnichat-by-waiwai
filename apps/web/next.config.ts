@@ -15,20 +15,8 @@ const nextConfig: NextConfig = {
       }
     ]
   },
-  async rewrites() {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "");
-
-    if (!apiBaseUrl) {
-      return [];
-    }
-
-    return [
-      {
-        source: "/api/v1/:path*",
-        destination: `${apiBaseUrl}/api/v1/:path*`
-      }
-    ];
-  },
+  // API calls are proxied by app/api/v1 route handlers (BFF) so HttpOnly
+  // session cookies can be translated into Authorization headers upstream.
   async headers() {
     return [
       {

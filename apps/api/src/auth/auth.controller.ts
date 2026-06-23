@@ -67,7 +67,7 @@ export class AuthController {
   }
 
   @Get("memberships")
-  @UseGuards(JwtAuthGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard)
   listMemberships(@TenantCtx() ctx: JwtTenantPayload): Promise<TenantMembershipResponse[]> {
     return this.authService.listMemberships(ctx.sub);
   }
