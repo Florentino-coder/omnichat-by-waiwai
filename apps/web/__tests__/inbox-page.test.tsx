@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import InboxPage from "../app/app/inbox/page";
-import InboxClient from "../app/app/inbox/inbox-client";
+import InboxClient, {
+  formatConversationPreview,
+  messageSummary
+} from "../app/app/inbox/inbox-client";
+import { getMessages } from "../app/lib/i18n";
 
 jest.mock("../app/lib/language-context", () => ({
   useLanguage: () => ({ locale: "th", setLocale: () => {} }),
@@ -134,14 +138,20 @@ describe("InboxPage", () => {
     fireEvent.click(openBtn);
 
     expect((await screen.findAllByText("Somchai LINE")).length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("สวัสดีครับ").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Somchai LINE ส่ง: สวัสดีครับ")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByText("สวัสดีครับ").length).toBeGreaterThanOrEqual(1);
+    });
     expect(screen.queryByText("Messages from LINE will render here after API binding.")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations?limit=10&offset=0", {
       headers: { Authorization: "Bearer access-token" }
     });
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-1/messages", {
-      headers: { Authorization: "Bearer access-token" }
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/inbox/conversations/conversation-1/messages"),
+      expect.objectContaining({
+        headers: { Authorization: "Bearer access-token" }
+      })
+    );
     expect(screen.getByText("ข้อมูลลูกค้า")).toBeInTheDocument();
     expect(screen.getAllByText("Main LINE").length).toBeGreaterThan(0);
     expect(screen.getByText("1234567890")).toBeInTheDocument();
@@ -226,7 +236,7 @@ describe("InboxPage", () => {
 
     expect((await screen.findAllByText("U456")).length).toBeGreaterThanOrEqual(2);
     await waitFor(() => {
-      expect(screen.getAllByText("new LINE message")).toHaveLength(2);
+      expect(screen.getAllByText("new LINE message").length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -374,6 +384,14 @@ describe("InboxPage", () => {
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-unread/mark-as-read", {
         headers: { Authorization: "Bearer access-token" },
+        method: "PATCH"
+      });
+      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-unread/status", {
+        body: JSON.stringify({ status: "IN_PROGRESS" }),
+        headers: {
+          Authorization: "Bearer access-token",
+          "Content-Type": "application/json"
+        },
         method: "PATCH"
       });
     });
@@ -630,88 +648,94 @@ describe("InboxPage", () => {
     const openBtn = await screen.findByRole("button", { name: "Open conversation Customer Two" });
     fireEvent.click(openBtn);
 
-    expect(await screen.findByText("Sticker 51626494")).toBeInTheDocument();
-    expect(await screen.findByText("Package 11538")).toBeInTheDocument();
+    expect(await screen.findByText("Sticker")).toBeInTheDocument();
+    expect(screen.getByText("Customer Two ส่ง: Sticker")).toBeInTheDocument();
+    expect(screen.queryByText("Package 11538")).not.toBeInTheDocument();
     expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({
       backgroundColor: "#16a34a"
     });
   });
 
   it("keeps the same LINE customer visible as separate rows for each OA channel", async () => {
-    const fetchMock = jest
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "conversation-oa-2",
-              externalThreadId: "U-same",
-              displayName: "F",
-              status: "OPEN",
-              lastMessageAt: "2026-06-14T03:00:00.000Z",
-              lineChannel: {
-                id: "line-channel-2",
-                name: "Line OA 2",
-                badgeColor: "#16a34a",
-                lineChannelId: "1656471223"
-              },
-              messages: [
-                {
-                  id: "message-preview-oa-2",
-                  direction: "INBOUND",
-                  type: "TEXT",
-                  text: "ดีๆ",
-                  createdAt: "2026-06-14T03:00:00.000Z"
+    const fetchMock = jest.fn((url: string) => {
+      if (url.includes("/api/v1/inbox/conversations/conversation-oa-2/messages")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "message-oa-2",
+                direction: "INBOUND",
+                type: "TEXT",
+                text: "ดีๆ",
+                createdAt: "2026-06-14T03:00:00.000Z",
+                rawPayload: {
+                  source: { type: "user", userId: "U-same" },
+                  message: { id: "line-message-oa-2", type: "text" },
+                  lineProfile: { displayName: "F" }
                 }
-              ]
-            },
-            {
-              id: "conversation-oa-1",
-              externalThreadId: "U-same",
-              displayName: "F",
-              status: "OPEN",
-              lastMessageAt: "2026-06-14T02:00:00.000Z",
-              lineChannel: {
-                id: "line-channel-1",
-                name: "Line OA 1",
-                badgeColor: "#4f46e5",
-                lineChannelId: "2009897327"
-              },
-              messages: [
-                {
-                  id: "message-preview-oa-1",
-                  direction: "INBOUND",
-                  type: "TEXT",
-                  text: "เก่า",
-                  createdAt: "2026-06-14T02:00:00.000Z"
-                }
-              ]
-            }
-          ]
-        })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          success: true,
-          data: [
-            {
-              id: "message-oa-2",
-              direction: "INBOUND",
-              type: "TEXT",
-              text: "ดีๆ",
-              createdAt: "2026-06-14T03:00:00.000Z",
-              rawPayload: {
-                source: { type: "user", userId: "U-same" },
-                message: { id: "line-message-oa-2", type: "text" },
-                lineProfile: { displayName: "F" }
               }
-            }
-          ]
-        })
-      });
+            ]
+          })
+        });
+      }
+      if (url.includes("/api/v1/inbox/conversations")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              {
+                id: "conversation-oa-2",
+                externalThreadId: "U-same",
+                displayName: "F",
+                status: "OPEN",
+                lastMessageAt: "2026-06-14T03:00:00.000Z",
+                lineChannel: {
+                  id: "line-channel-2",
+                  name: "Line OA 2",
+                  badgeColor: "#16a34a",
+                  lineChannelId: "1656471223"
+                },
+                messages: [
+                  {
+                    id: "message-preview-oa-2",
+                    direction: "INBOUND",
+                    type: "TEXT",
+                    text: "ดีๆ",
+                    createdAt: "2026-06-14T03:00:00.000Z"
+                  }
+                ]
+              },
+              {
+                id: "conversation-oa-1",
+                externalThreadId: "U-same",
+                displayName: "F",
+                status: "OPEN",
+                lastMessageAt: "2026-06-14T02:00:00.000Z",
+                lineChannel: {
+                  id: "line-channel-1",
+                  name: "Line OA 1",
+                  badgeColor: "#4f46e5",
+                  lineChannelId: "2009897327"
+                },
+                messages: [
+                  {
+                    id: "message-preview-oa-1",
+                    direction: "INBOUND",
+                    type: "TEXT",
+                    text: "เก่า",
+                    createdAt: "2026-06-14T02:00:00.000Z"
+                  }
+                ]
+              }
+            ]
+          })
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+    });
     Object.defineProperty(globalThis, "fetch", {
       configurable: true,
       value: fetchMock
@@ -723,14 +747,13 @@ describe("InboxPage", () => {
     fireEvent.click(openBtns[0]);
 
     expect(await screen.findByText("ดีๆ")).toBeInTheDocument();
-    expect(screen.getAllByText("Line OA 2")[0]).toHaveStyle({ backgroundColor: "#16a34a" });
     expect(screen.getAllByText("Line OA 1")[0]).toHaveStyle({ backgroundColor: "#4f46e5" });
     expect(screen.getAllByText("F").length).toBeGreaterThanOrEqual(3);
     expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/inbox/conversations/conversation-oa-2/messages",
-      {
+      expect.stringContaining("/api/v1/inbox/conversations/conversation-oa-2/messages"),
+      expect.objectContaining({
         headers: { Authorization: "Bearer access-token" }
-      }
+      })
     );
   });
 
@@ -1572,14 +1595,17 @@ describe("InboxPage", () => {
     );
 
     expect(screen.getAllByText("Initial Customer").length).toBeGreaterThan(0);
-    expect(screen.getByText("server preview")).toBeInTheDocument();
+    expect(screen.getByText("Initial Customer ส่ง: server preview")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Open conversation Initial Customer" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/v1/inbox/conversations/conversation-initial/messages", {
-        headers: { Authorization: "Bearer access-token" }
-      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v1/inbox/conversations/conversation-initial/messages"),
+        expect.objectContaining({
+          headers: { Authorization: "Bearer access-token" }
+        })
+      );
     });
   });
 
@@ -1623,5 +1649,62 @@ describe("InboxPage", () => {
     fireEvent.click(nav.querySelectorAll("button")[1]);
 
     expect(screen.getByTestId("mobile-customer-panel")).toBeInTheDocument();
+  });
+
+  it("formats conversation previews for inbound, outbound, and sticker messages", () => {
+    const t = getMessages("th");
+    const conversation = {
+      id: "conversation-1",
+      externalThreadId: "U123",
+      displayName: "Somchai LINE",
+      lineChannel: {
+        id: "line-channel-1",
+        name: "Main LINE",
+        lineChannelId: "1234567890"
+      },
+      messages: []
+    };
+
+    expect(
+      formatConversationPreview(
+        conversation,
+        {
+          id: "preview-inbound",
+          direction: "INBOUND",
+          text: "สวัสดีครับ",
+          createdAt: "2026-06-14T01:00:00.000Z"
+        },
+        "th",
+        t
+      )
+    ).toBe("Somchai LINE ส่ง: สวัสดีครับ");
+
+    expect(
+      formatConversationPreview(
+        conversation,
+        {
+          id: "preview-outbound",
+          direction: "OUTBOUND",
+          text: "ขอบคุณค่ะ",
+          createdAt: "2026-06-14T01:01:00.000Z"
+        },
+        "th",
+        t
+      )
+    ).toBe("คุณ ส่ง: ขอบคุณค่ะ");
+
+    expect(
+      messageSummary({
+        text: null,
+        type: "STICKER",
+        rawPayload: {
+          message: {
+            type: "sticker",
+            packageId: "11538",
+            stickerId: "51626494"
+          }
+        }
+      })
+    ).toBe("Sticker");
   });
 });

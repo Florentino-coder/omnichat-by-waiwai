@@ -15,6 +15,12 @@ import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 import { ReplyComposer } from "./reply-composer";
 
+type ConversationMessagesPage = {
+  messages: InboxMessage[];
+  hasMore: boolean;
+  oldestId: string | null;
+};
+
 type MessageDirection = "INBOUND" | "OUTBOUND";
 type ConversationStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 type ConversationPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
@@ -287,7 +293,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   );
   const readNotRepliedCount = useMemo(
     () =>
-      conversations.filter((conversation) => getReadState(conversation, selectedId) === "read-not-replied").length,
+      conversations.filter((conversation) => {
+        const readState = getReadState(conversation, selectedId);
+        return (
+          readState === "read-not-replied" || conversationStatus(conversation) === "IN_PROGRESS"
+        );
+      }).length,
     [conversations, selectedId]
   );
   const overdueInProgressConversations = useMemo(
@@ -312,7 +323,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       return (
         customerLabel(conversation).toLowerCase().includes(query) ||
         conversation.lineChannel.name.toLowerCase().includes(query) ||
-        (latestMessage ? messageSummary(latestMessage).toLowerCase().includes(query) : false)
+        (latestMessage
+          ? formatConversationPreview(conversation, latestMessage, locale, t).toLowerCase().includes(query)
+          : false)
       );
     });
 
@@ -333,7 +346,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       return byText.filter((conversation) => conversationHasEscalation(conversation));
     }
     return byText;
-  }, [activeFilter, conversations, searchQuery, selectedId]);
+  }, [activeFilter, conversations, locale, searchQuery, selectedId, t]);
 
   const loadConversations = useCallback(
     async (options?: { append?: boolean; offset?: number; quiet?: boolean }): Promise<void> => {
@@ -393,11 +406,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       }
       setError(null);
       try {
-        const data = await apiFetch<{
-          messages: InboxMessage[];
-          hasMore: boolean;
-          oldestId: string | null;
-        }>(`/api/v1/inbox/conversations/${conversationId}/messages?limit=50`);
+        const data = await apiFetch<ConversationMessagesPage | InboxMessage[]>(
+          `/api/v1/inbox/conversations/${conversationId}/messages?limit=50`
+        );
         if (isMountedRef.current && selectedIdRef.current === conversationId) {
           const pendingFlowId = pendingFlowIdRef.current;
           if (pendingFlowId) {
@@ -406,8 +417,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             trace(pendingFlowId, "STATE_UPDATE");
             stateUpdateMapRef.current.set(pendingFlowId, now);
           }
-          setMessages(Array.isArray(data.messages) ? data.messages : []);
-          setHasMoreMessages(Boolean(data.hasMore));
+          const page = Array.isArray(data)
+            ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }
+            : data;
+          setMessages(Array.isArray(page.messages) ? page.messages : []);
+          setHasMoreMessages(Boolean(page.hasMore));
         }
       } catch (loadError) {
         if (isMountedRef.current && !options?.quiet) {
@@ -435,11 +449,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     setIsLoadingOlderMessages(true);
     isPrependingMessagesRef.current = true;
     try {
-      const data = await apiFetch<{
-        messages: InboxMessage[];
-        hasMore: boolean;
-        oldestId: string | null;
-      }>(
+      const data = await apiFetch<ConversationMessagesPage | InboxMessage[]>(
         `/api/v1/inbox/conversations/${conversationId}/messages?limit=50&before=${encodeURIComponent(oldestId)}`
       );
 
@@ -447,8 +457,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         return;
       }
 
-      setMessages((current) => [...(Array.isArray(data.messages) ? data.messages : []), ...current]);
-      setHasMoreMessages(Boolean(data.hasMore));
+      const page = Array.isArray(data)
+        ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }
+        : data;
+
+      setMessages((current) => [...(Array.isArray(page.messages) ? page.messages : []), ...current]);
+      setHasMoreMessages(Boolean(page.hasMore));
 
       window.requestAnimationFrame(() => {
         if (scrollContainer) {
@@ -746,6 +760,59 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
   }, [selectedConversation?.unreadInboundMessageCount, selectedId]);
 
+  async function transitionToInProgress(conversationId: string): Promise<void> {
+    try {
+      const updated = await apiFetch<InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}/status`,
+        {
+          body: JSON.stringify({ status: "IN_PROGRESS" }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        }
+      );
+      if (!updated?.id) {
+        return;
+      }
+      setConversations((current) => {
+        const next = current.map((conversation) =>
+          conversation.id === conversationId
+            ? {
+                ...conversation,
+                status: updated.status ?? "IN_PROGRESS",
+                inProgressStartedAt:
+                  updated.inProgressStartedAt ??
+                  conversation.inProgressStartedAt ??
+                  new Date().toISOString()
+              }
+            : conversation
+        );
+        conversationsRef.current = next;
+        return next;
+      });
+    } catch {
+      // Status transition is best-effort when opening a thread.
+    }
+  }
+
+  async function openConversation(conversationId: string): Promise<void> {
+    const conversation = conversationsRef.current.find((item) => item.id === conversationId);
+    if (!conversation) {
+      return;
+    }
+
+    const tasks: Promise<void>[] = [];
+    if (hasUnreadInboundMessages(conversation)) {
+      tasks.push(markLineConversationAsRead(conversationId));
+    }
+
+    const status = conversationStatus(conversation);
+    if (status === "OPEN" || status === "RESOLVED") {
+      tasks.push(transitionToInProgress(conversationId));
+    }
+
+    await Promise.all(tasks);
+  }
+
   useEffect(() => {
     let isCurrent = true;
     async function loadSettings() {
@@ -1001,6 +1068,27 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     if (!selectedConversation || isSavingStatus) {
       return;
     }
+
+    if (status === "RESOLVED") {
+      try {
+        const { count } = await apiFetch<{ count: number }>(
+          `/api/v1/inbox/conversations/${selectedConversation.id}/unreplied-count`
+        );
+        if (count > 0) {
+          const confirmed = window.confirm(
+            t.resolveUnrepliedWarning.replace("{count}", String(count))
+          );
+          if (!confirmed) {
+            setIsStatusMenuOpen(false);
+            return;
+          }
+        }
+      } catch (countError) {
+        setError(readMessage(countError, "Could not verify unreplied messages."));
+        return;
+      }
+    }
+
     setIsSavingStatus(true);
     setError(null);
     try {
@@ -1254,6 +1342,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     selectedIdRef.current = id;
     setSelectedId(id);
     setMobileTab("thread");
+    void openConversation(id);
   }
 
   const filters: FilterPill[] = [
@@ -1280,9 +1369,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       customerName: customerLabel(conversation),
       customerInitial: customerInitial(customerLabel(conversation)),
       customerAvatar: conversation.pictureUrl,
-      preview: latestMessage
-        ? `${latestMessage.direction === "OUTBOUND" ? (locale === "th" ? "คุณ: " : "You: ") : ""}${messageSummary(latestMessage)}`
-        : t.noMessagesYet,
+      preview: formatConversationPreview(conversation, latestMessage, locale, t),
       time: formatRelativeTime(conversation.lastMessageAt ?? latestMessage?.createdAt),
       channelTag: conversation.lineChannel.name,
       channelStyle: lineChannelBadgeStyle(conversation.lineChannel),
@@ -1810,6 +1897,25 @@ function customerInitial(value: string): string {
   return (value.trim().charAt(0) || "?").toUpperCase();
 }
 
+function formatConversationPreview(
+  conversation: InboxConversation,
+  message: ConversationPreviewMessage | undefined,
+  _locale: "th" | "en",
+  t: ReturnType<typeof getMessages>
+): string {
+  if (!message) {
+    return t.noMessagesYet;
+  }
+
+  const summary = messageSummary(message);
+  if (message.direction === "OUTBOUND") {
+    return t.youSentPreview.replace("{text}", summary);
+  }
+
+  const name = customerLabel(conversation);
+  return t.customerSentPreview.replace("{name}", name).replace("{text}", summary);
+}
+
 function messageSummary(message: {
   text: string | null;
   type?: string | null;
@@ -1831,7 +1937,7 @@ function messageSummary(message: {
     return "[File]";
   }
   if (isStickerMessage(message)) {
-    return `Sticker ${message.rawPayload?.message?.stickerId ?? "received"}\nPackage ${message.rawPayload?.message?.packageId ?? "-"}`;
+    return "Sticker";
   }
   return "(Unsupported message)";
 }
@@ -1903,11 +2009,11 @@ function conversationCardStatus(
   conversation: InboxConversation,
   readState: ConvReadState
 ): ConversationCardProps["status"] {
-  if (conversationStatus(conversation) === "RESOLVED") {
-    return "RESOLVED";
-  }
   if (readState === "unread") {
     return "UNREAD";
+  }
+  if (conversationStatus(conversation) === "RESOLVED") {
+    return "RESOLVED";
   }
   if (conversationStatus(conversation) === "IN_PROGRESS" || readState === "read-not-replied") {
     return "PENDING";
@@ -1993,3 +2099,5 @@ function formatDateTime(value: string): string {
     timeStyle: "short"
   }).format(date);
 }
+
+export { formatConversationPreview, messageSummary, getReadState, conversationCardStatus };

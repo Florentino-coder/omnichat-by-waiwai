@@ -53,6 +53,7 @@ type MockPrisma = {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
     updateMany: jest.Mock<Promise<unknown>, [unknown]>;
+    count: jest.Mock<Promise<unknown>, [unknown]>;
   };
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
@@ -123,7 +124,8 @@ const createPrisma = (): MockPrisma => ({
   message: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>(),
     findMany: jest.fn<Promise<unknown>, [unknown]>(),
-    updateMany: jest.fn<Promise<unknown>, [unknown]>()
+    updateMany: jest.fn<Promise<unknown>, [unknown]>(),
+    count: jest.fn<Promise<unknown>, [unknown]>()
   },
   auditLog: {
     create: jest.fn<Promise<unknown>, [unknown]>()
@@ -445,6 +447,65 @@ describe("InboxService", () => {
           status: "IN_PROGRESS"
         }
       })
+    });
+  });
+
+  it("counts inbound messages after the latest outbound message as unreplied", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1"
+    });
+    prisma.message.findFirst.mockResolvedValue({
+      createdAt: new Date("2026-06-14T01:00:00.000Z")
+    });
+    prisma.message.count.mockResolvedValue(2);
+
+    await expect(
+      createService(prisma).getUnrepliedInboundCount("tenant-1", "conversation-1")
+    ).resolves.toBe(2);
+
+    expect(prisma.message.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        direction: MessageDirection.OUTBOUND,
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true }
+    });
+    expect(prisma.message.count).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        direction: MessageDirection.INBOUND,
+        deletedAt: null,
+        createdAt: { gt: new Date("2026-06-14T01:00:00.000Z") }
+      }
+    });
+  });
+
+  it("counts all inbound messages as unreplied when no outbound exists", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1"
+    });
+    prisma.message.findFirst.mockResolvedValue(null);
+    prisma.message.count.mockResolvedValue(3);
+
+    await expect(
+      createService(prisma).getUnrepliedInboundCount("tenant-1", "conversation-1")
+    ).resolves.toBe(3);
+
+    expect(prisma.message.count).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        conversationId: "conversation-1",
+        direction: MessageDirection.INBOUND,
+        deletedAt: null
+      }
     });
   });
 

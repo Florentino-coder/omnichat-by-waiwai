@@ -170,6 +170,16 @@ export class InboxController {
     return this.inboxService.renameCustomer(ctx.tenantId, ctx.sub, id, dto.nickname);
   }
 
+  @Get("conversations/:id/unreplied-count")
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
+  async getUnrepliedInboundCount(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string
+  ): Promise<{ count: number }> {
+    const count = await this.inboxService.getUnrepliedInboundCount(ctx.tenantId, id);
+    return { count };
+  }
+
   @Patch("conversations/:id/status")
   @Roles(Role.ADMIN, Role.AGENT)
   updateStatus(

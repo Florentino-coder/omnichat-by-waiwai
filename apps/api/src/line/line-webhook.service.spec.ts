@@ -147,6 +147,70 @@ describe("LineWebhookService", () => {
     });
   });
 
+  it("reopens resolved conversations to open when a new inbound message arrives", async () => {
+    const prisma = createPrisma();
+    prisma.lineChannel.findFirst.mockResolvedValue({
+      id: "line-channel-1",
+      tenantId: "tenant-1",
+      workspaceId: "workspace-1",
+      encryptedChannelSecret: "encrypted-secret",
+      encryptedChannelAccessToken: "encrypted-token"
+    });
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: "conversation-1",
+      displayName: "Customer",
+      pictureUrl: "https://example.com/avatar.png"
+    });
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      status: "RESOLVED",
+      inProgressStartedAt: new Date("2026-06-14T00:00:00.000Z")
+    });
+    prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
+    prisma.message.upsert.mockResolvedValue({ id: "message-1" });
+    prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-secret"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    await new LineWebhookService(prisma as unknown as PrismaService, crypto).process(
+      "line-channel-1",
+      {
+        events: [
+          {
+            type: "message",
+            source: { type: "user", userId: "U123" },
+            message: {
+              id: "msg-1",
+              type: "text",
+              text: "follow up",
+              markAsReadToken: "read-token"
+            },
+            timestamp: 1700000000000
+          }
+        ]
+      }
+    );
+
+    expect(prisma.conversation.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          status: "OPEN",
+          inProgressStartedAt: null
+        })
+      })
+    );
+    expect(prisma.message.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          markAsReadToken: "read-token"
+        })
+      })
+    );
+  });
+
   it("broadcasts inbound messages to tenant SSE streams", async () => {
     const prisma = createPrisma();
     prisma.lineChannel.findFirst.mockResolvedValue({

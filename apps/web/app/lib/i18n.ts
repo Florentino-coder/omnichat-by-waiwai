@@ -91,6 +91,9 @@ export const messages = {
     outbound: "ส่งออก",
     inbound: "นำเข้า",
     noMessagesYet: "ยังไม่มีข้อความ",
+    customerSentPreview: "{name} ส่ง: {text}",
+    youSentPreview: "คุณ ส่ง: {text}",
+    resolveUnrepliedWarning: "ยังมี {count} ข้อความที่ยังไม่ได้ตอบ ต้องการปิดเคสหรือไม่?",
 
     // Settings — shared
     settingsSubtitle:
@@ -506,6 +509,9 @@ export const messages = {
     outbound: "Outbound",
     inbound: "Inbound",
     noMessagesYet: "No messages yet.",
+    customerSentPreview: "{name}: {text}",
+    youSentPreview: "You: {text}",
+    resolveUnrepliedWarning: "{count} message(s) still awaiting a reply. Mark as resolved anyway?",
 
     // Settings — shared
     settingsSubtitle:

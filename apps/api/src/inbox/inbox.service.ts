@@ -9,6 +9,7 @@ import {
   ConversationTag,
   ConversationTagLink,
   Message,
+  MessageDirection,
   Prisma,
   Role,
   SavedReply,
@@ -353,6 +354,31 @@ export class InboxService {
     });
 
     return updatedConversation;
+  }
+
+  async getUnrepliedInboundCount(tenantId: string, conversationId: string): Promise<number> {
+    await this.findTenantConversation(tenantId, conversationId);
+
+    const lastOutbound = await this.prisma.message.findFirst({
+      where: {
+        tenantId,
+        conversationId,
+        direction: MessageDirection.OUTBOUND,
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true }
+    });
+
+    return this.prisma.message.count({
+      where: {
+        tenantId,
+        conversationId,
+        direction: MessageDirection.INBOUND,
+        deletedAt: null,
+        ...(lastOutbound ? { createdAt: { gt: lastOutbound.createdAt } } : {})
+      }
+    });
   }
 
   async updateStatus(

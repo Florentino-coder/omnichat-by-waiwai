@@ -191,7 +191,10 @@ export class LineWebhookService {
         update: {
           ...(lineProfile ? { displayName: lineProfile.displayName, pictureUrl: lineProfile.pictureUrl } : {}),
           lastMessageAt: eventTime,
-          customerId
+          customerId,
+          ...(existingConversation?.status === "RESOLVED"
+            ? { status: "OPEN", inProgressStartedAt: null }
+            : {})
         }
       });
 
