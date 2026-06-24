@@ -740,6 +740,7 @@ describe("InboxPage", () => {
 
     const layout = await screen.findByTestId("inbox-layout");
     expect(layout).toHaveClass("h-full");
+    expect(layout).toHaveClass("min-h-0");
     expect(layout).toHaveClass("lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]");
     expect(screen.getByTestId("conversation-list-panel")).not.toHaveClass("hidden");
     expect(screen.getByTestId("conversation-list-panel")).toHaveClass("md:flex");

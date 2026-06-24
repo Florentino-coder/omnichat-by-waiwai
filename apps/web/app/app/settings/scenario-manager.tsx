@@ -6,6 +6,8 @@ import { Button, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
+import { canManageScenarios } from "../../lib/settings-rbac";
+import { useAuthSession } from "../../lib/use-auth-session";
 
 type LineChannel = {
   id: string;
@@ -112,8 +114,9 @@ function toForm(scenario: AiScenario): FormState {
 export function ScenarioManager() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
-  const [role, setRole] = useState<string>("AGENT");
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { user } = useAuthSession();
+  const role = user?.role ?? null;
+  const workspaceId = user?.workspaceId ?? null;
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>("all");
@@ -124,21 +127,8 @@ export function ScenarioManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canEdit = role === "OWNER" || role === "ADMIN";
-  const canDelete = role === "OWNER" || role === "ADMIN";
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      if (stored) {
-        const parsed = JSON.parse(stored) as { role?: string; workspaceId?: string };
-        setRole(parsed.role ?? "AGENT");
-        setWorkspaceId(parsed.workspaceId ?? null);
-      }
-    } catch {
-      setRole("AGENT");
-    }
-  }, []);
+  const canEdit = canManageScenarios(role);
+  const canDelete = canManageScenarios(role);
 
   useEffect(() => {
     async function loadChannels() {

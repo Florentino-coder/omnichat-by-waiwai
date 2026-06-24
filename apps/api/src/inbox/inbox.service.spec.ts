@@ -1561,7 +1561,14 @@ describe("InboxService", () => {
           status: "shown",
           isProgrammatic: false
         },
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          suggestionText: true,
+          citations: true,
+          confidence: true,
+          createdAt: true
+        }
       });
       expect(result).toEqual({
         suggestion_id: null,
@@ -1586,7 +1593,12 @@ describe("InboxService", () => {
         id: "sug-1",
         suggestionText: "auto draft",
         citations: [{ title: "FAQ" }],
-        confidence: 0.9
+        confidence: 0.9,
+        createdAt: new Date("2026-06-24T00:00:00.000Z")
+      });
+      prisma.message.findFirst.mockResolvedValue({
+        direction: "INBOUND",
+        createdAt: new Date("2026-06-24T00:00:00.000Z")
       });
 
       const service = createService(prisma);
@@ -1598,10 +1610,51 @@ describe("InboxService", () => {
           tenantId: "tenant-1",
           status: "shown"
         },
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          suggestionText: true,
+          citations: true,
+          confidence: true,
+          createdAt: true
+        }
       });
       expect(result.suggestion_id).toBe("sug-1");
       expect(result.suggestion_text).toBe("auto draft");
+    });
+
+    it("returns no active suggestion after the agent has replied", async () => {
+      const prisma = createPrisma();
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        aiAutoReplyConfidenceThreshold: 0.8,
+        enableHybridAutoDraft: true
+      });
+      prisma.conversation.findFirst.mockResolvedValue({
+        id: "conv-1",
+        status: "OPEN"
+      });
+      prisma.aiSuggestion.findFirst.mockResolvedValue({
+        id: "sug-1",
+        suggestionText: "auto draft",
+        citations: [{ title: "FAQ" }],
+        confidence: 0.9,
+        createdAt: new Date("2026-06-24T00:00:00.000Z")
+      });
+      prisma.message.findFirst.mockResolvedValue({
+        direction: "OUTBOUND",
+        createdAt: new Date("2026-06-24T00:01:00.000Z")
+      });
+
+      const service = createService(prisma);
+      const result = await service.getActiveSuggestion("tenant-1", "conv-1");
+
+      expect(result).toEqual({
+        suggestion_id: null,
+        suggestion_text: null,
+        knowledge_citations: [],
+        confidence: null,
+        confidence_threshold: 0.8
+      });
     });
   });
 

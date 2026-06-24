@@ -87,7 +87,7 @@ export function ChatWindow({
   onClose
 }: ChatWindowProps) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col bg-[#F7F6FB]" aria-labelledby="thread-heading">
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#F7F6FB]" aria-labelledby="thread-heading">
       <ChatHeader
         aiAutoReplyBadge={aiAutoReplyBadge}
         escalationBadge={escalationBadge}

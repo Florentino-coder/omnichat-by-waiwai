@@ -1697,12 +1697,43 @@ Summarize the conversation history between the merchant and the customer in Engl
       },
       orderBy: {
         createdAt: "desc"
+      },
+      select: {
+        id: true,
+        suggestionText: true,
+        citations: true,
+        confidence: true,
+        createdAt: true
       }
     });
 
     const confidenceThreshold = settings?.aiAutoReplyConfidenceThreshold ?? 0.80;
 
     if (!activeSuggestion) {
+      return {
+        suggestion_id: null,
+        suggestion_text: null,
+        knowledge_citations: [],
+        confidence: null,
+        confidence_threshold: confidenceThreshold
+      };
+    }
+
+    const latestMessage = await this.prisma.message.findFirst({
+      where: {
+        conversationId,
+        tenantId,
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" },
+      select: { direction: true, createdAt: true }
+    });
+
+    const agentRepliedAfterSuggestion =
+      latestMessage?.direction === MessageDirection.OUTBOUND &&
+      latestMessage.createdAt >= activeSuggestion.createdAt;
+
+    if (agentRepliedAfterSuggestion) {
       return {
         suggestion_id: null,
         suggestion_text: null,

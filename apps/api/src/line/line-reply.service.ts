@@ -102,6 +102,19 @@ export class LineReplyService {
       data: { lastMessageAt: sentAt }
     });
 
+    if (!isSystem) {
+      await this.prisma.aiSuggestion.updateMany({
+        where: {
+          conversationId: conversation.id,
+          tenantId,
+          status: "shown"
+        },
+        data: {
+          status: "superseded"
+        }
+      });
+    }
+
     // Curation / QA learning pair logging
     if (!isSystem && dto.text) {
       const lastInbound = await this.prisma.message.findFirst({

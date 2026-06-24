@@ -88,6 +88,20 @@ export function ReplyComposer({
   const [confidence, setConfidence] = useState<number | null>(null);
   const [confidenceThreshold, setConfidenceThreshold] = useState<number | null>(null);
   const isProgrammaticRef = useRef(false);
+  const suppressActiveSuggestionRef = useRef(false);
+
+  function clearDraftUiState() {
+    setSuggestionId(null);
+    setLastSuggestionText(null);
+    setKnowledgeCitations([]);
+    setKnowledgeOnlyMode(false);
+    setKnowledgeOnlyFromQuota(false);
+    setCameFromAiGenerate(false);
+    setConfidence(null);
+    setConfidenceThreshold(null);
+    isProgrammaticRef.current = true;
+    setText("");
+  }
 
   useEffect(() => {
     let timer: number;
@@ -109,7 +123,7 @@ export function ReplyComposer({
 
   // Load active suggestion helper
   const loadActiveSuggestion = async (convId: string) => {
-    if (!enableHybridAutoDraft) {
+    if (!enableHybridAutoDraft || suppressActiveSuggestionRef.current) {
       return;
     }
     try {
@@ -158,15 +172,8 @@ export function ReplyComposer({
 
   // Reset suggestion when conversation changes
   useEffect(() => {
-    setSuggestionId(null);
-    setLastSuggestionText(null);
-    setKnowledgeCitations([]);
-    setKnowledgeOnlyMode(false);
-    setKnowledgeOnlyFromQuota(false);
-    setCameFromAiGenerate(false);
-    setConfidence(null);
-    setConfidenceThreshold(null);
-    setText("");
+    suppressActiveSuggestionRef.current = false;
+    clearDraftUiState();
     setImageUrl("");
     isProgrammaticRef.current = false;
 
@@ -384,14 +391,10 @@ export function ReplyComposer({
             final_sent_text: trimmedText
           })
         }).catch(() => {});
-        setSuggestionId(null);
-        setLastSuggestionText(null);
-        setConfidence(null);
-        setConfidenceThreshold(null);
       }
 
-      isProgrammaticRef.current = true;
-      setText("");
+      suppressActiveSuggestionRef.current = true;
+      clearDraftUiState();
       setImageUrl("");
       setPastedImagePreview(null);
       await onSent?.();

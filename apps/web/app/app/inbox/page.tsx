@@ -19,7 +19,7 @@ type ApiEnvelope<T> =
 
 function InboxShellSkeleton() {
   return (
-    <section className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border bg-background px-6 py-4">
         <div className="h-6 w-36 rounded-md bg-secondary" />
         <div className="h-8 w-28 rounded-md bg-secondary" />

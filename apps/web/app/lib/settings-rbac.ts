@@ -65,3 +65,7 @@ export function resolveSettingsTab(tabParam: string | null, role: string | null)
   }
   return defaultSettingsTab(role);
 }
+
+export function canManageScenarios(role: string | null | undefined): boolean {
+  return role === "OWNER" || role === "ADMIN";
+}

@@ -18,6 +18,7 @@ type MockPrisma = {
   };
   aiSuggestion: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
+    updateMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
   aiTrainingPair: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
@@ -40,7 +41,8 @@ const createPrisma = (): MockPrisma => ({
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
   },
   aiSuggestion: {
-    findFirst: jest.fn<Promise<unknown>, [unknown]>()
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+    updateMany: jest.fn<Promise<unknown>, [unknown]>().mockResolvedValue({ count: 0 })
   },
   aiTrainingPair: {
     create: jest.fn<Promise<unknown>, [unknown]>()
@@ -339,6 +341,14 @@ describe("LineReplyService", () => {
         isEdited: true,
         status: "pending"
       })
+    });
+    expect(prisma.aiSuggestion.updateMany).toHaveBeenCalledWith({
+      where: {
+        conversationId: "conversation-1",
+        tenantId: "tenant-1",
+        status: "shown"
+      },
+      data: { status: "superseded" }
     });
   });
 });

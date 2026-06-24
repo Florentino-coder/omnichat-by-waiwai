@@ -11,6 +11,7 @@ function createMocks() {
     tenant: { findUnique: jest.fn() },
     planLimit: { findUnique: jest.fn() },
     usageCounter: { findUnique: jest.fn(), upsert: jest.fn() },
+    message: { findFirst: jest.fn() },
     aiSuggestion: { updateMany: jest.fn(), create: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({ id: "audit-1" }) }
   };
@@ -69,6 +70,9 @@ function mockHappyPath(mocks: ReturnType<typeof createMocks>) {
   });
   mocks.prisma.aiSuggestion.create.mockResolvedValue({
     id: "suggestion-1"
+  });
+  mocks.prisma.message.findFirst.mockResolvedValue({
+    direction: "INBOUND"
   });
 }
 
@@ -147,6 +151,20 @@ describe("AiHybridDraftService", () => {
     const mocks = createMocks();
     mockHappyPath(mocks);
     mocks.redisService.client.incr.mockResolvedValueOnce(11).mockResolvedValueOnce(1); // conv 11, tenant 1
+    const service = createService(mocks);
+
+    void service.tryHybridDraft("tenant-1", "conv-1", "msg-1", "hello");
+    await jest.runAllTimersAsync();
+
+    expect(mocks.aiReplyGenerator.generate).not.toHaveBeenCalled();
+  });
+
+  it("skips generation when the latest message is already an agent reply", async () => {
+    const mocks = createMocks();
+    mockHappyPath(mocks);
+    mocks.prisma.message.findFirst.mockResolvedValue({
+      direction: "OUTBOUND"
+    });
     const service = createService(mocks);
 
     void service.tryHybridDraft("tenant-1", "conv-1", "msg-1", "hello");

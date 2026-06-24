@@ -1554,7 +1554,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }
 
   return (
-    <section aria-labelledby="inbox-heading" className="flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden bg-white">
+    <section aria-labelledby="inbox-heading" className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
       <h1 id="inbox-heading" className="sr-only">Unified Inbox</h1>
       {error ? <p className="shrink-0 px-6 py-2 text-sm text-danger">{error}</p> : null}
 
@@ -1611,7 +1611,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
         {selectedConversation ? (
           <>
-            <div className={[mobileTab === "thread" ? "flex" : "hidden", "h-full flex flex-col min-h-0 md:flex"].join(" ")}>
+            <div className={[mobileTab === "thread" ? "flex" : "hidden", "h-full min-h-0 min-w-0 flex flex-col overflow-hidden md:flex"].join(" ")}>
               <ChatWindow
                 onClose={() => setSelectedId(null)}
                 channelLabel={selectedConversation?.lineChannel.name ?? "-"}

@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
-import { AiAgentGender, AuditAction } from "@prisma/client";
+import { AiAgentGender, AuditAction, MessageDirection } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { RedisService } from "../redis/redis.service";
 import { RealtimeService } from "../realtime/realtime.service";
@@ -65,6 +65,20 @@ export class AiHybridDraftService implements OnModuleDestroy {
     });
 
     if (settings?.enableAiSuggest === false || settings?.enableHybridAutoDraft === false) {
+      return;
+    }
+
+    const latestMessage = await this.prisma.message.findFirst({
+      where: {
+        conversationId,
+        tenantId,
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" },
+      select: { direction: true }
+    });
+
+    if (latestMessage?.direction === MessageDirection.OUTBOUND) {
       return;
     }
 
