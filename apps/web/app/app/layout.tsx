@@ -35,7 +35,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     : navItems.filter((item) => item.href === "/app/inbox" || item.href === "/app/settings");
 
   return (
-    <main className="flex h-screen overflow-hidden bg-[#F7F7FA] text-foreground">
+    <main className="flex h-dvh overflow-hidden bg-[#F7F7FA] text-foreground">
       <nav aria-label="Primary" className="flex w-14 shrink-0 flex-col items-center gap-2 border-r border-border bg-white py-3">
         {filteredNavItems.map((item) => {
           const Icon = item.icon;
@@ -85,7 +85,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
             <UserMenu />
           </div>
         </header>
-        <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
       </section>
     </main>
   );

@@ -239,6 +239,10 @@ export function ReplyComposer({
     setSelectedIndex(0);
   }, [filteredReplies.length]);
 
+  function focusComposerTextarea(): void {
+    textareaRef.current?.focus({ preventScroll: true });
+  }
+
   function selectReply(reply: SavedReply) {
     const replacedText = text.replace(/\/(\w*)$/, reply.body);
     isProgrammaticRef.current = true;
@@ -247,7 +251,7 @@ export function ReplyComposer({
       setImageUrl(reply.imageUrl);
       setIsImagePanelOpen(true);
     }
-    setTimeout(() => textareaRef.current?.focus(), 0);
+    focusComposerTextarea();
   }
 
   useEffect(() => {
@@ -407,7 +411,7 @@ export function ReplyComposer({
       setImageUrl("");
       setPastedImagePreview(null);
       await onSent?.();
-      setTimeout(() => textareaRef.current?.focus(), 0);
+      focusComposerTextarea();
     } catch {
       setError(t.replyFailed);
     } finally {

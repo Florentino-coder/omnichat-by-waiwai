@@ -738,7 +738,11 @@ describe("InboxPage", () => {
 
     render(await InboxPage());
 
+    const inboxSection = screen.getByRole("region", { name: /unified inbox/i });
     const layout = await screen.findByTestId("inbox-layout");
+    expect(inboxSection).toHaveClass("min-h-0");
+    expect(inboxSection).toHaveClass("flex-1");
+    expect(inboxSection).toHaveClass("overflow-hidden");
     expect(layout).toHaveClass("h-full");
     expect(layout).toHaveClass("min-h-0");
     expect(layout).toHaveClass("grid-rows-[minmax(0,1fr)]");
@@ -794,7 +798,6 @@ describe("InboxPage", () => {
 
     expect(threadPanel).toHaveClass("h-full");
     expect(threadPanel).toHaveClass("min-h-0");
-    expect(threadPanel).toHaveClass("flex-1");
     expect(threadPanel).toHaveClass("overflow-hidden");
     expect(chatWindow).toHaveClass("h-full");
     expect(chatWindow).toHaveClass("min-h-0");

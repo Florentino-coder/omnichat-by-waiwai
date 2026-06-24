@@ -1565,7 +1565,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }
 
   return (
-    <section aria-labelledby="inbox-heading" className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden bg-white">
+    <section aria-labelledby="inbox-heading" className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <h1 id="inbox-heading" className="sr-only">Unified Inbox</h1>
       {error ? <p className="shrink-0 px-6 py-2 text-sm text-danger">{error}</p> : null}
 
@@ -1677,9 +1677,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                 onOpenCustomer={() => setMobileTab("customers")}
                 onQuickReply={() => {
                   setMobileTab("customers");
-                  setTimeout(() => {
-                    document.getElementById("quick-reply-section")?.scrollIntoView({ behavior: "smooth" });
-                  }, 100);
                 }}
                 onUpdatePriority={updatePriority}
                 onUpdateStatus={(status) => void updateConversationStatus(status)}
