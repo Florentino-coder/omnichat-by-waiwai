@@ -33,7 +33,7 @@ export function ConversationList({
   const [isSearchOpen, setIsSearchOpen] = useState(!!searchValue);
 
   return (
-    <aside className="flex min-h-0 w-full flex-col border-r border-border bg-white">
+    <aside className="flex h-full min-h-0 w-full flex-col border-r border-border bg-white">
       <div className="shrink-0 border-b border-border px-5 py-5">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-heading text-xl font-semibold">กล่องข้อความ</h2>

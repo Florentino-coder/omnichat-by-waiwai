@@ -87,7 +87,11 @@ export function ChatWindow({
   onClose
 }: ChatWindowProps) {
   return (
-    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-[#F7F6FB]" aria-labelledby="thread-heading">
+    <section
+      data-testid="chat-window"
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#F7F6FB]"
+      aria-labelledby="thread-heading"
+    >
       <ChatHeader
         aiAutoReplyBadge={aiAutoReplyBadge}
         escalationBadge={escalationBadge}
@@ -109,7 +113,11 @@ export function ChatWindow({
         toggleStatusMenu={toggleStatusMenu}
         onClose={onClose}
       />
-      <div ref={messagesScrollRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+      <div
+        ref={messagesScrollRef}
+        data-testid="chat-messages-scroll"
+        className="flex min-h-0 flex-1 flex-col justify-end space-y-5 overflow-y-auto px-6 py-5"
+      >
         <DateSeparator label="15 มิ.ย. · เริ่มแชท" />
         {hasMoreMessages && onLoadOlder ? (
           <div className="flex justify-center pb-2">
@@ -145,7 +153,9 @@ export function ChatWindow({
           ))}
         <div ref={messagesEndRef} />
       </div>
-      {composer}
+      <div data-testid="chat-composer" className="shrink-0">
+        {composer}
+      </div>
     </section>
   );
 }

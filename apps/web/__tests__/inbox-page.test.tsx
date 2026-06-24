@@ -741,6 +741,7 @@ describe("InboxPage", () => {
     const layout = await screen.findByTestId("inbox-layout");
     expect(layout).toHaveClass("h-full");
     expect(layout).toHaveClass("min-h-0");
+    expect(layout).toHaveClass("grid-rows-[minmax(0,1fr)]");
     expect(layout).toHaveClass("lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]");
     expect(screen.getByTestId("conversation-list-panel")).not.toHaveClass("hidden");
     expect(screen.getByTestId("conversation-list-panel")).toHaveClass("md:flex");
@@ -784,6 +785,18 @@ describe("InboxPage", () => {
     fireEvent.click(openBtn);
 
     expect(await screen.findByText("LINE OA: Main LINE")).toBeInTheDocument();
+
+    const threadPanel = screen.getByTestId("chat-thread-panel");
+    const chatWindow = screen.getByTestId("chat-window");
+    const messagesScroll = screen.getByTestId("chat-messages-scroll");
+    const composer = screen.getByTestId("chat-composer");
+
+    expect(threadPanel).toHaveClass("flex-1");
+    expect(threadPanel).toHaveClass("min-h-0");
+    expect(threadPanel).toHaveClass("overflow-hidden");
+    expect(chatWindow).toHaveClass("flex-1");
+    expect(chatWindow).toHaveClass("min-h-0");
+    expect(messagesScroll.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("changes a conversation to in progress, shows a running timer, and saves the alert threshold", async () => {

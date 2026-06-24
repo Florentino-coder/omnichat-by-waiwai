@@ -1554,13 +1554,13 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }
 
   return (
-    <section aria-labelledby="inbox-heading" className="flex h-full min-h-0 flex-col overflow-hidden bg-white">
+    <section aria-labelledby="inbox-heading" className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <h1 id="inbox-heading" className="sr-only">Unified Inbox</h1>
       {error ? <p className="shrink-0 px-6 py-2 text-sm text-danger">{error}</p> : null}
 
       <div
         data-testid="inbox-layout"
-        className="grid h-full min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[minmax(21rem,22.5rem)_minmax(0,1fr)] lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)] lg:grid-cols-[minmax(21.5rem,22.75rem)_minmax(0,1fr)_minmax(19.5rem,20.75rem)]"
+        className="grid h-full min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden md:grid-cols-[minmax(21rem,22.5rem)_minmax(0,1fr)] lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)] lg:grid-cols-[minmax(21.5rem,22.75rem)_minmax(0,1fr)_minmax(19.5rem,20.75rem)]"
       >
         <div
           data-testid="conversation-list-panel"
@@ -1611,7 +1611,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
         {selectedConversation ? (
           <>
-            <div className={[mobileTab === "thread" ? "flex" : "hidden", "h-full min-h-0 min-w-0 flex flex-col overflow-hidden md:flex"].join(" ")}>
+            <div
+              data-testid="chat-thread-panel"
+              className={[mobileTab === "thread" ? "flex" : "hidden", "flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex"].join(" ")}
+            >
               <ChatWindow
                 onClose={() => setSelectedId(null)}
                 channelLabel={selectedConversation?.lineChannel.name ?? "-"}

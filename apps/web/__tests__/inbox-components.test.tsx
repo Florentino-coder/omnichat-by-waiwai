@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
-import { ChatInput, MessageBubble } from "../components/inbox/ChatWindow";
+import { ChatInput, ChatWindow, MessageBubble } from "../components/inbox/ChatWindow";
 import { ConversationCard } from "../components/inbox/ConversationList";
 import { CustomerPanel } from "../components/inbox/CustomerPanel";
 import { BottomNav } from "../components/inbox/mobile/BottomNav";
@@ -44,6 +44,40 @@ describe("Inbox components", () => {
     expect(screen.getByText("JB-SV")).toBeInTheDocument();
     expect(screen.getByText("รอแอดมิน")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
+  });
+
+  it("keeps the composer below a flex-growing message scroll region", () => {
+    render(
+      <ChatWindow
+        channelLabel="Main LINE"
+        composer={<div data-testid="composer-slot">Composer</div>}
+        customerInitial="S"
+        customerName="Somchai"
+        messages={[{ id: "m1", variant: "inbound", body: "hello" }]}
+        onQuickReply={() => {}}
+        onUpdatePriority={() => {}}
+        onUpdateStatus={() => {}}
+        priority="NORMAL"
+        status="OPEN"
+        toggleStatusMenu={() => {}}
+      />
+    );
+
+    const chatWindow = screen.getByTestId("chat-window");
+    const messagesScroll = screen.getByTestId("chat-messages-scroll");
+    const composer = screen.getByTestId("chat-composer");
+
+    expect(chatWindow).toHaveClass("flex-1");
+    expect(chatWindow).toHaveClass("min-h-0");
+    expect(chatWindow).toHaveClass("overflow-hidden");
+    expect(messagesScroll).toHaveClass("flex-1");
+    expect(messagesScroll).toHaveClass("min-h-0");
+    expect(messagesScroll).toHaveClass("overflow-y-auto");
+    expect(messagesScroll).toHaveClass("justify-end");
+    expect(composer).toHaveClass("shrink-0");
+    expect(
+      messagesScroll.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it("renders message variants and sends composer text", () => {
