@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Logger } from "@nestjs/common";
+import { ConflictException, Injectable, NotFoundException, Logger } from "@nestjs/common";
 import { AuditAction, BroadcastStatus, BroadcastType } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -255,6 +255,86 @@ export class LineBroadcastService {
         createdAt: "desc"
       }
     });
+  }
+
+  async deleteBroadcastJob(
+    tenantId: string,
+    channelId: string,
+    jobId: string,
+    userId: string
+  ): Promise<void> {
+    const job = await this.prisma.broadcastJob.findFirst({
+      where: {
+        id: jobId,
+        tenantId,
+        lineChannelId: channelId,
+        deletedAt: null
+      }
+    });
+
+    if (!job) {
+      throw new NotFoundException("Broadcast job not found");
+    }
+
+    const now = Date.now();
+    const isScheduledPending =
+      job.status === BroadcastStatus.PENDING &&
+      job.scheduledAt !== null &&
+      job.scheduledAt.getTime() > now;
+
+    if (isScheduledPending) {
+      await this.prisma.broadcastJob.update({
+        where: { id: jobId },
+        data: { deletedAt: new Date() }
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: AuditAction.LINE_BROADCAST_CANCELLED,
+          targetType: "BroadcastJob",
+          targetId: jobId,
+          metadata: {
+            lineChannelId: channelId,
+            scheduledAt: job.scheduledAt?.toISOString()
+          }
+        }
+      });
+      return;
+    }
+
+    if (job.status === BroadcastStatus.FAILED) {
+      await this.prisma.broadcastJob.update({
+        where: { id: jobId },
+        data: { deletedAt: new Date() }
+      });
+
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          userId,
+          action: AuditAction.LINE_BROADCAST_DELETED,
+          targetType: "BroadcastJob",
+          targetId: jobId,
+          metadata: {
+            lineChannelId: channelId,
+            status: job.status
+          }
+        }
+      });
+      return;
+    }
+
+    if (job.status === BroadcastStatus.SENT) {
+      throw new ConflictException("Broadcast has already been sent and cannot be cancelled");
+    }
+
+    if (job.status === BroadcastStatus.PROCESSING) {
+      throw new ConflictException("Broadcast is currently being sent and cannot be cancelled");
+    }
+
+    throw new ConflictException("This broadcast cannot be cancelled or deleted");
   }
 
   private buildLineMessages(text?: string, imageUrl?: string) {

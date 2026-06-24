@@ -96,4 +96,15 @@ export class LineChannelsController {
   ) {
     return this.lineBroadcastService.getBroadcastJobs(ctx.tenantId, channelId);
   }
+
+  @Delete("channels/:channelId/broadcasts/:jobId")
+  @Roles(Role.OWNER, Role.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteBroadcast(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("channelId") channelId: string,
+    @Param("jobId") jobId: string
+  ): Promise<void> {
+    return this.lineBroadcastService.deleteBroadcastJob(ctx.tenantId, channelId, jobId, ctx.sub);
+  }
 }

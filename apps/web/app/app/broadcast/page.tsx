@@ -63,6 +63,55 @@ export default function BroadcastPage() {
 
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+
+  const loadJobs = async (channelId: string) => {
+    const jobsData = await apiFetch<BroadcastJob[]>(`/api/v1/line/channels/${channelId}/broadcasts`);
+    setJobs(jobsData);
+  };
+
+  const isCancellablePending = (job: BroadcastJob) =>
+    job.status === "PENDING" &&
+    job.scheduledAt !== null &&
+    new Date(job.scheduledAt).getTime() > Date.now();
+
+  const handleDeleteJob = async (job: BroadcastJob) => {
+    const isCancel = isCancellablePending(job);
+    const confirmMessage =
+      locale === "th"
+        ? isCancel
+          ? "ยกเลิกการส่งบรอดแคสต์ที่ตั้งเวลาไว้ใช่หรือไม่?"
+          : "ลบรายการที่ล้มเหลวออกจากประวัติใช่หรือไม่?"
+        : isCancel
+          ? "Cancel this scheduled broadcast?"
+          : "Remove this failed broadcast from history?";
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setDeletingJobId(job.id);
+    setError(null);
+    try {
+      await apiFetch(`/api/v1/line/channels/${selectedChannelId}/broadcasts/${job.id}`, {
+        method: "DELETE"
+      });
+      await loadJobs(selectedChannelId);
+      setMessage(
+        locale === "th"
+          ? isCancel
+            ? "ยกเลิกการส่งบรอดแคสต์แล้ว"
+            : "ลบออกจากประวัติแล้ว"
+          : isCancel
+            ? "Scheduled broadcast cancelled"
+            : "Removed from history"
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete broadcast job");
+    } finally {
+      setDeletingJobId(null);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -86,16 +135,15 @@ export default function BroadcastPage() {
   useEffect(() => {
     if (!selectedChannelId) return;
 
-    async function loadJobs() {
+    async function fetchJobs() {
       try {
-        const jobsData = await apiFetch<BroadcastJob[]>(`/api/v1/line/channels/${selectedChannelId}/broadcasts`);
-        setJobs(jobsData);
-      } catch (err) {
-        console.error("Failed to load broadcast history", err);
+        await loadJobs(selectedChannelId);
+      } catch {
+        // History refresh is best-effort; form errors surface separately.
       }
     }
-    loadJobs();
-    const interval = setInterval(loadJobs, 10000); // refresh every 10s
+    fetchJobs();
+    const interval = setInterval(fetchJobs, 10000);
     return () => clearInterval(interval);
   }, [selectedChannelId]);
 
@@ -172,8 +220,7 @@ export default function BroadcastPage() {
       setScheduleTime("");
 
       // Refresh jobs list
-      const jobsData = await apiFetch<BroadcastJob[]>(`/api/v1/line/channels/${selectedChannelId}/broadcasts`);
-      setJobs(jobsData);
+      await loadJobs(selectedChannelId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create broadcast job");
     } finally {
@@ -354,6 +401,26 @@ export default function BroadcastPage() {
                     </Label>
                   </div>
 
+                  {isScheduled ? (
+                    <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+                      <Info size={14} className="mt-0.5 shrink-0" />
+                      <p>
+                        {locale === "th"
+                          ? "ตั้งเวลาส่ง: สามารถยกเลิกได้ก่อนถึงเวลาส่งที่กำหนด"
+                          : "Scheduled send: you can cancel before the scheduled send time."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                      <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                      <p>
+                        {locale === "th"
+                          ? "ส่งทันที: หลังกดส่งแล้ว ไม่สามารถยกเลิกหรือลบบรอดแคสต์ได้"
+                          : "Send now: once sent, broadcasts cannot be cancelled or deleted."}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Date & Time (Only if scheduled) */}
                   {isScheduled && (
                     <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border border-[#DEDDE6]/50">
@@ -432,7 +499,7 @@ export default function BroadcastPage() {
                   )}
                 </h2>
 
-                <div className="flex-1 overflow-x-auto min-h-[300px]">
+                <div className="max-h-[min(32rem,calc(100dvh-14rem))] flex-1 overflow-y-auto overflow-x-auto min-h-[300px]">
                   {jobs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8">
                       <Megaphone className="text-[#DEDDE6] mb-2" size={48} />
@@ -449,6 +516,7 @@ export default function BroadcastPage() {
                           <th className="pb-3 px-4">{locale === "th" ? "สถานะ" : "Status"}</th>
                           <th className="pb-3 px-4">{locale === "th" ? "เป้าหมาย" : "Recipients"}</th>
                           <th className="pb-3 pl-4">{locale === "th" ? "กำหนดเวลาส่ง" : "Scheduled / Sent"}</th>
+                          <th className="pb-3 pl-4">{locale === "th" ? "จัดการ" : "Actions"}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#DEDDE6]/40 text-[#16182B]">
@@ -548,6 +616,43 @@ export default function BroadcastPage() {
                                     </>
                                   )}
                                 </div>
+                              </td>
+                              <td className="py-4 pl-4 align-top text-xs">
+                                {isCancellablePending(job) ? (
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={deletingJobId === job.id}
+                                    onClick={() => handleDeleteJob(job)}
+                                    className="h-8 text-xs text-red-600 hover:text-red-700"
+                                  >
+                                    {deletingJobId === job.id ? (
+                                      <Loader2 className="animate-spin" size={14} />
+                                    ) : (
+                                      locale === "th" ? "ยกเลิก" : "Cancel"
+                                    )}
+                                  </Button>
+                                ) : job.status === "FAILED" ? (
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={deletingJobId === job.id}
+                                    onClick={() => handleDeleteJob(job)}
+                                    className="h-8 text-xs"
+                                  >
+                                    {deletingJobId === job.id ? (
+                                      <Loader2 className="animate-spin" size={14} />
+                                    ) : (
+                                      locale === "th" ? "ลบประวัติ" : "Remove"
+                                    )}
+                                  </Button>
+                                ) : job.status === "SENT" || job.status === "PROCESSING" ? (
+                                  <p className="max-w-[140px] text-[10px] text-muted-foreground">
+                                    {locale === "th" ? "ส่งแล้ว — ยกเลิกไม่ได้" : "Sent — cannot cancel"}
+                                  </p>
+                                ) : null}
                               </td>
                             </tr>
                           );

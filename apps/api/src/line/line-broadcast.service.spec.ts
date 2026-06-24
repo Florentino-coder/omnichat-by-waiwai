@@ -1,3 +1,4 @@
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { AuditAction, BroadcastStatus, BroadcastType } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -9,6 +10,7 @@ type MockPrisma = {
   };
   broadcastJob: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
+    findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
     updateMany: jest.Mock<Promise<unknown>, [unknown]>;
@@ -25,6 +27,7 @@ const createPrisma = (): MockPrisma => ({
   },
   broadcastJob: {
     create: jest.fn<Promise<unknown>, [unknown]>(),
+    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
     findUnique: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>(),
     updateMany: jest.fn<Promise<unknown>, [unknown]>(),
@@ -205,5 +208,110 @@ describe("LineBroadcastService", () => {
 
     expect(prisma.broadcastJob.findUnique).not.toHaveBeenCalled();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  describe("deleteBroadcastJob", () => {
+    const crypto = {
+      decrypt: jest.fn(),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    it("soft-deletes a scheduled pending broadcast and logs cancellation audit", async () => {
+      const prisma = createPrisma();
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+
+      prisma.broadcastJob.findFirst.mockResolvedValue({
+        id: "job-1",
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        status: BroadcastStatus.PENDING,
+        scheduledAt: futureDate
+      });
+      prisma.broadcastJob.update.mockResolvedValue({ id: "job-1" });
+      prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+      const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+      await service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-1", "user-1");
+
+      expect(prisma.broadcastJob.update).toHaveBeenCalledWith({
+        where: { id: "job-1" },
+        data: { deletedAt: expect.any(Date) }
+      });
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          tenantId: "tenant-1",
+          userId: "user-1",
+          action: AuditAction.LINE_BROADCAST_CANCELLED,
+          targetType: "BroadcastJob",
+          targetId: "job-1"
+        })
+      });
+    });
+
+    it("soft-deletes a failed broadcast and logs deletion audit", async () => {
+      const prisma = createPrisma();
+
+      prisma.broadcastJob.findFirst.mockResolvedValue({
+        id: "job-2",
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        status: BroadcastStatus.FAILED,
+        scheduledAt: null
+      });
+      prisma.broadcastJob.update.mockResolvedValue({ id: "job-2" });
+      prisma.auditLog.create.mockResolvedValue({ id: "audit-2" });
+
+      const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+      await service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-2", "user-1");
+
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          action: AuditAction.LINE_BROADCAST_DELETED,
+          targetId: "job-2"
+        })
+      });
+    });
+
+    it("throws ConflictException for sent broadcasts", async () => {
+      const prisma = createPrisma();
+      prisma.broadcastJob.findFirst.mockResolvedValue({
+        id: "job-3",
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        status: BroadcastStatus.SENT,
+        scheduledAt: null
+      });
+
+      const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+      await expect(
+        service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-3", "user-1")
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("throws ConflictException for processing broadcasts", async () => {
+      const prisma = createPrisma();
+      prisma.broadcastJob.findFirst.mockResolvedValue({
+        id: "job-4",
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        status: BroadcastStatus.PROCESSING,
+        scheduledAt: null
+      });
+
+      const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+      await expect(
+        service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-4", "user-1")
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("throws NotFoundException when job does not exist", async () => {
+      const prisma = createPrisma();
+      prisma.broadcastJob.findFirst.mockResolvedValue(null);
+
+      const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+      await expect(
+        service.deleteBroadcastJob("tenant-1", "line-channel-1", "missing", "user-1")
+      ).rejects.toThrow(NotFoundException);
+    });
   });
 });
