@@ -742,11 +742,12 @@ describe("InboxPage", () => {
     expect(layout).toHaveClass("h-full");
     expect(layout).toHaveClass("min-h-0");
     expect(layout).toHaveClass("grid-rows-[minmax(0,1fr)]");
-    expect(layout).toHaveClass("lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_minmax(18rem,21rem)]");
+    expect(layout).toHaveClass("items-stretch");
+    expect(layout).toHaveClass("lg:grid-cols-[minmax(21.5rem,22.75rem)_minmax(0,1fr)_minmax(19.5rem,20.75rem)]");
     expect(screen.getByTestId("conversation-list-panel")).not.toHaveClass("hidden");
     expect(screen.getByTestId("conversation-list-panel")).toHaveClass("md:flex");
     expect(screen.getByTestId("customer-context-panel")).toHaveClass("hidden");
-    expect(screen.getByTestId("customer-context-panel")).toHaveClass("xl:flex");
+    expect(screen.getByTestId("customer-context-panel")).toHaveClass("lg:flex");
     expect(screen.getByRole("navigation", { name: "Mobile inbox navigation" })).toBeInTheDocument();
   });
 
@@ -791,11 +792,14 @@ describe("InboxPage", () => {
     const messagesScroll = screen.getByTestId("chat-messages-scroll");
     const composer = screen.getByTestId("chat-composer");
 
-    expect(threadPanel).toHaveClass("flex-1");
+    expect(threadPanel).toHaveClass("h-full");
     expect(threadPanel).toHaveClass("min-h-0");
     expect(threadPanel).toHaveClass("overflow-hidden");
-    expect(chatWindow).toHaveClass("flex-1");
+    expect(chatWindow).toHaveClass("h-full");
     expect(chatWindow).toHaveClass("min-h-0");
+    expect(messagesScroll).toHaveClass("flex-1");
+    expect(messagesScroll).toHaveClass("min-h-0");
+    expect(messagesScroll).toHaveClass("overflow-y-auto");
     expect(messagesScroll.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 

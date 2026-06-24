@@ -89,7 +89,7 @@ export function ChatWindow({
   return (
     <section
       data-testid="chat-window"
-      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#F7F6FB]"
+      className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-[#F7F6FB]"
       aria-labelledby="thread-heading"
     >
       <ChatHeader
@@ -116,42 +116,44 @@ export function ChatWindow({
       <div
         ref={messagesScrollRef}
         data-testid="chat-messages-scroll"
-        className="flex min-h-0 flex-1 flex-col justify-end space-y-5 overflow-y-auto px-6 py-5"
+        className="min-h-0 flex-1 overflow-y-auto"
       >
-        <DateSeparator label="15 มิ.ย. · เริ่มแชท" />
-        {hasMoreMessages && onLoadOlder ? (
-          <div className="flex justify-center pb-2">
-            <button
-              type="button"
-              onClick={onLoadOlder}
-              disabled={isLoadingOlderMessages}
-              className="rounded-full border border-[#DEDDE6] bg-white px-4 py-1.5 text-xs font-medium text-[#767A8C] hover:bg-[#F7F6FB] disabled:opacity-60"
-            >
-              {isLoadingOlderMessages ? loadingOlderText : loadOlderText}
-            </button>
-          </div>
-        ) : null}
-        {isLoading ? <ChatWindowSkeleton label={loadingText} /> : null}
-        {!isLoading && emptyText ? <p className="text-sm text-muted-foreground">{emptyText}</p> : null}
-        {!isLoading &&
-          messages.map((message) => (
-            <MessageBubble
-              key={message.id}
-              authorInitial={message.authorInitial}
-              body={message.body}
-              time={message.time}
-              variant={message.variant}
-              escalationLabel={message.escalationLabel}
-              type={message.type}
-              mediaUrl={message.mediaUrl}
-              mediaMimeType={message.mediaMimeType}
-              mediaSize={message.mediaSize}
-              mediaR2Key={message.mediaR2Key}
-              mediaFileName={message.mediaFileName}
-              rawPayload={message.rawPayload}
-            />
-          ))}
-        <div ref={messagesEndRef} />
+        <div className="flex min-h-full flex-col justify-end space-y-5 px-6 py-5">
+          <DateSeparator label="15 มิ.ย. · เริ่มแชท" />
+          {hasMoreMessages && onLoadOlder ? (
+            <div className="flex justify-center pb-2">
+              <button
+                type="button"
+                onClick={onLoadOlder}
+                disabled={isLoadingOlderMessages}
+                className="rounded-full border border-[#DEDDE6] bg-white px-4 py-1.5 text-xs font-medium text-[#767A8C] hover:bg-[#F7F6FB] disabled:opacity-60"
+              >
+                {isLoadingOlderMessages ? loadingOlderText : loadOlderText}
+              </button>
+            </div>
+          ) : null}
+          {isLoading ? <ChatWindowSkeleton label={loadingText} /> : null}
+          {!isLoading && emptyText ? <p className="text-sm text-muted-foreground">{emptyText}</p> : null}
+          {!isLoading &&
+            messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                authorInitial={message.authorInitial}
+                body={message.body}
+                time={message.time}
+                variant={message.variant}
+                escalationLabel={message.escalationLabel}
+                type={message.type}
+                mediaUrl={message.mediaUrl}
+                mediaMimeType={message.mediaMimeType}
+                mediaSize={message.mediaSize}
+                mediaR2Key={message.mediaR2Key}
+                mediaFileName={message.mediaFileName}
+                rawPayload={message.rawPayload}
+              />
+            ))}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
       <div data-testid="chat-composer" className="shrink-0">
         {composer}

@@ -48,32 +48,33 @@ describe("Inbox components", () => {
 
   it("keeps the composer below a flex-growing message scroll region", () => {
     render(
-      <ChatWindow
-        channelLabel="Main LINE"
-        composer={<div data-testid="composer-slot">Composer</div>}
-        customerInitial="S"
-        customerName="Somchai"
-        messages={[{ id: "m1", variant: "inbound", body: "hello" }]}
-        onQuickReply={() => {}}
-        onUpdatePriority={() => {}}
-        onUpdateStatus={() => {}}
-        priority="NORMAL"
-        status="OPEN"
-        toggleStatusMenu={() => {}}
-      />
+      <div className="flex h-[640px] min-h-0 flex-col overflow-hidden">
+        <ChatWindow
+          channelLabel="Main LINE"
+          composer={<div data-testid="composer-slot">Composer</div>}
+          customerInitial="S"
+          customerName="Somchai"
+          messages={[{ id: "m1", variant: "inbound", body: "hello" }]}
+          onQuickReply={() => {}}
+          onUpdatePriority={() => {}}
+          onUpdateStatus={() => {}}
+          priority="NORMAL"
+          status="OPEN"
+          toggleStatusMenu={() => {}}
+        />
+      </div>
     );
 
     const chatWindow = screen.getByTestId("chat-window");
     const messagesScroll = screen.getByTestId("chat-messages-scroll");
     const composer = screen.getByTestId("chat-composer");
 
-    expect(chatWindow).toHaveClass("flex-1");
+    expect(chatWindow).toHaveClass("h-full");
     expect(chatWindow).toHaveClass("min-h-0");
     expect(chatWindow).toHaveClass("overflow-hidden");
     expect(messagesScroll).toHaveClass("flex-1");
     expect(messagesScroll).toHaveClass("min-h-0");
     expect(messagesScroll).toHaveClass("overflow-y-auto");
-    expect(messagesScroll).toHaveClass("justify-end");
     expect(composer).toHaveClass("shrink-0");
     expect(
       messagesScroll.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING
