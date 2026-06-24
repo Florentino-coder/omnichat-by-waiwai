@@ -1,9 +1,12 @@
 import {
   CallHandler,
   ExecutionContext,
+  HttpStatus,
   Injectable,
   NestInterceptor
 } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
+import { HTTP_CODE_METADATA } from "@nestjs/common/constants";
 import { Observable, map } from "rxjs";
 
 export interface SuccessEnvelope<T> {
@@ -25,12 +28,23 @@ type MaybeEnvelope<T> =
 
 @Injectable()
 export class ResponseEnvelopeInterceptor<T>
-  implements NestInterceptor<T, SuccessEnvelope<T> | MaybeEnvelope<T>>
+  implements NestInterceptor<T, SuccessEnvelope<T> | MaybeEnvelope<T> | void>
 {
+  constructor(private readonly reflector: Reflector = new Reflector()) {}
+
   intercept(
-    _context: ExecutionContext,
+    context: ExecutionContext,
     next: CallHandler<T>
-  ): Observable<SuccessEnvelope<T> | MaybeEnvelope<T>> {
+  ): Observable<SuccessEnvelope<T> | MaybeEnvelope<T> | void> {
+    const statusCode = this.reflector.get<number>(
+      HTTP_CODE_METADATA,
+      context.getHandler()
+    );
+
+    if (statusCode === HttpStatus.NO_CONTENT) {
+      return next.handle().pipe(map(() => undefined));
+    }
+
     return next.handle().pipe(map((data) => this.wrap(data)));
   }
 

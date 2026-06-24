@@ -1,8 +1,12 @@
-import { CallHandler, ExecutionContext } from "@nestjs/common";
+import { CallHandler, ExecutionContext, HttpStatus } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { firstValueFrom, of } from "rxjs";
 import { ResponseEnvelopeInterceptor } from "./response-envelope.interceptor";
 
-const context = {} as ExecutionContext;
+const context = {
+  getHandler: () => ({}),
+  getClass: () => ({})
+} as ExecutionContext;
 
 describe("ResponseEnvelopeInterceptor", () => {
   it("wraps controller data in a success envelope", async () => {
@@ -27,6 +31,22 @@ describe("ResponseEnvelopeInterceptor", () => {
       success: true,
       data: null
     });
+  });
+
+  it("does not wrap NO_CONTENT handlers so 204 responses stay empty", async () => {
+    const reflector = new Reflector();
+    jest.spyOn(reflector, "get").mockReturnValue(HttpStatus.NO_CONTENT);
+
+    const interceptor = new ResponseEnvelopeInterceptor(reflector);
+    const handler: CallHandler<undefined> = {
+      handle: () => of(undefined)
+    };
+    const noContentContext = {
+      getHandler: () => ({}),
+      getClass: () => ({})
+    } as ExecutionContext;
+
+    await expect(firstValueFrom(interceptor.intercept(noContentContext, handler))).resolves.toBeUndefined();
   });
 
   it("does not double-wrap an existing envelope", async () => {

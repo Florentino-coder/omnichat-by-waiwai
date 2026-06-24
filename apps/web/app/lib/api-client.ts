@@ -171,6 +171,13 @@ export async function apiFetch<T>(path: string, options: ApiOptions = {}): Promi
     }
   }
 
+  if (response.status === 204 || response.status === 205) {
+    if (!response.ok) {
+      throw new Error("Request failed");
+    }
+    return undefined as T;
+  }
+
   const body = (await response.json().catch(() => null)) as ApiEnvelope<T> | T | null;
 
   if (!response.ok) {

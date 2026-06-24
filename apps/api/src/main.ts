@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { Logger, ValidationPipe } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { NestFactory } from "@nestjs/core";
 import type { NextFunction, Request, Response } from "express";
 import { AppModule } from "./app.module";
@@ -17,7 +18,7 @@ async function bootstrap(): Promise<void> {
   });
   app.setGlobalPrefix("api/v1");
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
+  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor(app.get(Reflector)));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

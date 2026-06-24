@@ -1,5 +1,6 @@
 import { Controller, Get, INestApplication, UseGuards } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { Role } from "@prisma/client";
@@ -76,7 +77,7 @@ describe("RBAC and tenant guards", () => {
 
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new HttpExceptionFilter());
-    app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
+    app.useGlobalInterceptors(new ResponseEnvelopeInterceptor(new Reflector()));
     await app.init();
 
     jwtService = moduleRef.get(JwtService);
