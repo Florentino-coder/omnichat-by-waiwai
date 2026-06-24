@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LockKeyhole, FileDown, X } from "lucide-react";
 
 export type MessageVariant = "outbound" | "inbound" | "inbound-escalation" | "note" | "system";
@@ -24,6 +24,7 @@ interface MessageBubbleProps {
   authorInitial?: string;
   type?: string | null;
   mediaUrl?: string | null;
+  proxyMediaUrl?: string | null;
   mediaMimeType?: string | null;
   mediaSize?: number | null;
   mediaR2Key?: string | null;
@@ -39,6 +40,7 @@ export function MessageBubble({
   authorInitial,
   type,
   mediaUrl,
+  proxyMediaUrl,
   mediaMimeType: _mediaMimeType,
   mediaSize,
   mediaR2Key: _mediaR2Key,
@@ -47,6 +49,17 @@ export function MessageBubble({
   escalationLabel
 }: MessageBubbleProps) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [resolvedMediaUrl, setResolvedMediaUrl] = useState(mediaUrl || "");
+
+  useEffect(() => {
+    setResolvedMediaUrl(mediaUrl || "");
+  }, [mediaUrl, proxyMediaUrl]);
+
+  const handleMediaLoadError = () => {
+    if (proxyMediaUrl && resolvedMediaUrl !== proxyMediaUrl) {
+      setResolvedMediaUrl(proxyMediaUrl);
+    }
+  };
 
   if (variant === "system") {
     return (
@@ -120,10 +133,11 @@ export function MessageBubble({
           ) : type === "IMAGE" ? (
             <div className="relative">
               <img
-                src={mediaUrl || ""}
+                src={resolvedMediaUrl || mediaUrl || ""}
                 alt={mediaFileName || "Image"}
                 className="max-h-60 max-w-full rounded-xl cursor-pointer hover:opacity-95 transition-opacity border border-slate-200 shadow-sm object-cover"
                 onClick={() => setIsLightboxOpen(true)}
+                onError={handleMediaLoadError}
               />
               {isLightboxOpen && (
                 <div
@@ -141,9 +155,10 @@ export function MessageBubble({
                     <X size={24} />
                   </button>
                   <img
-                    src={mediaUrl || ""}
+                    src={resolvedMediaUrl || mediaUrl || ""}
                     alt={mediaFileName || "Lightbox Image"}
                     className="max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-200"
+                    onError={handleMediaLoadError}
                   />
                 </div>
               )}
@@ -151,23 +166,25 @@ export function MessageBubble({
           ) : type === "VIDEO" ? (
             <div>
               <video
-                src={mediaUrl || ""}
+                src={resolvedMediaUrl || mediaUrl || ""}
                 controls
                 className="max-w-full sm:max-w-md rounded-xl overflow-hidden shadow-md border border-slate-200"
+                onError={handleMediaLoadError}
               />
             </div>
           ) : type === "AUDIO" ? (
             <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200">
               <audio
-                src={mediaUrl || ""}
+                src={resolvedMediaUrl || mediaUrl || ""}
                 controls
                 className="max-w-full"
+                onError={handleMediaLoadError}
               />
             </div>
           ) : type === "FILE" ? (
             <div>
               <a
-                href={mediaUrl || "#"}
+                href={resolvedMediaUrl || mediaUrl || "#"}
                 download={mediaFileName || "file"}
                 target="_blank"
                 rel="noopener noreferrer"

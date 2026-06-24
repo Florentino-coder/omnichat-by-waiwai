@@ -180,8 +180,9 @@ export function resolveMessageMediaUrl(message: Pick<
   Message,
   "id" | "mediaUrl" | "source" | "direction" | "externalMessageId" | "type"
 >): string | null {
-  if (message.mediaUrl) {
-    return message.mediaUrl;
+  const storedMediaUrl = message.mediaUrl?.trim();
+  if (storedMediaUrl) {
+    return storedMediaUrl;
   }
 
   const isLineInboundMedia =

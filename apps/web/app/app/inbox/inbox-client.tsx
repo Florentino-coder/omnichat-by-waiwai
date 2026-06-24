@@ -1430,6 +1430,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       : `${selectedCustomerName} · ${formatDateTime(message.createdAt)}`,
     type: message.type,
     mediaUrl: message.mediaUrl,
+    proxyMediaUrl:
+      message.direction === "INBOUND" &&
+      ["IMAGE", "VIDEO", "AUDIO", "FILE"].includes(message.type)
+        ? `/api/v1/inbox/messages/${message.id}/media`
+        : null,
     mediaMimeType: message.mediaMimeType,
     mediaSize: message.mediaSize,
     mediaR2Key: message.mediaR2Key,

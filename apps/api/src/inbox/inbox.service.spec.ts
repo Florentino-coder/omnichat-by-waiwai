@@ -764,6 +764,19 @@ describe("InboxService", () => {
     ).toBe("https://cdn.example.com/old-image.jpg");
   });
 
+  it("falls back to proxy when legacy mediaUrl is blank but LINE media reference exists", () => {
+    expect(
+      resolveMessageMediaUrl({
+        id: "message-legacy-2",
+        mediaUrl: "   ",
+        source: MessageSource.LINE,
+        direction: MessageDirection.INBOUND,
+        externalMessageId: "line-msg-legacy-2",
+        type: MessageType.VIDEO
+      })
+    ).toBe("/api/v1/inbox/messages/message-legacy-2/media");
+  });
+
   it("streams inbound LINE media from the Content API for tenant-scoped messages", async () => {
     const prisma = createPrisma();
     prisma.message.findFirst.mockResolvedValue({

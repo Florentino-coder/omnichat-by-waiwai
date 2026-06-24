@@ -11,6 +11,7 @@ export interface ChatMessageItem {
   authorInitial?: string;
   type?: string | null;
   mediaUrl?: string | null;
+  proxyMediaUrl?: string | null;
   mediaMimeType?: string | null;
   mediaSize?: number | null;
   mediaR2Key?: string | null;
@@ -148,6 +149,7 @@ export function ChatWindow({
                 escalationLabel={message.escalationLabel}
                 type={message.type}
                 mediaUrl={message.mediaUrl}
+                proxyMediaUrl={message.proxyMediaUrl}
                 mediaMimeType={message.mediaMimeType}
                 mediaSize={message.mediaSize}
                 mediaR2Key={message.mediaR2Key}
