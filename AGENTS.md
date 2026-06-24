@@ -333,6 +333,8 @@ MINIO_ACCESS_KEY="..."
 MINIO_SECRET_KEY="..."
 ```
 
+> **Note:** Production uses Cloudflare R2 (`R2_*` env vars). `MINIO_*` is legacy/local-dev only if you still run MinIO in Docker Compose.
+
 ---
 
 _Last updated: 2026 | Owner: Solo Founder_

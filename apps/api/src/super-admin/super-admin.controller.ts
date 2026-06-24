@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { SuperAdminService } from "./super-admin.service";
 import { AiMonitorService } from "./ai-monitor.service";
+import { BackupService } from "../backup/backup.service";
 import { CreateTenantOwnerDto } from "./dto/create-tenant-owner.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { SuperOwnerGuard } from "./guards/super-owner.guard";
@@ -12,7 +13,8 @@ import { JwtTenantPayload } from "../auth/types/auth.types";
 export class SuperAdminController {
   constructor(
     private readonly superAdminService: SuperAdminService,
-    private readonly aiMonitorService: AiMonitorService
+    private readonly aiMonitorService: AiMonitorService,
+    private readonly backupService: BackupService
   ) {}
 
   @Get("tenants")
@@ -47,5 +49,21 @@ export class SuperAdminController {
   @Get("ai/tenants/:tenantId/usage")
   getAiTenantUsage(@Param("tenantId") tenantId: string) {
     return this.aiMonitorService.getTenantUsage(tenantId);
+  }
+
+  @Get("backups/runs")
+  listBackupRuns(@Query("limit") limit?: string) {
+    const parsedLimit = limit ? Number.parseInt(limit, 10) : 50;
+    return this.backupService.listRuns(Number.isFinite(parsedLimit) ? parsedLimit : 50);
+  }
+
+  @Get("backups/health")
+  getBackupHealth() {
+    return this.backupService.getHealth();
+  }
+
+  @Post("backups/run")
+  triggerBackupRun(@TenantCtx() ctx: JwtTenantPayload) {
+    return this.backupService.triggerManualBackup(ctx.sub);
   }
 }

@@ -118,6 +118,24 @@ enum AuditAction {
   AI_AUTO_REPLY_SKIPPED
   AI_AUTO_REPLY_ESCALATED
   AI_AUTO_REPLY_FAILED
+  // Platform Backup
+  BACKUP_RUN_TRIGGERED
+  BACKUP_RUN_SUCCEEDED
+  BACKUP_RUN_FAILED
+}
+
+enum BackupRunType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  VERIFICATION
+  MANUAL
+}
+
+enum BackupRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
 }
 
 enum AutomationTriggerType {
@@ -336,6 +354,7 @@ model User {
   auditLogs       AuditLog[]
   savedReplies    SavedReply[]
   broadcastJobs   BroadcastJob[]
+  backupRuns      BackupRun[]
 
   @@map("users")
 }
@@ -439,6 +458,28 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// Platform-level database backup run history (not tenant-scoped)
+model BackupRun {
+  id                String          @id @default(uuid())
+  runType           BackupRunType
+  status            BackupRunStatus @default(RUNNING)
+  r2Key             String?
+  bucket            String
+  sizeBytes         BigInt?
+  errorMessage      String?
+  triggeredByUserId String?
+  triggeredBy       User?           @relation(fields: [triggeredByUserId], references: [id])
+  startedAt         DateTime        @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([status])
+  @@index([runType])
+  @@index([startedAt])
+  @@map("backup_runs")
 }
 
 model UsageCounter {

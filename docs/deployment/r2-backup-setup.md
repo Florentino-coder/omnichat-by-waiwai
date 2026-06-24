@@ -1,6 +1,6 @@
 # Cloudflare R2 Storage & Database Backup Guide
 
-This document describes how to configure, monitor, and restore the Cloudflare R2 file storage and database backup systems for Chat-Wai SaaS.
+This document describes how to configure, monitor, and restore the Cloudflare R2 storage and database backup systems for Chat-Wai SaaS.
 
 ---
 
@@ -8,8 +8,8 @@ This document describes how to configure, monitor, and restore the Cloudflare R2
 
 You must create two separate R2 buckets in your Cloudflare dashboard:
 
-1. **`chatwai-storage`**: Used for storing customer chat media, voice messages, videos, company logos, and avatars.
-2. **`chatwai-backups`**: Used for storing automated database SQL dumps.
+1. **`chatwai-storage`**: Used for outbound/agent-uploaded media, voice messages, videos, company logos, and avatars. **Inbound LINE chat images are not stored here** — they are proxied on demand from the LINE Content API.
+2. **`chatwai-backups`**: Used **only** for automated PostgreSQL SQL dumps (daily/weekly/monthly/manual).
 
 ### Step-by-Step Setup:
 1. Log in to your **Cloudflare Dashboard**.
@@ -67,6 +67,14 @@ Database backups run automatically at the platform level using `pg_dump` and are
 - **Daily**: Runs at 02:00 Bangkok time (19:00 UTC) -> Kept under `daily/` folder for 30 days.
 - **Weekly**: Runs every Sunday at 02:15 Bangkok time (19:15 UTC) -> Kept under `weekly/` folder for 12 weeks.
 - **Monthly**: Runs on the 1st of every month at 02:30 Bangkok time (19:30 UTC) -> Kept under `monthly/` folder for 12 months.
+
+### Observability:
+- Each run is recorded in the `backup_runs` database table with status, R2 key, size, and error details.
+- Super owners can review health and history at `/super-admin/backups` or via:
+  - `GET /api/v1/super-admin/backups/health`
+  - `GET /api/v1/super-admin/backups/runs`
+  - `POST /api/v1/super-admin/backups/run` (manual trigger)
+- Backup lifecycle events are written to `audit_logs` with `BACKUP_RUN_*` actions.
 
 ---
 

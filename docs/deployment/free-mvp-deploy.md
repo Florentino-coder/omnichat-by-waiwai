@@ -84,9 +84,11 @@ ENCRYPTION_KEY="<32-byte-base64-key>"
 EMAIL_FROM="OmniChat <no-reply@your-domain>"
 APP_BASE_URL="https://<web-host>"
 RESEND_API_KEY="<resend-api-key>"
-MINIO_ENDPOINT="<future-storage-endpoint>"
-MINIO_ACCESS_KEY="<future-storage-access-key>"
-MINIO_SECRET_KEY="<future-storage-secret-key>"
+R2_ACCOUNT_ID="<cloudflare-account-id>"
+R2_ACCESS_KEY_ID="<r2-access-key-id>"
+R2_SECRET_ACCESS_KEY="<r2-secret-access-key>"
+R2_BUCKET_STORAGE="chatwai-storage"
+R2_BUCKET_BACKUPS="chatwai-backups"
 ```
 
 Generate `ENCRYPTION_KEY` locally:
