@@ -1432,6 +1432,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     mediaUrl: message.mediaUrl,
     proxyMediaUrl:
       message.direction === "INBOUND" &&
+      message.type != null &&
       ["IMAGE", "VIDEO", "AUDIO", "FILE"].includes(message.type)
         ? `/api/v1/inbox/messages/${message.id}/media`
         : null,
