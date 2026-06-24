@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyApiRequest } from "../../../lib/api-proxy.server";
+import { buildBffResponseFromUpstream, proxyApiRequest } from "../../../lib/api-proxy.server";
 import { AUTH_COOKIE_NAMES } from "../../../lib/auth-cookie-names";
 import {
   readAccessTokenFromCookies,
@@ -18,7 +18,7 @@ type RouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
-async function proxyToApi(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+async function proxyToApi(request: NextRequest, context: RouteContext): Promise<Response> {
   const { path } = await context.params;
   const pathKey = path.join("/");
 
@@ -58,46 +58,25 @@ async function proxyToApi(request: NextRequest, context: RouteContext): Promise<
     accessToken
   });
 
-  const responseHeaders = new Headers();
-  const upstreamContentType = upstream.headers.get("content-type");
-  if (upstreamContentType) {
-    responseHeaders.set("Content-Type", upstreamContentType);
-  }
-  const cacheControl = upstream.headers.get("cache-control");
-  if (cacheControl) {
-    responseHeaders.set("Cache-Control", cacheControl);
-  }
-
-  if (upstreamContentType?.includes("text/event-stream") && upstream.body) {
-    return new NextResponse(upstream.body, {
-      status: upstream.status,
-      headers: responseHeaders
-    });
-  }
-
-  const responseBody = await upstream.arrayBuffer();
-  return new NextResponse(responseBody, {
-    status: upstream.status,
-    headers: responseHeaders
-  });
+  return buildBffResponseFromUpstream(upstream);
 }
 
-export async function GET(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function GET(request: NextRequest, context: RouteContext): Promise<Response> {
   return proxyToApi(request, context);
 }
 
-export async function POST(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function POST(request: NextRequest, context: RouteContext): Promise<Response> {
   return proxyToApi(request, context);
 }
 
-export async function PATCH(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function PATCH(request: NextRequest, context: RouteContext): Promise<Response> {
   return proxyToApi(request, context);
 }
 
-export async function PUT(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function PUT(request: NextRequest, context: RouteContext): Promise<Response> {
   return proxyToApi(request, context);
 }
 
-export async function DELETE(request: NextRequest, context: RouteContext): Promise<NextResponse> {
+export async function DELETE(request: NextRequest, context: RouteContext): Promise<Response> {
   return proxyToApi(request, context);
 }
