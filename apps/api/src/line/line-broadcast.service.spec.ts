@@ -19,24 +19,34 @@ type MockPrisma = {
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  $transaction: jest.Mock<Promise<unknown>, [unknown]>;
 };
 
-const createPrisma = (): MockPrisma => ({
-  lineChannel: {
-    findFirst: jest.fn<Promise<unknown>, [unknown]>()
-  },
-  broadcastJob: {
-    create: jest.fn<Promise<unknown>, [unknown]>(),
-    findFirst: jest.fn<Promise<unknown>, [unknown]>(),
-    findUnique: jest.fn<Promise<unknown>, [unknown]>(),
-    update: jest.fn<Promise<unknown>, [unknown]>(),
-    updateMany: jest.fn<Promise<unknown>, [unknown]>(),
-    findMany: jest.fn<Promise<unknown>, [unknown]>()
-  },
-  auditLog: {
-    create: jest.fn<Promise<unknown>, [unknown]>()
-  }
-});
+const createPrisma = (): MockPrisma => {
+  const prisma: MockPrisma = {
+    lineChannel: {
+      findFirst: jest.fn<Promise<unknown>, [unknown]>()
+    },
+    broadcastJob: {
+      create: jest.fn<Promise<unknown>, [unknown]>(),
+      findFirst: jest.fn<Promise<unknown>, [unknown]>(),
+      findUnique: jest.fn<Promise<unknown>, [unknown]>(),
+      update: jest.fn<Promise<unknown>, [unknown]>(),
+      updateMany: jest.fn<Promise<unknown>, [unknown]>(),
+      findMany: jest.fn<Promise<unknown>, [unknown]>()
+    },
+    auditLog: {
+      create: jest.fn<Promise<unknown>, [unknown]>()
+    },
+    $transaction: jest.fn<Promise<unknown>, [unknown]>()
+  };
+
+  prisma.$transaction.mockImplementation(async (callback: unknown) =>
+    (callback as (tx: MockPrisma) => Promise<unknown>)(prisma)
+  );
+
+  return prisma;
+};
 
 describe("LineBroadcastService", () => {
   const originalFetch = global.fetch;
@@ -312,6 +322,32 @@ describe("LineBroadcastService", () => {
       await expect(
         service.deleteBroadcastJob("tenant-1", "line-channel-1", "missing", "user-1")
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it("rolls back soft-delete when audit log creation fails", async () => {
+      const prisma = createPrisma();
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+
+      prisma.broadcastJob.findFirst.mockResolvedValue({
+        id: "job-1",
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        status: BroadcastStatus.PENDING,
+        scheduledAt: futureDate
+      });
+      prisma.broadcastJob.update.mockResolvedValue({ id: "job-1" });
+      prisma.auditLog.create.mockRejectedValue(
+        new Error('invalid input value for enum "AuditAction": "LINE_BROADCAST_CANCELLED"')
+      );
+
+      const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+      await expect(
+        service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-1", "user-1")
+      ).rejects.toThrow(/LINE_BROADCAST_CANCELLED/);
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.broadcastJob.update).toHaveBeenCalled();
+      expect(prisma.auditLog.create).toHaveBeenCalled();
     });
   });
 });

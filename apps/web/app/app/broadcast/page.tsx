@@ -75,6 +75,35 @@ export default function BroadcastPage() {
     job.scheduledAt !== null &&
     new Date(job.scheduledAt).getTime() > Date.now();
 
+  const formatDeleteError = (err: unknown, isCancel: boolean): string => {
+    const message = err instanceof Error ? err.message : "";
+    const lower = message.toLowerCase();
+
+    if (lower.includes("cannot be cancelled") || lower.includes("cannot be deleted")) {
+      return locale === "th"
+        ? "ไม่สามารถยกเลิกหรือลบรายการนี้ได้ เนื่องจากส่งไปแล้วหรือกำลังส่งอยู่"
+        : "This broadcast cannot be cancelled or deleted because it was already sent or is sending.";
+    }
+
+    if (lower.includes("not found")) {
+      return locale === "th"
+        ? "ไม่พบรายการบรอดแคสต์นี้แล้ว"
+        : "This broadcast job was not found.";
+    }
+
+    if (message && message !== "Request failed") {
+      return message;
+    }
+
+    return locale === "th"
+      ? isCancel
+        ? "ยกเลิกการส่งบรอดแคสต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"
+        : "ลบรายการไม่สำเร็จ กรุณาลองใหม่อีกครั้ง"
+      : isCancel
+        ? "Failed to cancel the scheduled broadcast. Please try again."
+        : "Failed to remove the broadcast from history. Please try again.";
+  };
+
   const handleDeleteJob = async (job: BroadcastJob) => {
     const isCancel = isCancellablePending(job);
     const confirmMessage =
@@ -92,10 +121,14 @@ export default function BroadcastPage() {
 
     setDeletingJobId(job.id);
     setError(null);
+    setMessage(null);
     try {
-      await apiFetch(`/api/v1/line/channels/${selectedChannelId}/broadcasts/${job.id}`, {
-        method: "DELETE"
-      });
+      await apiFetch(
+        `/api/v1/line/channels/${encodeURIComponent(selectedChannelId)}/broadcasts/${encodeURIComponent(job.id)}`,
+        {
+          method: "DELETE"
+        }
+      );
       await loadJobs(selectedChannelId);
       setMessage(
         locale === "th"
@@ -107,7 +140,12 @@ export default function BroadcastPage() {
             : "Removed from history"
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete broadcast job");
+      try {
+        await loadJobs(selectedChannelId);
+      } catch {
+        // Keep the delete error visible if history refresh also fails.
+      }
+      setError(formatDeleteError(err, isCancel));
     } finally {
       setDeletingJobId(null);
     }

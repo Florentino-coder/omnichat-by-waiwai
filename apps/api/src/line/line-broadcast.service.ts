@@ -283,45 +283,49 @@ export class LineBroadcastService {
       job.scheduledAt.getTime() > now;
 
     if (isScheduledPending) {
-      await this.prisma.broadcastJob.update({
-        where: { id: jobId },
-        data: { deletedAt: new Date() }
-      });
+      await this.prisma.$transaction(async (tx) => {
+        await tx.broadcastJob.update({
+          where: { id: jobId },
+          data: { deletedAt: new Date() }
+        });
 
-      await this.prisma.auditLog.create({
-        data: {
-          tenantId,
-          userId,
-          action: AuditAction.LINE_BROADCAST_CANCELLED,
-          targetType: "BroadcastJob",
-          targetId: jobId,
-          metadata: {
-            lineChannelId: channelId,
-            scheduledAt: job.scheduledAt?.toISOString()
+        await tx.auditLog.create({
+          data: {
+            tenantId,
+            userId,
+            action: AuditAction.LINE_BROADCAST_CANCELLED,
+            targetType: "BroadcastJob",
+            targetId: jobId,
+            metadata: {
+              lineChannelId: channelId,
+              scheduledAt: job.scheduledAt?.toISOString()
+            }
           }
-        }
+        });
       });
       return;
     }
 
     if (job.status === BroadcastStatus.FAILED) {
-      await this.prisma.broadcastJob.update({
-        where: { id: jobId },
-        data: { deletedAt: new Date() }
-      });
+      await this.prisma.$transaction(async (tx) => {
+        await tx.broadcastJob.update({
+          where: { id: jobId },
+          data: { deletedAt: new Date() }
+        });
 
-      await this.prisma.auditLog.create({
-        data: {
-          tenantId,
-          userId,
-          action: AuditAction.LINE_BROADCAST_DELETED,
-          targetType: "BroadcastJob",
-          targetId: jobId,
-          metadata: {
-            lineChannelId: channelId,
-            status: job.status
+        await tx.auditLog.create({
+          data: {
+            tenantId,
+            userId,
+            action: AuditAction.LINE_BROADCAST_DELETED,
+            targetType: "BroadcastJob",
+            targetId: jobId,
+            metadata: {
+              lineChannelId: channelId,
+              status: job.status
+            }
           }
-        }
+        });
       });
       return;
     }
