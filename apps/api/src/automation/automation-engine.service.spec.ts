@@ -24,6 +24,10 @@ describe("AutomationEngineService", () => {
     replyText: jest.fn()
   };
 
+  const aiAutomationReplyService = {
+    execute: jest.fn()
+  };
+
   let engine: AutomationEngineService;
   let inlineQueue: AutomationQueueService;
 
@@ -55,6 +59,7 @@ describe("AutomationEngineService", () => {
     engine = new AutomationEngineService(
       prisma as never,
       lineReplyService as unknown as LineReplyService,
+      aiAutomationReplyService as never,
       inlineQueue
     );
   });
@@ -187,5 +192,14 @@ describe("AutomationEngineService", () => {
       conversationId,
       { imageUrl: "https://cdn.example.com/promo.jpg" }
     );
+  });
+
+  it("executes AI_AUTO_REPLY step via automation reply service", async () => {
+    mockRun([{ type: "AI_AUTO_REPLY" }]);
+    aiAutomationReplyService.execute.mockResolvedValue(undefined);
+
+    await engine.processRunStep(runId, 0);
+
+    expect(aiAutomationReplyService.execute).toHaveBeenCalledWith(tenantId, conversationId);
   });
 });

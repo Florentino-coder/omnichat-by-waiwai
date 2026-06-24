@@ -325,7 +325,8 @@ export class AiAutoReplyService {
       params.tenantId,
       params.inboundMessageId,
       params.matchedKeywords,
-      params.reason
+      params.reason,
+      params.suggestion?.suggestionText ?? undefined
     );
 
     const conversation = await this.prisma.conversation.findFirst({
@@ -488,7 +489,8 @@ export class AiAutoReplyService {
     tenantId: string,
     inboundMessageId: string,
     matchedKeywords: string[],
-    reason?: string
+    reason?: string,
+    aiDraftText?: string
   ): Promise<void> {
     const message = await this.prisma.message.findFirst({
       where: { id: inboundMessageId, tenantId, deletedAt: null },
@@ -521,7 +523,8 @@ export class AiAutoReplyService {
             ...existingMeta,
             escalation: true,
             matchedKeywords,
-            escalationReason: reason || "keyword"
+            escalationReason: reason || "keyword",
+            ...(aiDraftText ? { aiDraftText } : {})
           }
         }
       }

@@ -59,6 +59,22 @@ interface ChartsData {
   agentWorkload: WorkloadPoint[];
 }
 
+interface AiSummaryData {
+  autoReplySent: number;
+  autoReplyEscalated: number;
+  automationAiReplySent: number;
+  skippedByReason: Record<string, number>;
+  aiCreditsUsed: number;
+}
+
+interface AiQaSummaryData {
+  sampleCount: number;
+  avgRelevance: number | null;
+  avgTone: number | null;
+  avgHallucination: number | null;
+  avgOverall: number | null;
+}
+
 export default function ReportsPage() {
   const { locale } = useLanguage();
   const [range, setRange] = useState<"today" | "7d" | "30d" | "custom">("7d");
@@ -66,6 +82,8 @@ export default function ReportsPage() {
   const [toDate, setToDate] = useState("");
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [charts, setCharts] = useState<ChartsData | null>(null);
+  const [aiSummary, setAiSummary] = useState<AiSummaryData | null>(null);
+  const [aiQaSummary, setAiQaSummary] = useState<AiQaSummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -98,6 +116,18 @@ export default function ReportsPage() {
       outbound: "ข้อความขาออก",
       chats: "แชท",
       messages: "ข้อความ",
+      aiSectionTitle: "รายงาน AI Auto-Reply",
+      aiAutoReplySent: "ตอบอัตโนมัติสำเร็จ",
+      aiAutoReplyEscalated: "ส่งต่อแอดมิน",
+      aiAutomationReplySent: "Automation AI ตอบ",
+      aiCreditsUsed: "เครดิต AI ที่ใช้",
+      aiSkippedTitle: "ข้าม (ตามเหตุผล)",
+      aiQaTitle: "คุณภาพ AI (QA sampling)",
+      aiQaSamples: "ตัวอย่างที่ประเมิน",
+      aiQaOverall: "คะแนนเฉลี่ยรวม",
+      aiQaRelevance: "ความเกี่ยวข้อง",
+      aiQaTone: "น้ำเสียง",
+      aiQaHallucination: "ความถูกต้อง",
     },
     en: {
       title: "Operational Reports",
@@ -125,6 +155,18 @@ export default function ReportsPage() {
       outbound: "Outbound Messages",
       chats: "Chats",
       messages: "Messages",
+      aiSectionTitle: "AI Auto-Reply Report",
+      aiAutoReplySent: "Auto-replies sent",
+      aiAutoReplyEscalated: "Escalated to admin",
+      aiAutomationReplySent: "Automation AI replies",
+      aiCreditsUsed: "AI credits used",
+      aiSkippedTitle: "Skipped (by reason)",
+      aiQaTitle: "AI quality (QA sampling)",
+      aiQaSamples: "Samples scored",
+      aiQaOverall: "Overall average",
+      aiQaRelevance: "Relevance",
+      aiQaTone: "Tone",
+      aiQaHallucination: "Factual accuracy",
     },
   }[locale === "th" ? "th" : "en"];
 
@@ -164,12 +206,16 @@ export default function ReportsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [summaryRes, chartsRes] = await Promise.all([
+      const [summaryRes, chartsRes, aiSummaryRes, aiQaRes] = await Promise.all([
         apiFetch<SummaryData>(`/api/v1/reporting/summary?from=${fromDate}&to=${toDate}`),
         apiFetch<ChartsData>(`/api/v1/reporting/charts?from=${fromDate}&to=${toDate}`),
+        apiFetch<AiSummaryData>(`/api/v1/reporting/ai-summary?from=${fromDate}&to=${toDate}`),
+        apiFetch<AiQaSummaryData>(`/api/v1/reporting/ai-qa-summary?from=${fromDate}&to=${toDate}`),
       ]);
       setSummary(summaryRes);
       setCharts(chartsRes);
+      setAiSummary(aiSummaryRes);
+      setAiQaSummary(aiQaRes);
     } catch (err: any) {
       setError(err?.message ?? "Failed to fetch reports data");
     } finally {
@@ -344,6 +390,73 @@ export default function ReportsPage() {
                   </div>
                 </Card>
               </div>
+
+              {aiSummary ? (
+                <div className="space-y-4">
+                  <h2 className="font-heading text-lg font-semibold text-[#16182B]">{t.aiSectionTitle}</h2>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Card className="border border-[#DEDDE6]/80 bg-white p-4 shadow-sm rounded-2xl">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C]">{t.aiAutoReplySent}</p>
+                      <p className="mt-1 text-2xl font-bold text-[#16182B]">{aiSummary.autoReplySent}</p>
+                    </Card>
+                    <Card className="border border-[#DEDDE6]/80 bg-white p-4 shadow-sm rounded-2xl">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C]">{t.aiAutoReplyEscalated}</p>
+                      <p className="mt-1 text-2xl font-bold text-amber-600">{aiSummary.autoReplyEscalated}</p>
+                    </Card>
+                    <Card className="border border-[#DEDDE6]/80 bg-white p-4 shadow-sm rounded-2xl">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C]">{t.aiAutomationReplySent}</p>
+                      <p className="mt-1 text-2xl font-bold text-[#4636D7]">{aiSummary.automationAiReplySent}</p>
+                    </Card>
+                    <Card className="border border-[#DEDDE6]/80 bg-white p-4 shadow-sm rounded-2xl">
+                      <p className="text-xs font-bold uppercase tracking-wider text-[#767A8C]">{t.aiCreditsUsed}</p>
+                      <p className="mt-1 text-2xl font-bold text-[#16182B]">{aiSummary.aiCreditsUsed}</p>
+                    </Card>
+                  </div>
+                  {Object.keys(aiSummary.skippedByReason).length > 0 ? (
+                    <Card className="border border-[#DEDDE6]/80 bg-white p-4 shadow-sm rounded-2xl">
+                      <p className="mb-2 text-sm font-semibold text-[#16182B]">{t.aiSkippedTitle}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(aiSummary.skippedByReason).map(([reason, count]) => (
+                          <span
+                            key={reason}
+                            className="rounded-full border border-[#DEDDE6] bg-[#F6F5FA] px-3 py-1 text-xs font-medium text-[#767A8C]"
+                          >
+                            {reason}: {count}
+                          </span>
+                        ))}
+                      </div>
+                    </Card>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {aiQaSummary && aiQaSummary.sampleCount > 0 ? (
+                <Card className="border border-[#DEDDE6]/80 bg-white p-5 shadow-sm rounded-2xl space-y-3">
+                  <h2 className="font-heading text-base font-semibold text-[#16182B]">{t.aiQaTitle}</h2>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.aiQaSamples}</p>
+                      <p className="text-lg font-bold text-[#16182B]">{aiQaSummary.sampleCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.aiQaOverall}</p>
+                      <p className="text-lg font-bold text-[#16182B]">{aiQaSummary.avgOverall?.toFixed(2) ?? "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.aiQaRelevance}</p>
+                      <p className="text-lg font-bold text-[#16182B]">{aiQaSummary.avgRelevance?.toFixed(2) ?? "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.aiQaTone}</p>
+                      <p className="text-lg font-bold text-[#16182B]">{aiQaSummary.avgTone?.toFixed(2) ?? "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.aiQaHallucination}</p>
+                      <p className="text-lg font-bold text-[#16182B]">{aiQaSummary.avgHallucination?.toFixed(2) ?? "-"}</p>
+                    </div>
+                  </div>
+                </Card>
+              ) : null}
 
               {/* Charts Grid */}
               {isMounted && charts && (

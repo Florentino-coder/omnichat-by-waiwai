@@ -16,6 +16,7 @@ import { parseAutomationSteps } from "./automation-step.parser";
 import { AutomationStep, shouldWaitForCustomerReply } from "./automation-step.types";
 import { AutomationQueueService } from "./automation-queue.service";
 import { buildAutomationAuditLog } from "./automation-audit.util";
+import { AiAutomationReplyService } from "../ai/ai-automation-reply.service";
 
 @Injectable()
 export class AutomationEngineService {
@@ -24,6 +25,7 @@ export class AutomationEngineService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lineReplyService: LineReplyService,
+    private readonly aiAutomationReplyService: AiAutomationReplyService,
     @Inject(forwardRef(() => AutomationQueueService))
     private readonly automationQueueService: AutomationQueueService
   ) {}
@@ -229,6 +231,9 @@ export class AutomationEngineService {
         return;
       case "ESCALATE":
         await this.setPriority(tenantId, conversationId, ConversationPriority.HIGH);
+        return;
+      case "AI_AUTO_REPLY":
+        await this.aiAutomationReplyService.execute(tenantId, conversationId);
         return;
       default:
         return;

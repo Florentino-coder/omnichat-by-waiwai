@@ -9,7 +9,8 @@ export const AUTOMATION_STEP_TYPES = [
   "SEND_SAVED_REPLY",
   "WAIT",
   "CLOSE_CONVERSATION",
-  "ESCALATE"
+  "ESCALATE",
+  "AI_AUTO_REPLY"
 ] as const;
 
 export type AutomationStepType = (typeof AUTOMATION_STEP_TYPES)[number];
@@ -27,7 +28,8 @@ export type AutomationStep =
   | StepWithRunAfter<{ type: "SEND_SAVED_REPLY"; savedReplyId: string }>
   | StepWithRunAfter<{ type: "WAIT"; delaySeconds: number }>
   | StepWithRunAfter<{ type: "CLOSE_CONVERSATION" }>
-  | StepWithRunAfter<{ type: "ESCALATE" }>;
+  | StepWithRunAfter<{ type: "ESCALATE" }>
+  | StepWithRunAfter<{ type: "AI_AUTO_REPLY" }>;
 
 export type AutomationDispatchContext = {
   messageText?: string;

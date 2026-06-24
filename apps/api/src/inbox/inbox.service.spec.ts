@@ -18,6 +18,7 @@ type MockPrisma = {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
     findMany: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
+    count: jest.Mock<Promise<unknown>, [unknown]>;
   };
   workspaceMember: {
     findFirst: jest.Mock<Promise<unknown>, [unknown]>;
@@ -89,7 +90,8 @@ const createPrisma = (): MockPrisma => ({
   conversation: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>(),
     findMany: jest.fn<Promise<unknown>, [unknown]>(),
-    update: jest.fn<Promise<unknown>, [unknown]>()
+    update: jest.fn<Promise<unknown>, [unknown]>(),
+    count: jest.fn<Promise<unknown>, [unknown]>()
   },
   workspaceMember: {
     findFirst: jest.fn<Promise<unknown>, [unknown]>()
@@ -355,6 +357,59 @@ describe("InboxService", () => {
       orderBy: [{ lastMessageAt: "desc" }, { createdAt: "desc" }],
       skip: 20,
       take: 10
+    });
+  });
+
+  it("filters conversations by tag name when tagName option is provided", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findMany.mockResolvedValue([]);
+
+    await createService(prisma).listConversations("tenant-1", {
+      tagName: "ai-escalated"
+    });
+
+    expect(prisma.conversation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          tenantId: "tenant-1",
+          deletedAt: null,
+          tagLinks: {
+            some: {
+              deletedAt: null,
+              tag: {
+                name: "ai-escalated",
+                deletedAt: null
+              }
+            }
+          }
+        })
+      })
+    );
+  });
+
+  it("counts open escalated conversations for tenant", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.count.mockResolvedValue(3);
+
+    await expect(createService(prisma).countEscalatedConversations("tenant-1")).resolves.toEqual({
+      count: 3
+    });
+
+    expect(prisma.conversation.count).toHaveBeenCalledWith({
+      where: {
+        tenantId: "tenant-1",
+        deletedAt: null,
+        status: { in: ["OPEN", "IN_PROGRESS"] },
+        tagLinks: {
+          some: {
+            deletedAt: null,
+            tag: {
+              name: "ai-escalated",
+              deletedAt: null
+            }
+          }
+        }
+      }
     });
   });
 

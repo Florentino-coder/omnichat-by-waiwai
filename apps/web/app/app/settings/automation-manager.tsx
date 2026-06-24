@@ -41,7 +41,8 @@ type StepType =
   | "SEND_SAVED_REPLY"
   | "WAIT"
   | "CLOSE_CONVERSATION"
-  | "ESCALATE";
+  | "ESCALATE"
+  | "AI_AUTO_REPLY";
 
 type StepDraft = {
   id: string;
@@ -220,6 +221,7 @@ function draftToPayload(steps: StepDraft[]): unknown[] {
         );
       case "CLOSE_CONVERSATION":
       case "ESCALATE":
+      case "AI_AUTO_REPLY":
         return appendRunAfter({ type: step.type }, index, step.waitForCustomerReply);
       default:
         return appendRunAfter(

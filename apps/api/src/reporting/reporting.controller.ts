@@ -47,4 +47,38 @@ export class ReportingController {
       data: chartsData,
     };
   }
+
+  @Get("ai-summary")
+  @Roles(Role.OWNER, Role.ADMIN, Role.QC, Role.VIEWER)
+  async getAiSummary(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Query() query: GetReportingQueryDto
+  ) {
+    const data = await this.reportingService.getAiSummary(
+      ctx.tenantId,
+      query.from,
+      query.to
+    );
+    return {
+      success: true,
+      data
+    };
+  }
+
+  @Get("ai-qa-summary")
+  @Roles(Role.OWNER, Role.ADMIN, Role.QC, Role.VIEWER)
+  async getAiQaSummary(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Query() query: GetReportingQueryDto
+  ) {
+    const data = await this.reportingService.getAiQaSummary(
+      ctx.tenantId,
+      query.from,
+      query.to
+    );
+    return {
+      success: true,
+      data
+    };
+  }
 }

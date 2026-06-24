@@ -1,7 +1,8 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { MessageDirection } from "@prisma/client";
+import { AuditAction, MessageDirection } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { AiQaService } from "../ai/ai-qa.service";
 import { ReportingService } from "./reporting.service";
 
 describe("ReportingService", () => {
@@ -26,6 +27,16 @@ describe("ReportingService", () => {
     workspaceMember: {
       findMany: jest.fn(),
     },
+    auditLog: {
+      findMany: jest.fn(),
+    },
+    usageCounter: {
+      findMany: jest.fn(),
+    },
+  };
+
+  const aiQaService = {
+    getTenantQaSummary: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -35,6 +46,10 @@ describe("ReportingService", () => {
         {
           provide: PrismaService,
           useValue: mockPrisma,
+        },
+        {
+          provide: AiQaService,
+          useValue: aiQaService,
         },
       ],
     }).compile();
@@ -150,6 +165,28 @@ describe("ReportingService", () => {
         agentName: "ยังไม่มีผู้รับผิดชอบ",
         count: 1,
       });
+    });
+  });
+
+  describe("getAiSummary", () => {
+    it("aggregates AI audit actions and credits in date range", async () => {
+      const tenantId = "test-tenant-id";
+      prisma.auditLog.findMany.mockResolvedValue([
+        { action: AuditAction.AI_AUTO_REPLY_SENT, metadata: {} },
+        { action: AuditAction.AI_AUTO_REPLY_ESCALATED, metadata: {} },
+        { action: AuditAction.AUTOMATION_AI_REPLY_SENT, metadata: {} },
+        { action: AuditAction.AI_AUTO_REPLY_SKIPPED, metadata: { reason: "debounce" } },
+        { action: AuditAction.AI_AUTO_REPLY_SKIPPED, metadata: { reason: "debounce" } }
+      ]);
+      prisma.usageCounter.findMany.mockResolvedValue([{ value: 12n }]);
+
+      const summary = await service.getAiSummary(tenantId, "2026-06-01", "2026-06-15");
+
+      expect(summary.autoReplySent).toBe(1);
+      expect(summary.autoReplyEscalated).toBe(1);
+      expect(summary.automationAiReplySent).toBe(1);
+      expect(summary.skippedByReason).toEqual({ debounce: 2 });
+      expect(summary.aiCreditsUsed).toBe(12);
     });
   });
 });

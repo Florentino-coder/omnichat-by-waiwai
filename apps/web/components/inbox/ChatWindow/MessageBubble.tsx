@@ -31,6 +31,8 @@ interface MessageBubbleProps {
   mediaFileName?: string | null;
   rawPayload?: unknown;
   escalationLabel?: string;
+  escalationReason?: string;
+  escalationDraft?: string;
 }
 
 export function MessageBubble({
@@ -46,7 +48,9 @@ export function MessageBubble({
   mediaR2Key: _mediaR2Key,
   mediaFileName,
   rawPayload,
-  escalationLabel
+  escalationLabel,
+  escalationReason,
+  escalationDraft
 }: MessageBubbleProps) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [resolvedMediaUrl, setResolvedMediaUrl] = useState(mediaUrl || "");
@@ -115,6 +119,17 @@ export function MessageBubble({
             <span className="mb-1 flex items-center gap-2 px-4 pt-3 text-sm font-semibold text-amber-900">
               {escalationLabel}
             </span>
+          ) : null}
+          {isEscalation && escalationReason ? (
+            <p className="px-4 pb-1 text-xs font-medium text-amber-800">{escalationReason}</p>
+          ) : null}
+          {isEscalation && escalationDraft ? (
+            <div className="mx-4 mb-2 rounded-lg border border-amber-200 bg-white/80 px-3 py-2 text-left text-sm text-amber-950">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                AI draft
+              </p>
+              <p className="whitespace-pre-wrap">{escalationDraft}</p>
+            </div>
           ) : null}
 
           {stickerUrl ? (

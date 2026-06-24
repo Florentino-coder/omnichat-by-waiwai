@@ -18,6 +18,8 @@ export interface ChatMessageItem {
   mediaFileName?: string | null;
   rawPayload?: unknown;
   escalationLabel?: string;
+  escalationReason?: string;
+  escalationDraft?: string;
 }
 
 interface ChatWindowProps {
@@ -147,6 +149,8 @@ export function ChatWindow({
                 time={message.time}
                 variant={message.variant}
                 escalationLabel={message.escalationLabel}
+                escalationReason={message.escalationReason}
+                escalationDraft={message.escalationDraft}
                 type={message.type}
                 mediaUrl={message.mediaUrl}
                 proxyMediaUrl={message.proxyMediaUrl}

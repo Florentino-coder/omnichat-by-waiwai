@@ -1,10 +1,15 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { MessageDirection } from "@prisma/client";
+import { AuditAction, MessageDirection } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { AI_SUGGEST_USAGE_METRIC } from "../inbox/thai-speech.util";
+import { AiQaService } from "../ai/ai-qa.service";
 
 @Injectable()
 export class ReportingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiQaService: AiQaService
+  ) {}
 
   private parseDateRange(fromStr?: string, toStr?: string) {
     let toDate: Date;
@@ -247,5 +252,77 @@ export class ReportingService {
       tagDistribution,
       agentWorkload,
     };
+  }
+
+  async getAiSummary(tenantId: string, from?: string, to?: string) {
+    const { fromDate, toDate } = this.parseDateRange(from, to);
+
+    const auditLogs = await this.prisma.auditLog.findMany({
+      where: {
+        tenantId,
+        action: {
+          in: [
+            AuditAction.AI_AUTO_REPLY_SENT,
+            AuditAction.AI_AUTO_REPLY_ESCALATED,
+            AuditAction.AI_AUTO_REPLY_SKIPPED,
+            AuditAction.AUTOMATION_AI_REPLY_SENT
+          ]
+        },
+        createdAt: { gte: fromDate, lte: toDate }
+      },
+      select: {
+        action: true,
+        metadata: true
+      }
+    });
+
+    let autoReplySent = 0;
+    let autoReplyEscalated = 0;
+    let automationAiReplySent = 0;
+    const skippedByReason: Record<string, number> = {};
+
+    for (const log of auditLogs) {
+      if (log.action === AuditAction.AI_AUTO_REPLY_SENT) {
+        autoReplySent += 1;
+      } else if (log.action === AuditAction.AI_AUTO_REPLY_ESCALATED) {
+        autoReplyEscalated += 1;
+      } else if (log.action === AuditAction.AUTOMATION_AI_REPLY_SENT) {
+        automationAiReplySent += 1;
+      } else if (log.action === AuditAction.AI_AUTO_REPLY_SKIPPED) {
+        const metadata =
+          log.metadata && typeof log.metadata === "object" && !Array.isArray(log.metadata)
+            ? (log.metadata as Record<string, unknown>)
+            : {};
+        const reason = typeof metadata.reason === "string" ? metadata.reason : "unknown";
+        skippedByReason[reason] = (skippedByReason[reason] ?? 0) + 1;
+      }
+    }
+
+    const usageCounters = await this.prisma.usageCounter.findMany({
+      where: {
+        tenantId,
+        metric: AI_SUGGEST_USAGE_METRIC,
+        periodStart: { lte: toDate },
+        periodEnd: { gte: fromDate }
+      },
+      select: { value: true }
+    });
+
+    const aiCreditsUsed = usageCounters.reduce(
+      (sum, counter) => sum + Number(counter.value),
+      0
+    );
+
+    return {
+      autoReplySent,
+      autoReplyEscalated,
+      automationAiReplySent,
+      skippedByReason,
+      aiCreditsUsed
+    };
+  }
+
+  async getAiQaSummary(tenantId: string, from?: string, to?: string) {
+    return this.aiQaService.getTenantQaSummary(tenantId, from, to);
   }
 }

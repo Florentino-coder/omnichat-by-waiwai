@@ -285,6 +285,9 @@ export const messages = {
     aiAutoReplyBadge: "AI ตอบอัตโนมัติ",
     aiEscalationBadge: "ขอคุยแอดมิน",
     escalationBubbleLabel: "ลูกค้าขอคุยกับแอดมิน",
+    escalationReasonKeyword: "เหตุผล: คำขอแอดมิน",
+    escalationReasonLowConfidence: "เหตุผล: ความมั่นใจต่ำ — ต้องตรวจสอบก่อนส่ง",
+    escalationReasonKnowledgeOnly: "เหตุผล: มีเฉพาะข้อมูล Knowledge — ต้องร่างคำตอบเอง",
     automationTemplateOffHoursWelcome: "ต้อนรับนอกเวลาทำการ",
     automationTemplateFaqHandoff: "FAQ + แท็กติดตาม",
     automationTemplateOffHoursName: "ต้อนรับนอกเวลาทำการ (เทมเพลต)",
@@ -311,6 +314,7 @@ export const messages = {
     autoStepWait: "รอ (หน่วงเวลา)",
     autoStepClose: "ปิดแชท",
     autoStepEscalate: "ยกระดับ (priority สูง)",
+    autoStepAiAutoReply: "ตอบอัตโนมัติด้วย AI",
 
     // AI Assistant settings
     aiAssistantTitle: "ตั้งค่า AI Assistant",
@@ -703,6 +707,9 @@ export const messages = {
     aiAutoReplyBadge: "AI auto-reply",
     aiEscalationBadge: "Needs admin",
     escalationBubbleLabel: "Customer requested a human agent",
+    escalationReasonKeyword: "Reason: escalation keyword",
+    escalationReasonLowConfidence: "Reason: low confidence — review before sending",
+    escalationReasonKnowledgeOnly: "Reason: knowledge-only — draft reply manually",
     automationTemplateOffHoursWelcome: "Off-hours welcome",
     automationTemplateFaqHandoff: "FAQ + follow-up tag",
     automationTemplateOffHoursName: "Off-hours welcome (template)",
@@ -729,6 +736,7 @@ export const messages = {
     autoStepWait: "Wait (delay)",
     autoStepClose: "Close conversation",
     autoStepEscalate: "Escalate (high priority)",
+    autoStepAiAutoReply: "AI auto reply",
 
     // AI Assistant settings
     aiAssistantTitle: "AI Assistant Settings",
@@ -863,7 +871,8 @@ type AutomationStepValue =
   | "SET_PRIORITY"
   | "WAIT"
   | "CLOSE_CONVERSATION"
-  | "ESCALATE";
+  | "ESCALATE"
+  | "AI_AUTO_REPLY";
 
 export function getAutomationTriggerOptions(locale: Locale = defaultLocale) {
   const t = getMessages(locale);
@@ -887,6 +896,7 @@ export function getAutomationStepOptions(locale: Locale = defaultLocale) {
     { value: "SET_PRIORITY" as const, label: t.autoStepSetPriority },
     { value: "WAIT" as const, label: t.autoStepWait },
     { value: "CLOSE_CONVERSATION" as const, label: t.autoStepClose },
-    { value: "ESCALATE" as const, label: t.autoStepEscalate }
+    { value: "ESCALATE" as const, label: t.autoStepEscalate },
+    { value: "AI_AUTO_REPLY" as const, label: t.autoStepAiAutoReply }
   ] satisfies { value: AutomationStepValue; label: string }[];
 }

@@ -1,6 +1,7 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { AuthModule } from "../auth/auth.module";
+import { AiModule } from "../ai/ai.module";
 import { LineModule } from "../line/line.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { AutomationController } from "./automation.controller";
@@ -17,7 +18,7 @@ import { AutomationService } from "./automation.service";
 import { AutomationWaitTimeoutScheduler } from "./automation-wait-timeout.scheduler";
 
 @Module({
-  imports: [AuthModule, PrismaModule, forwardRef(() => LineModule)],
+  imports: [AuthModule, PrismaModule, forwardRef(() => AiModule), forwardRef(() => LineModule)],
   controllers: [AutomationController],
   providers: [
     AutomationService,

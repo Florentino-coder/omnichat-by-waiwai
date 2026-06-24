@@ -120,6 +120,7 @@ enum AuditAction {
   AI_AUTO_REPLY_SKIPPED
   AI_AUTO_REPLY_ESCALATED
   AI_AUTO_REPLY_FAILED
+  AUTOMATION_AI_REPLY_SENT
   // Platform Backup
   BACKUP_RUN_TRIGGERED
   BACKUP_RUN_SUCCEEDED
@@ -250,6 +251,7 @@ model Tenant {
   automationRules           AutomationRule[]
   automationRuns            AutomationRun[]
   aiTrainingPairs           AiTrainingPair[]
+  aiQaScores                AiQaScore[]
 
   @@index([slug])
   @@index([planId])
@@ -565,6 +567,7 @@ model Conversation {
   aiSuggestions AiSuggestion[]
   automationRuns AutomationRun[]
   aiTrainingPairs AiTrainingPair[]
+  aiQaScores      AiQaScore[]
 
   @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
@@ -827,6 +830,8 @@ model Message {
   updatedAt         DateTime         @updatedAt
   deletedAt         DateTime?
 
+  aiQaScores        AiQaScore[]
+
   @@unique([lineChannelId, externalMessageId])
   @@index([tenantId])
   @@index([conversationId])
@@ -990,6 +995,25 @@ model AiSuggestion {
   @@index([provider])
   @@index([conversationId, status])
   @@map("ai_suggestions")
+}
+
+model AiQaScore {
+  id                String       @id @default(uuid())
+  tenantId          String       @map("tenant_id")
+  tenant            Tenant       @relation(fields: [tenantId], references: [id])
+  conversationId    String       @map("conversation_id")
+  conversation      Conversation @relation(fields: [conversationId], references: [id])
+  messageId         String       @map("message_id")
+  message           Message      @relation(fields: [messageId], references: [id])
+  relevanceScore    Int          @map("relevance_score")
+  toneScore         Int          @map("tone_score")
+  hallucinationScore Int         @map("hallucination_score")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("ai_qa_scores")
 }
 
 model PromptTemplate {

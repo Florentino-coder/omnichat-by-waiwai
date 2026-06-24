@@ -47,12 +47,20 @@ export class InboxController {
   listConversations(
     @TenantCtx() ctx: JwtTenantPayload,
     @Query("limit") limit?: string,
-    @Query("offset") offset?: string
+    @Query("offset") offset?: string,
+    @Query("tagName") tagName?: string
   ): Promise<InboxConversation[]> {
     return this.inboxService.listConversations(ctx.tenantId, {
       limit: readPositiveInt(limit),
-      offset: readPositiveInt(offset)
+      offset: readPositiveInt(offset),
+      tagName: tagName?.trim() || undefined
     });
+  }
+
+  @Get("escalations/count")
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
+  countEscalatedConversations(@TenantCtx() ctx: JwtTenantPayload): Promise<{ count: number }> {
+    return this.inboxService.countEscalatedConversations(ctx.tenantId);
   }
 
   @Get("settings")

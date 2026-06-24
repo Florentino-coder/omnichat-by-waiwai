@@ -12,6 +12,10 @@ import { AiReplyGeneratorService } from "./ai-reply-generator.service";
 import { AiCurationController } from "./ai-curation.controller";
 import { AiCurationService } from "./ai-curation.service";
 import { AiHybridDraftService } from "./ai-hybrid-draft.service";
+import { AiAutomationReplyService } from "./ai-automation-reply.service";
+import { AiQaScorerService } from "./ai-qa-scorer.service";
+import { AiQaService } from "./ai-qa.service";
+import { AiQaScheduler } from "./ai-qa.scheduler";
 
 @Module({
   imports: [
@@ -25,7 +29,23 @@ import { AiHybridDraftService } from "./ai-hybrid-draft.service";
     forwardRef(() => LineModule)
   ],
   controllers: [AiCurationController],
-  providers: [AiReplyGeneratorService, AiAutoReplyService, AiCurationService, AiHybridDraftService],
-  exports: [AiReplyGeneratorService, AiAutoReplyService, AiCurationService, AiHybridDraftService]
+  providers: [
+    AiReplyGeneratorService,
+    AiAutoReplyService,
+    AiCurationService,
+    AiHybridDraftService,
+    AiAutomationReplyService,
+    AiQaScorerService,
+    AiQaService,
+    AiQaScheduler
+  ],
+  exports: [
+    AiReplyGeneratorService,
+    AiAutoReplyService,
+    AiCurationService,
+    AiHybridDraftService,
+    AiAutomationReplyService,
+    AiQaService
+  ]
 })
 export class AiModule {}

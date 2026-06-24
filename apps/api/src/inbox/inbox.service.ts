@@ -29,6 +29,7 @@ import {
   DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
   DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_START,
   DEFAULT_AI_AUTO_REPLY_MODE,
+  AI_ESCALATED_TAG_NAME,
   DEFAULT_AI_ESCALATION_KEYWORDS,
   normalizeEscalationKeywords,
   resolveEscalationKeywords
@@ -134,6 +135,7 @@ export type AiTestResult = {
 export type ListConversationsOptions = {
   limit?: number;
   offset?: number;
+  tagName?: string;
 };
 
 export type ListSavedRepliesOptions = {
@@ -230,7 +232,20 @@ export class InboxService {
     const conversations = await this.prisma.conversation.findMany({
       where: {
         tenantId,
-        deletedAt: null
+        deletedAt: null,
+        ...(options.tagName
+          ? {
+              tagLinks: {
+                some: {
+                  deletedAt: null,
+                  tag: {
+                    name: options.tagName,
+                    deletedAt: null
+                  }
+                }
+              }
+            }
+          : {})
       },
       include: {
         lineChannel: {
@@ -287,6 +302,27 @@ export class InboxService {
       unreadInboundMessageCount: _count?.messages ?? 0,
       customerDisplayName: customer?.displayName ?? null
     }));
+  }
+
+  async countEscalatedConversations(tenantId: string): Promise<{ count: number }> {
+    const count = await this.prisma.conversation.count({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: { in: ["OPEN", "IN_PROGRESS"] },
+        tagLinks: {
+          some: {
+            deletedAt: null,
+            tag: {
+              name: AI_ESCALATED_TAG_NAME,
+              deletedAt: null
+            }
+          }
+        }
+      }
+    });
+
+    return { count };
   }
 
   async getConversationMessages(

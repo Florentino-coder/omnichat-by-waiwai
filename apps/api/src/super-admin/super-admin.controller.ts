@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
 import { SuperAdminService } from "./super-admin.service";
 import { AiMonitorService } from "./ai-monitor.service";
+import { AiQaService } from "../ai/ai-qa.service";
 import { BackupService } from "../backup/backup.service";
 import { CreateTenantOwnerDto } from "./dto/create-tenant-owner.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
@@ -14,6 +15,7 @@ export class SuperAdminController {
   constructor(
     private readonly superAdminService: SuperAdminService,
     private readonly aiMonitorService: AiMonitorService,
+    private readonly aiQaService: AiQaService,
     private readonly backupService: BackupService
   ) {}
 
@@ -44,6 +46,11 @@ export class SuperAdminController {
   @Get("ai/health")
   getAiHealth() {
     return this.aiMonitorService.getHealth();
+  }
+
+  @Get("ai/qa-summary")
+  getAiQaSummary(@Query("from") from?: string, @Query("to") to?: string) {
+    return this.aiQaService.getPlatformQaSummary(from, to);
   }
 
   @Get("ai/tenants/:tenantId/usage")

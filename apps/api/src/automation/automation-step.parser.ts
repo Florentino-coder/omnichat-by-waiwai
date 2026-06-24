@@ -129,6 +129,8 @@ function parseSingleStep(raw: unknown, index: number): AutomationStep {
       return attachRunAfter({ type: stepType }, runAfter);
     case "ESCALATE":
       return attachRunAfter({ type: stepType }, runAfter);
+    case "AI_AUTO_REPLY":
+      return attachRunAfter({ type: stepType }, runAfter);
     default:
       throw new BadRequestException(`Step ${index + 1} has unsupported type`);
   }

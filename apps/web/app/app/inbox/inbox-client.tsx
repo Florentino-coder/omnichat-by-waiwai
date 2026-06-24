@@ -136,6 +136,8 @@ type LineMessagePayload = {
     triggeredBy?: string;
     escalation?: boolean;
     matchedKeywords?: string[];
+    escalationReason?: string;
+    aiDraftText?: string;
   };
   source?: {
     type?: string;
@@ -1424,6 +1426,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     variant: isEscalationInboundMessage(message) ? "inbound-escalation" : message.direction === "OUTBOUND" ? "outbound" : "inbound",
     body: messageSummary(message),
     escalationLabel: isEscalationInboundMessage(message) ? t.escalationBubbleLabel : undefined,
+    escalationReason: isEscalationInboundMessage(message)
+      ? formatEscalationReason(message.rawPayload?.omnichatMeta, locale, t)
+      : undefined,
+    escalationDraft: isEscalationInboundMessage(message)
+      ? message.rawPayload?.omnichatMeta?.aiDraftText
+      : undefined,
     authorInitial: message.direction === "INBOUND" ? customerInitial(selectedCustomerName) : undefined,
     time: message.direction === "OUTBOUND"
       ? `${currentUser?.displayName ?? "คุณ"} · ${formatDateTime(message.createdAt)}`
@@ -2089,6 +2097,36 @@ function isEscalationInboundMessage(
     message.direction === "INBOUND" &&
     message.rawPayload?.omnichatMeta?.escalation === true
   );
+}
+
+function formatEscalationReason(
+  meta: LineMessagePayload["omnichatMeta"] | undefined,
+  locale: "th" | "en",
+  t: ReturnType<typeof getMessages>
+): string | undefined {
+  if (!meta?.escalationReason) {
+    return undefined;
+  }
+
+  if (meta.escalationReason === "keyword") {
+    const keywords = meta.matchedKeywords?.filter(Boolean) ?? [];
+    if (keywords.length > 0) {
+      return locale === "th"
+        ? `${t.escalationReasonKeyword}: ${keywords.join(", ")}`
+        : `${t.escalationReasonKeyword}: ${keywords.join(", ")}`;
+    }
+    return t.escalationReasonKeyword;
+  }
+
+  if (meta.escalationReason === "low_confidence") {
+    return t.escalationReasonLowConfidence;
+  }
+
+  if (meta.escalationReason === "knowledge_only") {
+    return t.escalationReasonKnowledgeOnly;
+  }
+
+  return meta.escalationReason;
 }
 
 function conversationCardStatus(
