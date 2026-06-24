@@ -13,6 +13,8 @@ import { AiCurationController } from "./ai-curation.controller";
 import { AiCurationService } from "./ai-curation.service";
 import { AiHybridDraftService } from "./ai-hybrid-draft.service";
 import { AiAutomationReplyService } from "./ai-automation-reply.service";
+import { AiPolicyService } from "./ai-policy.service";
+import { AiGuardrailService } from "./ai-guardrail.service";
 import { AiQaScorerService } from "./ai-qa-scorer.service";
 import { AiQaService } from "./ai-qa.service";
 import { AiQaScheduler } from "./ai-qa.scheduler";
@@ -31,21 +33,25 @@ import { AiQaScheduler } from "./ai-qa.scheduler";
   controllers: [AiCurationController],
   providers: [
     AiReplyGeneratorService,
+    AiPolicyService,
     AiAutoReplyService,
     AiCurationService,
     AiHybridDraftService,
     AiAutomationReplyService,
     AiQaScorerService,
+    AiGuardrailService,
     AiQaService,
     AiQaScheduler
   ],
   exports: [
     AiReplyGeneratorService,
+    AiPolicyService,
     AiAutoReplyService,
     AiCurationService,
     AiHybridDraftService,
     AiAutomationReplyService,
-    AiQaService
+    AiQaService,
+    AiGuardrailService
   ]
 })
 export class AiModule {}

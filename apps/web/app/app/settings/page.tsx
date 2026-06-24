@@ -4,7 +4,7 @@ import { Children, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
-import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch, Workflow } from "lucide-react";
+import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch, Workflow, ScrollText } from "lucide-react";
 import { LineChannelForm } from "./line-channel-form";
 import { QuickReplyManager } from "./quick-reply-manager";
 import { KnowledgeSettingsPanel } from "./knowledge-settings-panel";
@@ -125,6 +125,12 @@ function SettingsContent() {
                 <Users size={16} />
                 {t.teamTab}
               </button>
+            )}
+            {(role === "OWNER" || role === "ADMIN") && (
+              <Link href="/app/settings/audit-logs" className={tabButtonClass(false)}>
+                <ScrollText size={16} />
+                {t.auditLogsTab}
+              </Link>
             )}
           </SettingsTabGroup>
 

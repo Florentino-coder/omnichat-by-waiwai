@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   AiAgentGender,
   AuditAction,
+  ConversationPriority,
   MessageDirection,
   MessageType
 } from "@prisma/client";
@@ -13,9 +14,12 @@ import {
 } from "../inbox/thai-speech.util";
 import {
   AI_AUTO_REPLY_DEBOUNCE_MS,
+  AI_ESCALATED_TAG_COLOR,
+  AI_ESCALATED_TAG_NAME,
   sanitizeAutoReplyText
 } from "./ai-auto-reply.constants";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
+import { AiPolicyService } from "./ai-policy.service";
 
 @Injectable()
 export class AiAutomationReplyService {
@@ -24,6 +28,7 @@ export class AiAutomationReplyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiReplyGenerator: AiReplyGeneratorService,
+    private readonly aiPolicyService: AiPolicyService,
     private readonly lineReplyService: LineReplyService
   ) {}
 
@@ -78,6 +83,27 @@ export class AiAutomationReplyService {
       return;
     }
 
+    const policyCheck = this.aiPolicyService.checkReply(
+      replyText,
+      settings.aiPolicyBlockedTopics
+    );
+    if (!policyCheck.allowed) {
+      await this.addTagByName(tenantId, conversationId, AI_ESCALATED_TAG_NAME);
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId,
+          action: AuditAction.AI_POLICY_BLOCKED,
+          targetType: "Conversation",
+          targetId: conversationId,
+          metadata: {
+            matchedTopics: policyCheck.matchedTopics,
+            triggeredBy: "automation"
+          }
+        }
+      });
+      return;
+    }
+
     try {
       await this.lineReplyService.replyText(tenantId, "automation", conversationId, {
         text: replyText
@@ -105,6 +131,46 @@ export class AiAutomationReplyService {
           triggeredBy: "automation"
         }
       }
+    });
+  }
+
+  private async addTagByName(
+    tenantId: string,
+    conversationId: string,
+    tagName: string
+  ): Promise<void> {
+    let tag = await this.prisma.conversationTag.findFirst({
+      where: { tenantId, name: tagName, deletedAt: null }
+    });
+
+    if (!tag) {
+      tag = await this.prisma.conversationTag.create({
+        data: {
+          tenantId,
+          name: tagName,
+          ...(tagName === AI_ESCALATED_TAG_NAME ? { color: AI_ESCALATED_TAG_COLOR } : {})
+        }
+      });
+    }
+
+    const existingLink = await this.prisma.conversationTagLink.findFirst({
+      where: { tenantId, conversationId, tagId: tag.id }
+    });
+
+    if (existingLink?.deletedAt === null) {
+      return;
+    }
+
+    if (existingLink) {
+      await this.prisma.conversationTagLink.update({
+        where: { id: existingLink.id },
+        data: { deletedAt: null }
+      });
+      return;
+    }
+
+    await this.prisma.conversationTagLink.create({
+      data: { tenantId, conversationId, tagId: tag.id }
     });
   }
 

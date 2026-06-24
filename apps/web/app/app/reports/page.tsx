@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
+import Link from "next/link";
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 
@@ -75,6 +76,15 @@ interface AiQaSummaryData {
   avgOverall: number | null;
 }
 
+interface ComplianceSummaryData {
+  policyBlocks: number;
+  escalations: number;
+  guardrailEvents: number;
+  lowQaScores: number;
+  aiAutoReplyEnabled: boolean;
+  guardrailNoticeAt: string | null;
+}
+
 export default function ReportsPage() {
   const { locale } = useLanguage();
   const [range, setRange] = useState<"today" | "7d" | "30d" | "custom">("7d");
@@ -84,6 +94,7 @@ export default function ReportsPage() {
   const [charts, setCharts] = useState<ChartsData | null>(null);
   const [aiSummary, setAiSummary] = useState<AiSummaryData | null>(null);
   const [aiQaSummary, setAiQaSummary] = useState<AiQaSummaryData | null>(null);
+  const [compliance, setCompliance] = useState<ComplianceSummaryData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
@@ -128,6 +139,14 @@ export default function ReportsPage() {
       aiQaRelevance: "ความเกี่ยวข้อง",
       aiQaTone: "น้ำเสียง",
       aiQaHallucination: "ความถูกต้อง",
+      complianceTitle: "Compliance AI",
+      compliancePolicy: "ถูกบล็อกนโยบาย",
+      complianceEscalations: "Escalate",
+      complianceLowScores: "คะแนนต่ำ",
+      complianceGuardrail: "Guardrail",
+      complianceQaLink: "เปิด QA Center",
+      guardrailBanner:
+        "AI ตอบอัตโนมัติถูกปิดโดย guardrail — เปิดใช้งานใหม่ได้ที่ตั้งค่า AI",
     },
     en: {
       title: "Operational Reports",
@@ -167,6 +186,14 @@ export default function ReportsPage() {
       aiQaRelevance: "Relevance",
       aiQaTone: "Tone",
       aiQaHallucination: "Factual accuracy",
+      complianceTitle: "AI compliance",
+      compliancePolicy: "Policy blocks",
+      complianceEscalations: "Escalations",
+      complianceLowScores: "Low QA scores",
+      complianceGuardrail: "Guardrail",
+      complianceQaLink: "Open QA Center",
+      guardrailBanner:
+        "AI auto-reply was disabled by guardrail — re-enable in AI settings",
     },
   }[locale === "th" ? "th" : "en"];
 
@@ -206,16 +233,18 @@ export default function ReportsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [summaryRes, chartsRes, aiSummaryRes, aiQaRes] = await Promise.all([
+      const [summaryRes, chartsRes, aiSummaryRes, aiQaRes, complianceRes] = await Promise.all([
         apiFetch<SummaryData>(`/api/v1/reporting/summary?from=${fromDate}&to=${toDate}`),
         apiFetch<ChartsData>(`/api/v1/reporting/charts?from=${fromDate}&to=${toDate}`),
         apiFetch<AiSummaryData>(`/api/v1/reporting/ai-summary?from=${fromDate}&to=${toDate}`),
         apiFetch<AiQaSummaryData>(`/api/v1/reporting/ai-qa-summary?from=${fromDate}&to=${toDate}`),
+        apiFetch<ComplianceSummaryData>(`/api/v1/qa/compliance-summary?from=${fromDate}&to=${toDate}`),
       ]);
       setSummary(summaryRes);
       setCharts(chartsRes);
       setAiSummary(aiSummaryRes);
       setAiQaSummary(aiQaRes);
+      setCompliance(complianceRes);
     } catch (err: any) {
       setError(err?.message ?? "Failed to fetch reports data");
     } finally {
@@ -391,6 +420,12 @@ export default function ReportsPage() {
                 </Card>
               </div>
 
+              {compliance?.guardrailNoticeAt && !compliance.aiAutoReplyEnabled ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  {t.guardrailBanner}
+                </div>
+              ) : null}
+
               {aiSummary ? (
                 <div className="space-y-4">
                   <h2 className="font-heading text-lg font-semibold text-[#16182B]">{t.aiSectionTitle}</h2>
@@ -453,6 +488,37 @@ export default function ReportsPage() {
                     <div>
                       <p className="text-xs text-[#767A8C]">{t.aiQaHallucination}</p>
                       <p className="text-lg font-bold text-[#16182B]">{aiQaSummary.avgHallucination?.toFixed(2) ?? "-"}</p>
+                    </div>
+                  </div>
+                </Card>
+              ) : null}
+
+              {compliance ? (
+                <Card className="border border-[#DEDDE6]/80 bg-white p-5 shadow-sm rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-heading text-base font-semibold text-[#16182B]">
+                      {t.complianceTitle}
+                    </h2>
+                    <Link href="/app/qa" className="text-sm font-semibold text-[#4636D7] hover:underline">
+                      {t.complianceQaLink}
+                    </Link>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.compliancePolicy}</p>
+                      <p className="text-lg font-bold text-[#16182B]">{compliance.policyBlocks}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.complianceEscalations}</p>
+                      <p className="text-lg font-bold text-amber-600">{compliance.escalations}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.complianceLowScores}</p>
+                      <p className="text-lg font-bold text-red-600">{compliance.lowQaScores}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#767A8C]">{t.complianceGuardrail}</p>
+                      <p className="text-lg font-bold text-[#16182B]">{compliance.guardrailEvents}</p>
                     </div>
                   </div>
                 </Card>

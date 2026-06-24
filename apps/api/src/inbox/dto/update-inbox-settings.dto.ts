@@ -77,4 +77,11 @@ export class UpdateInboxSettingsDto {
   @Min(0.0)
   @Max(1.0)
   aiAutoReplyConfidenceThreshold?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  aiPolicyBlockedTopics?: string[];
 }

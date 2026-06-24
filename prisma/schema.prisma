@@ -121,6 +121,8 @@ enum AuditAction {
   AI_AUTO_REPLY_ESCALATED
   AI_AUTO_REPLY_FAILED
   AUTOMATION_AI_REPLY_SENT
+  AI_POLICY_BLOCKED
+  AI_AUTO_REPLY_DISABLED_BY_GUARDRAIL
   // Platform Backup
   BACKUP_RUN_TRIGGERED
   BACKUP_RUN_SUCCEEDED
@@ -293,6 +295,8 @@ model TenantSettings {
   aiAutoReplyInstructions    String?   @map("ai_auto_reply_instructions")
   aiEscalationKeywords       String[]  @default([])     @map("ai_escalation_keywords")
   aiAutoReplyConfidenceThreshold Float @default(0.80) @map("ai_auto_reply_confidence_threshold")
+  aiPolicyBlockedTopics      String[]  @default([])     @map("ai_policy_blocked_topics")
+  aiGuardrailNoticeAt        DateTime?                  @map("ai_guardrail_notice_at")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -1008,6 +1012,9 @@ model AiQaScore {
   relevanceScore    Int          @map("relevance_score")
   toneScore         Int          @map("tone_score")
   hallucinationScore Int         @map("hallucination_score")
+  reviewNote        String?      @map("review_note")
+  reviewedBy        String?      @map("reviewed_by")
+  reviewedAt        DateTime?    @map("reviewed_at")
   createdAt         DateTime     @default(now()) @map("created_at")
 
   @@index([tenantId])

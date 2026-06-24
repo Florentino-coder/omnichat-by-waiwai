@@ -105,6 +105,8 @@ export type InboxSettings = {
   aiAutoReplyInstructions: string | null;
   aiEscalationKeywords: string[];
   aiAutoReplyConfidenceThreshold: number;
+  aiPolicyBlockedTopics: string[];
+  aiGuardrailNoticeAt: string | null;
 };
 
 export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
@@ -1145,7 +1147,9 @@ export class InboxService {
         aiAutoReplyBusinessHourEnd: true,
         aiAutoReplyInstructions: true,
         aiEscalationKeywords: true,
-        aiAutoReplyConfidenceThreshold: true
+        aiAutoReplyConfidenceThreshold: true,
+        aiPolicyBlockedTopics: true,
+        aiGuardrailNoticeAt: true
       }
     });
 
@@ -1164,7 +1168,9 @@ export class InboxService {
         settings?.aiAutoReplyBusinessHourEnd ?? DEFAULT_AI_AUTO_REPLY_BUSINESS_HOUR_END,
       aiAutoReplyInstructions: settings?.aiAutoReplyInstructions ?? null,
       aiEscalationKeywords: resolveEscalationKeywords(settings?.aiEscalationKeywords),
-      aiAutoReplyConfidenceThreshold: settings?.aiAutoReplyConfidenceThreshold ?? 0.80
+      aiAutoReplyConfidenceThreshold: settings?.aiAutoReplyConfidenceThreshold ?? 0.80,
+      aiPolicyBlockedTopics: normalizeEscalationKeywords(settings?.aiPolicyBlockedTopics ?? []),
+      aiGuardrailNoticeAt: settings?.aiGuardrailNoticeAt?.toISOString() ?? null
     };
   }
 
@@ -1176,6 +1182,10 @@ export class InboxService {
     const normalizedEscalationKeywords =
       dto.aiEscalationKeywords !== undefined
         ? normalizeEscalationKeywords(dto.aiEscalationKeywords)
+        : undefined;
+    const normalizedPolicyTopics =
+      dto.aiPolicyBlockedTopics !== undefined
+        ? normalizeEscalationKeywords(dto.aiPolicyBlockedTopics)
         : undefined;
 
     const settings = await this.prisma.tenantSettings.upsert({
@@ -1197,7 +1207,8 @@ export class InboxService {
         aiAutoReplyInstructions: dto.aiAutoReplyInstructions ?? null,
         aiEscalationKeywords:
           normalizedEscalationKeywords ?? [...DEFAULT_AI_ESCALATION_KEYWORDS],
-        aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold ?? 0.80
+        aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold ?? 0.80,
+        aiPolicyBlockedTopics: normalizedPolicyTopics ?? []
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
@@ -1212,7 +1223,9 @@ export class InboxService {
         aiAutoReplyBusinessHourEnd: dto.aiAutoReplyBusinessHourEnd,
         aiAutoReplyInstructions: dto.aiAutoReplyInstructions,
         aiEscalationKeywords: normalizedEscalationKeywords,
-        aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold
+        aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold,
+        aiPolicyBlockedTopics: normalizedPolicyTopics,
+        ...(dto.enableAiAutoReply === true ? { aiGuardrailNoticeAt: null } : {})
       },
       select: {
         inProgressAlertMinutes: true,
@@ -1227,7 +1240,9 @@ export class InboxService {
         aiAutoReplyBusinessHourEnd: true,
         aiAutoReplyInstructions: true,
         aiEscalationKeywords: true,
-        aiAutoReplyConfidenceThreshold: true
+        aiAutoReplyConfidenceThreshold: true,
+        aiPolicyBlockedTopics: true,
+        aiGuardrailNoticeAt: true
       }
     });
 
@@ -1250,7 +1265,8 @@ export class InboxService {
           aiAutoReplyBusinessHourStart: dto.aiAutoReplyBusinessHourStart,
           aiAutoReplyBusinessHourEnd: dto.aiAutoReplyBusinessHourEnd,
           aiAutoReplyInstructions: dto.aiAutoReplyInstructions,
-          aiEscalationKeywords: normalizedEscalationKeywords
+          aiEscalationKeywords: normalizedEscalationKeywords,
+          aiPolicyBlockedTopics: normalizedPolicyTopics
         }
       }
     });
@@ -1281,7 +1297,9 @@ export class InboxService {
       aiAutoReplyBusinessHourEnd: settings.aiAutoReplyBusinessHourEnd,
       aiAutoReplyInstructions: settings.aiAutoReplyInstructions,
       aiEscalationKeywords: resolveEscalationKeywords(settings.aiEscalationKeywords),
-      aiAutoReplyConfidenceThreshold: settings.aiAutoReplyConfidenceThreshold
+      aiAutoReplyConfidenceThreshold: settings.aiAutoReplyConfidenceThreshold,
+      aiPolicyBlockedTopics: normalizeEscalationKeywords(settings.aiPolicyBlockedTopics ?? []),
+      aiGuardrailNoticeAt: settings.aiGuardrailNoticeAt?.toISOString() ?? null
     };
   }
 

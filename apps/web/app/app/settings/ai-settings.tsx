@@ -49,6 +49,8 @@ type AiSettingsData = {
   aiAutoReplyInstructions: string | null;
   aiEscalationKeywords: string[];
   aiAutoReplyConfidenceThreshold: number;
+  aiPolicyBlockedTopics: string[];
+  aiGuardrailNoticeAt: string | null;
 };
 
 type PromptTemplateData = {
@@ -119,9 +121,12 @@ export function AiSettings() {
     aiAutoReplyBusinessHourEnd: 23,
     aiAutoReplyInstructions: null,
     aiEscalationKeywords: [],
-    aiAutoReplyConfidenceThreshold: 0.80
+    aiAutoReplyConfidenceThreshold: 0.80,
+    aiPolicyBlockedTopics: [],
+    aiGuardrailNoticeAt: null
   });
   const [escalationKeywordsText, setEscalationKeywordsText] = useState("");
+  const [policyTopicsText, setPolicyTopicsText] = useState("");
   const [promptTemplate, setPromptTemplate] = useState<PromptTemplateData | null>(null);
   const [usage, setUsage] = useState<AiUsageData | null>(null);
 
@@ -182,6 +187,7 @@ export function AiSettings() {
         if (isCurrent) {
           setSettings(settingsData);
           setEscalationKeywordsText(settingsData.aiEscalationKeywords.join(", "));
+          setPolicyTopicsText((settingsData.aiPolicyBlockedTopics ?? []).join(", "));
           setPromptTemplate(templateData);
           setUsage(usageData);
         }
@@ -225,6 +231,10 @@ export function AiSettings() {
           aiEscalationKeywords: escalationKeywordsText
             .split(",")
             .map((keyword) => keyword.trim())
+            .filter(Boolean),
+          aiPolicyBlockedTopics: policyTopicsText
+            .split(",")
+            .map((topic) => topic.trim())
             .filter(Boolean)
         })
       });
@@ -498,6 +508,12 @@ export function AiSettings() {
           />
         </div>
 
+        {settings.aiGuardrailNoticeAt && !settings.enableAiAutoReply ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            {t.aiGuardrailNotice}
+          </div>
+        ) : null}
+
         {settings.enableAiAutoReply && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
             {t.aiAutoReplyWarning}
@@ -592,6 +608,21 @@ export function AiSettings() {
             onChange={(e) => setEscalationKeywordsText(e.target.value)}
             className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
             placeholder="แอดมิน, คุยกับคน, โทรหา"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="ai-policy-topics" className="text-sm font-semibold text-[#16182B]">
+            {t.aiPolicyBlockedTopics}
+          </label>
+          <p className="mt-1 text-xs text-[#767A8C]">{t.aiPolicyBlockedTopicsHint}</p>
+          <input
+            id="ai-policy-topics"
+            type="text"
+            value={policyTopicsText}
+            onChange={(e) => setPolicyTopicsText(e.target.value)}
+            className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+            placeholder="ราคา, ส่วนลด, refund"
           />
         </div>
 

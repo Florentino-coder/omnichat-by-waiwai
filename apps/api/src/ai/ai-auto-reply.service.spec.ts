@@ -10,6 +10,7 @@ import { RedisService } from "../redis/redis.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { AiAutoReplyService } from "./ai-auto-reply.service";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
+import { AiPolicyService } from "./ai-policy.service";
 
 const baseInput = {
   tenantId: "tenant-1",
@@ -25,6 +26,7 @@ const defaultSettings = {
   aiAutoReplyBusinessHourEnd: 23,
   aiAutoReplyInstructions: null,
   aiEscalationKeywords: ["แอดมิน"],
+  aiPolicyBlockedTopics: [],
   enableAiSuggest: true,
   aiProvider: "gemini",
   aiAgentGender: AiAgentGender.FEMALE,
@@ -56,6 +58,10 @@ function createMocks() {
     generate: jest.fn()
   };
 
+  const aiPolicyService = {
+    checkReply: jest.fn().mockReturnValue({ allowed: true, matchedTopics: [] })
+  };
+
   const lineReplyService = {
     replyText: jest.fn().mockResolvedValue(undefined)
   };
@@ -64,7 +70,7 @@ function createMocks() {
     publishTenantEvent: jest.fn().mockResolvedValue(undefined)
   };
 
-  return { prisma, redisService, aiReplyGenerator, lineReplyService, realtimeService };
+  return { prisma, redisService, aiReplyGenerator, aiPolicyService, lineReplyService, realtimeService };
 }
 
 function createService(mocks: ReturnType<typeof createMocks>) {
@@ -72,6 +78,7 @@ function createService(mocks: ReturnType<typeof createMocks>) {
     mocks.prisma as unknown as PrismaService,
     mocks.redisService as unknown as RedisService,
     mocks.aiReplyGenerator as unknown as AiReplyGeneratorService,
+    mocks.aiPolicyService as unknown as AiPolicyService,
     mocks.lineReplyService as unknown as LineReplyService,
     mocks.realtimeService as unknown as RealtimeService
   );

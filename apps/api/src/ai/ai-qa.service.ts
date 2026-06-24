@@ -1,10 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { AuditAction, MessageDirection } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+import { AiGuardrailService } from "./ai-guardrail.service";
 import { AiQaScorerService } from "./ai-qa-scorer.service";
 
 const QA_SAMPLE_RATE = 0.1;
 const QA_ALERT_THRESHOLD = 3;
+
+const QA_SAMPLE_ACTIONS: AuditAction[] = [
+  AuditAction.AI_AUTO_REPLY_SENT,
+  AuditAction.AUTOMATION_AI_REPLY_SENT,
+  AuditAction.AI_SUGGEST_SENT
+];
 
 @Injectable()
 export class AiQaService {
@@ -12,7 +19,8 @@ export class AiQaService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly qaScorer: AiQaScorerService
+    private readonly qaScorer: AiQaScorerService,
+    private readonly guardrailService: AiGuardrailService
   ) {}
 
   async runDailySampling(): Promise<void> {
@@ -20,7 +28,7 @@ export class AiQaService {
 
     const auditLogs = await this.prisma.auditLog.findMany({
       where: {
-        action: AuditAction.AI_AUTO_REPLY_SENT,
+        action: { in: QA_SAMPLE_ACTIONS },
         createdAt: { gte: fromDate, lt: toDate }
       },
       select: {
@@ -130,6 +138,8 @@ export class AiQaService {
         );
       }
     }
+
+    await this.guardrailService.evaluateTenantsAfterSampling(toDate);
   }
 
   async getTenantQaSummary(

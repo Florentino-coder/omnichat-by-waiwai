@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadGatewayException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadGatewayException, BadRequestException } from "@nestjs/common";
 import {
   AuditAction,
   MessageDirection,
@@ -9,12 +9,14 @@ import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { ReplyLineMessageDto } from "./dto/reply-line-message.dto";
+import { AiPolicyService } from "../ai/ai-policy.service";
 
 @Injectable()
 export class LineReplyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cryptoSecret: CryptoSecretService,
+    private readonly aiPolicyService: AiPolicyService,
     private readonly realtimeService?: RealtimeService
   ) { }
 
@@ -47,6 +49,38 @@ export class LineReplyService {
 
     if (!channel) {
       throw new NotFoundException("LINE channel not found");
+    }
+
+    if (dto.text && !dto.imageUrl) {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: { aiPolicyBlockedTopics: true }
+      });
+      const policyCheck = this.aiPolicyService.checkReply(
+        dto.text,
+        settings?.aiPolicyBlockedTopics
+      );
+      if (!policyCheck.allowed) {
+        await this.prisma.auditLog.create({
+          data: {
+            tenantId,
+            userId: userId === "automation" || userId === "system" ? null : userId,
+            action: AuditAction.AI_POLICY_BLOCKED,
+            targetType: "Conversation",
+            targetId: conversationId,
+            metadata: {
+              matchedTopics: policyCheck.matchedTopics,
+              triggeredBy: userId,
+              aiSuggestionId: dto.aiSuggestionId ?? null
+            }
+          }
+        });
+        throw new BadRequestException({
+          code: "AI_POLICY_BLOCKED",
+          message: "Reply text matches a blocked policy topic",
+          matchedTopics: policyCheck.matchedTopics
+        });
+      }
     }
 
     const token = this.cryptoSecret.decrypt(channel.encryptedChannelAccessToken);

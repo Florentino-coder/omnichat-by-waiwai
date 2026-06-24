@@ -30,6 +30,7 @@ import {
   sanitizeAutoReplyText
 } from "./ai-auto-reply.constants";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
+import { AiPolicyService } from "./ai-policy.service";
 import {
   AI_SUGGEST_USAGE_METRIC,
   getCurrentMonthUsagePeriod
@@ -50,6 +51,7 @@ export class AiAutoReplyService {
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
     private readonly aiReplyGenerator: AiReplyGeneratorService,
+    private readonly aiPolicyService: AiPolicyService,
     private readonly lineReplyService: LineReplyService,
     private readonly realtimeService: RealtimeService
   ) {}
@@ -73,6 +75,7 @@ export class AiAutoReplyService {
           aiAutoReplyBusinessHourEnd: true,
           aiAutoReplyInstructions: true,
           aiEscalationKeywords: true,
+          aiPolicyBlockedTopics: true,
           enableAiSuggest: true,
           aiProvider: true,
           aiAgentGender: true,
@@ -236,6 +239,43 @@ export class AiAutoReplyService {
       return { outcome: "skipped", reason: "low_confidence" };
     }
 
+    const policyCheck = this.aiPolicyService.checkReply(
+      replyText,
+      settings.aiPolicyBlockedTopics
+    );
+    if (!policyCheck.allowed) {
+      await this.escalateConversationForHumanReview({
+        tenantId: input.tenantId,
+        conversationId: input.conversationId,
+        inboundMessageId: input.inboundMessageId,
+        matchedKeywords: policyCheck.matchedTopics,
+        reason: "policy_blocked",
+        suggestion: {
+          suggestionText: replyText,
+          compiledPrompt: generateResult.compiledPrompt,
+          provider: generateResult.provider,
+          latencyMs: generateResult.latencyMs,
+          citations: generateResult.knowledgeCitations,
+          confidence
+        }
+      });
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId: input.tenantId,
+          action: AuditAction.AI_POLICY_BLOCKED,
+          targetType: "Conversation",
+          targetId: input.conversationId,
+          metadata: {
+            inboundMessageId: input.inboundMessageId,
+            matchedTopics: policyCheck.matchedTopics,
+            triggeredBy: "system"
+          }
+        }
+      });
+      await this.incrementAiCreditUsage(input.tenantId);
+      return { outcome: "skipped", reason: "policy_blocked" };
+    }
+
     try {
       await this.lineReplyService.replyText(
         input.tenantId,
@@ -309,7 +349,7 @@ export class AiAutoReplyService {
     conversationId: string;
     inboundMessageId: string;
     matchedKeywords: string[];
-    reason: "keyword" | "low_confidence" | "knowledge_only";
+    reason: "keyword" | "low_confidence" | "knowledge_only" | "policy_blocked";
     messageText?: string;
     suggestion?: {
       suggestionText: string | null;
@@ -428,11 +468,12 @@ export class AiAutoReplyService {
           inboundMessageId: params.inboundMessageId,
           messageText: ""
         },
-        "low_confidence",
+        params.reason === "policy_blocked" ? "policy_blocked" : "low_confidence",
         {
           mode: params.reason,
           confidence: params.suggestion?.confidence,
-          suggestionId: dbSuggestionId
+          suggestionId: dbSuggestionId,
+          matchedTopics: params.matchedKeywords
         }
       );
     }

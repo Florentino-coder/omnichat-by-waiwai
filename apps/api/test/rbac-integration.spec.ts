@@ -94,6 +94,13 @@ describe("Stage 1 RBAC integration", () => {
     });
     await expectInvitationDeleteAllowed([Role.OWNER, Role.ADMIN]);
     await expectAllowed("get", "/api/v1/audit-logs", [Role.OWNER, Role.ADMIN]);
+    await expectAllowed("get", "/api/v1/audit-logs/export", [Role.OWNER]);
+  });
+
+  it("enforces QA center RBAC", async () => {
+    await expectAllowed("get", "/api/v1/qa/scores", [Role.OWNER, Role.ADMIN, Role.QC]);
+    await expectAllowed("get", "/api/v1/qa/compliance-summary", [Role.OWNER, Role.ADMIN, Role.QC]);
+    await expectAllowed("get", "/api/v1/qa/compliance-export", [Role.OWNER]);
   });
 
   it("enforces inbox read RBAC", async () => {

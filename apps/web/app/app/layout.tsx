@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ChartNoAxesColumn, Inbox, Settings, Users, Megaphone } from "lucide-react";
+import { BookOpen, ChartNoAxesColumn, ClipboardCheck, Inbox, Settings, Users, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { UserMenu } from "./user-menu";
 import { LanguageProvider, useLanguage } from "../lib/language-context";
@@ -26,6 +26,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     { label: locale === "th" ? "บรอดแคสต์" : "Broadcast", icon: Megaphone, disabled: false, href: "/app/broadcast", roles: ["OWNER", "ADMIN"] },
     { label: locale === "th" ? "ลูกค้า" : "Customers", icon: Users, disabled: true, roles: ["OWNER", "ADMIN", "AGENT"] },
     { label: locale === "th" ? "รายงาน" : "Reports", icon: ChartNoAxesColumn, disabled: false, href: "/app/reports", roles: ["OWNER", "ADMIN", "QC", "VIEWER"] },
+    { label: locale === "th" ? "QA" : "QA", icon: ClipboardCheck, disabled: false, href: "/app/qa", roles: ["OWNER", "ADMIN", "QC"] },
     { label: locale === "th" ? "คลังความรู้" : "Knowledge", icon: BookOpen, disabled: false, href: "/app/settings?tab=knowledge&sub=documents", roles: ["OWNER", "ADMIN", "AGENT", "QC"] },
     { label: locale === "th" ? "ตั้งค่า" : "Settings", icon: Settings, disabled: false, href: "/app/settings", roles: ["OWNER", "ADMIN", "AGENT", "QC"] }
   ];

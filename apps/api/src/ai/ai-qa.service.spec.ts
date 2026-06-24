@@ -1,5 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaService } from "../prisma/prisma.service";
+import { AiGuardrailService } from "./ai-guardrail.service";
 import { AiQaScorerService } from "./ai-qa-scorer.service";
 import { AiQaService } from "./ai-qa.service";
 
@@ -16,6 +17,10 @@ describe("AiQaService", () => {
     scoreReply: jest.fn()
   };
 
+  const guardrailService = {
+    evaluateTenantsAfterSampling: jest.fn().mockResolvedValue(0)
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -23,7 +28,8 @@ describe("AiQaService", () => {
       providers: [
         AiQaService,
         { provide: PrismaService, useValue: prisma },
-        { provide: AiQaScorerService, useValue: qaScorer }
+        { provide: AiQaScorerService, useValue: qaScorer },
+        { provide: AiGuardrailService, useValue: guardrailService }
       ]
     }).compile();
 

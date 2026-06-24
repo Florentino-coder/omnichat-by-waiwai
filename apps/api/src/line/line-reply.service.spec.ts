@@ -3,6 +3,7 @@ import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { LineReplyService } from "./line-reply.service";
+import { AiPolicyService } from "../ai/ai-policy.service";
 
 type MockPrisma = {
   conversation: {
@@ -25,6 +26,9 @@ type MockPrisma = {
   };
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  tenantSettings: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
   };
 };
 
@@ -49,8 +53,31 @@ const createPrisma = (): MockPrisma => ({
   },
   auditLog: {
     create: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  tenantSettings: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>().mockResolvedValue({
+      aiPolicyBlockedTopics: []
+    })
   }
 });
+
+const createPolicyService = (): AiPolicyService =>
+  ({
+    checkReply: jest.fn().mockReturnValue({ allowed: true, matchedTopics: [] })
+  }) as unknown as AiPolicyService;
+
+function createService(
+  prisma: MockPrisma,
+  crypto: CryptoSecretService,
+  realtime?: RealtimeService
+): LineReplyService {
+  return new LineReplyService(
+    prisma as unknown as PrismaService,
+    crypto,
+    createPolicyService(),
+    realtime
+  );
+}
 
 describe("LineReplyService", () => {
   const originalFetch = global.fetch;
@@ -85,7 +112,7 @@ describe("LineReplyService", () => {
       encrypt: jest.fn()
     } as unknown as CryptoSecretService;
 
-    await new LineReplyService(prisma as unknown as PrismaService, crypto).replyText(
+    await createService(prisma, crypto).replyText(
       "tenant-1",
       "user-1",
       "conversation-1",
@@ -156,11 +183,12 @@ describe("LineReplyService", () => {
       publishTenantEvent: jest.fn<Promise<void>, [string, string, unknown]>().mockResolvedValue(undefined)
     };
 
-    await new LineReplyService(
-      prisma as unknown as PrismaService,
-      crypto,
-      realtime as unknown as RealtimeService
-    ).replyText("tenant-1", "user-1", "conversation-1", { text: "done" });
+    await createService(prisma, crypto, realtime as unknown as RealtimeService).replyText(
+      "tenant-1",
+      "user-1",
+      "conversation-1",
+      { text: "done" }
+    );
 
     expect(realtime.publishTenantEvent).toHaveBeenCalledWith(
       "tenant-1",
@@ -199,7 +227,7 @@ describe("LineReplyService", () => {
       encrypt: jest.fn()
     } as unknown as CryptoSecretService;
 
-    await new LineReplyService(prisma as unknown as PrismaService, crypto).replyText(
+    await createService(prisma, crypto).replyText(
       "tenant-1",
       "user-1",
       "conversation-1",
@@ -260,7 +288,7 @@ describe("LineReplyService", () => {
       encrypt: jest.fn()
     } as unknown as CryptoSecretService;
 
-    await new LineReplyService(prisma as unknown as PrismaService, crypto).replyText(
+    await createService(prisma, crypto).replyText(
       "tenant-1",
       "automation",
       "conversation-1",
@@ -323,7 +351,7 @@ describe("LineReplyService", () => {
       suggestionText: "ราคา 290 บาทค่ะ"
     });
 
-    await new LineReplyService(prisma as unknown as PrismaService, crypto).replyText(
+    await createService(prisma, crypto).replyText(
       "tenant-1",
       "user-1",
       "conversation-1",

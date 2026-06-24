@@ -24,6 +24,7 @@ import { ScenarioModule } from "./scenario/scenario.module";
 import { AutomationModule } from "./automation/automation.module";
 import { LlmModule } from "./common/llm/llm.module";
 import { ReportingModule } from "./reporting/reporting.module";
+import { QaModule } from "./qa/qa.module";
 
 @Module({
   imports: [
@@ -53,7 +54,8 @@ import { ReportingModule } from "./reporting/reporting.module";
     ScenarioModule,
     AutomationModule,
     LlmModule,
-    ReportingModule
+    ReportingModule,
+    QaModule
   ]
 })
 export class AppModule {}

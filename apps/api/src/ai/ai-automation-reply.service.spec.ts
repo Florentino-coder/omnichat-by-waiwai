@@ -4,6 +4,7 @@ import { LineReplyService } from "../line/line-reply.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
 import { AiAutomationReplyService } from "./ai-automation-reply.service";
+import { AiPolicyService } from "./ai-policy.service";
 
 describe("AiAutomationReplyService", () => {
   let service: AiAutomationReplyService;
@@ -25,6 +26,10 @@ describe("AiAutomationReplyService", () => {
     replyText: jest.fn()
   };
 
+  const aiPolicyService = {
+    checkReply: jest.fn().mockReturnValue({ allowed: true, matchedTopics: [] })
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -32,7 +37,8 @@ describe("AiAutomationReplyService", () => {
       aiProvider: "gemini",
       aiAgentGender: "FEMALE",
       aiAutoReplyInstructions: null,
-      aiAutoReplyConfidenceThreshold: 0.8
+      aiAutoReplyConfidenceThreshold: 0.8,
+      aiPolicyBlockedTopics: []
     });
     prisma.tenant.findUnique.mockResolvedValue({ planId: "pro" });
     prisma.message.findFirst.mockResolvedValue(null);
@@ -46,6 +52,7 @@ describe("AiAutomationReplyService", () => {
         AiAutomationReplyService,
         { provide: PrismaService, useValue: prisma },
         { provide: AiReplyGeneratorService, useValue: aiReplyGenerator },
+        { provide: AiPolicyService, useValue: aiPolicyService },
         { provide: LineReplyService, useValue: lineReplyService }
       ]
     }).compile();
