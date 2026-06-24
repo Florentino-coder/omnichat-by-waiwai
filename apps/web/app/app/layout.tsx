@@ -2,11 +2,10 @@
 
 import { BookOpen, ChartNoAxesColumn, Inbox, Settings, Users, Megaphone } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
 import { UserMenu } from "./user-menu";
-import { logoutSession } from "../lib/api-client";
 import { LanguageProvider, useLanguage } from "../lib/language-context";
 import { useAuthSession } from "../lib/use-auth-session";
+import { useProactiveSessionRefresh } from "../lib/use-proactive-session-refresh";
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -19,6 +18,7 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const { locale, setLocale } = useLanguage();
   const { user } = useAuthSession();
+  useProactiveSessionRefresh();
   const role = user?.role ?? null;
 
   const navItems = [
@@ -33,32 +33,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const filteredNavItems = role
     ? navItems.filter((item) => item.roles.includes(role))
     : navItems.filter((item) => item.href === "/app/inbox" || item.href === "/app/settings");
-
-  useEffect(() => {
-    const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
-    let timeoutId: NodeJS.Timeout;
-
-    function handleResetTimer() {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        void logoutSession();
-      }, INACTIVITY_TIMEOUT);
-    }
-
-    const events = ["mousemove", "keydown", "mousedown", "scroll", "click", "touchstart"];
-    events.forEach((event) => {
-      window.addEventListener(event, handleResetTimer);
-    });
-
-    handleResetTimer();
-
-    return () => {
-      clearTimeout(timeoutId);
-      events.forEach((event) => {
-        window.removeEventListener(event, handleResetTimer);
-      });
-    };
-  }, []);
 
   return (
     <main className="flex h-screen overflow-hidden bg-[#F7F7FA] text-foreground">

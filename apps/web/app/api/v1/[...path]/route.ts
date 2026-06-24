@@ -64,6 +64,17 @@ async function proxyToApi(request: NextRequest, context: RouteContext): Promise<
     responseHeaders.set("Content-Type", upstreamContentType);
   }
 
+  if (upstreamContentType?.includes("text/event-stream") && upstream.body) {
+    const cacheControl = upstream.headers.get("cache-control");
+    if (cacheControl) {
+      responseHeaders.set("Cache-Control", cacheControl);
+    }
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: responseHeaders
+    });
+  }
+
   const responseBody = await upstream.arrayBuffer();
   return new NextResponse(responseBody, {
     status: upstream.status,

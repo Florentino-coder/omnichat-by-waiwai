@@ -1862,8 +1862,7 @@ async function streamTenantEvents(
   }
 
   try {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-    const streamUrl = `${apiBaseUrl}/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`;
+    const streamUrl = `/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`;
     const response = await authorizedFetch(streamUrl, { signal });
 
     if (signal.aborted) {

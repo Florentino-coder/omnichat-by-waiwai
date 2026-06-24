@@ -3,7 +3,9 @@ import { proxyApiRequest } from "../../../../lib/api-proxy.server";
 import {
   clearAuthCookiesOnResponse,
   readRefreshTokenFromCookies,
-  setAuthCookiesOnResponse
+  readCookieValue,
+  setAuthCookiesOnResponse,
+  setSessionMarkerCookiesOnResponse
 } from "../../../../lib/auth-cookies.server";
 import { AUTH_COOKIE_NAMES } from "../../../../lib/auth-cookie-names";
 
@@ -39,53 +41,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     return response;
   }
 
+  const cookieHeader = request.headers.get("cookie") ?? "";
   const response = NextResponse.json({ success: true, data: { refreshed: true } });
   setAuthCookiesOnResponse(response, payload.data);
-
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const tenantMatch = cookieHeader.match(
-    new RegExp(`(?:^|;\\s*)${AUTH_COOKIE_NAMES.tenantId.replace(".", "\\.")}=([^;]*)`)
-  );
-  const workspaceMatch = cookieHeader.match(
-    new RegExp(`(?:^|;\\s*)${AUTH_COOKIE_NAMES.workspaceId.replace(".", "\\.")}=([^;]*)`)
-  );
-  const isSuperOwner = new RegExp(
-    `(?:^|;\\s*)${AUTH_COOKIE_NAMES.superOwner.replace(".", "\\.")}=1(?:;|$)`
-  ).test(cookieHeader);
-
-  response.cookies.set(AUTH_COOKIE_NAMES.session, "1", {
-    httpOnly: false,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 15 * 60
+  setSessionMarkerCookiesOnResponse(response, {
+    isSuperOwner: readCookieValue(cookieHeader, AUTH_COOKIE_NAMES.superOwner) === "1",
+    tenantId: readCookieValue(cookieHeader, AUTH_COOKIE_NAMES.tenantId) ?? undefined,
+    workspaceId: readCookieValue(cookieHeader, AUTH_COOKIE_NAMES.workspaceId) ?? undefined
   });
-
-  if (isSuperOwner) {
-    response.cookies.set(AUTH_COOKIE_NAMES.superOwner, "1", {
-      httpOnly: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 15 * 60
-    });
-  }
-
-  if (tenantMatch?.[1]) {
-    response.cookies.set(AUTH_COOKIE_NAMES.tenantId, tenantMatch[1], {
-      httpOnly: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 15 * 60
-    });
-  }
-
-  if (workspaceMatch?.[1]) {
-    response.cookies.set(AUTH_COOKIE_NAMES.workspaceId, workspaceMatch[1], {
-      httpOnly: false,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 15 * 60
-    });
-  }
 
   return response;
 }

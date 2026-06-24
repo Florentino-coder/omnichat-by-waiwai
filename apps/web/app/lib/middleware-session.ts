@@ -91,11 +91,23 @@ async function resolveMiddlewareSessionFromReader(
   cookies: CookieReader
 ): Promise<MiddlewareSession | null> {
   const accessToken = cookies.get(AUTH_COOKIE_NAMES.accessToken);
+  const refreshToken = cookies.get(AUTH_COOKIE_NAMES.refreshToken);
+  const markers = readMarkerSession(cookies);
+
+  if (!accessToken && !refreshToken) {
+    return null;
+  }
+
+  // Access token cookie expired but refresh session is still valid — allow
+  // navigation while the BFF/client refresh flow renews the access token.
+  if (!accessToken && refreshToken && hasMarkerFallback(cookies)) {
+    return markers;
+  }
+
   if (!accessToken) {
     return null;
   }
 
-  const markers = readMarkerSession(cookies);
   const jwtSecret = readJwtSecret();
 
   if (jwtSecret) {

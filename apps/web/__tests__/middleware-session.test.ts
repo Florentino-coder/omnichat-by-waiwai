@@ -20,6 +20,21 @@ describe("resolveMiddlewareSession", () => {
     await expect(resolveMiddlewareSession("omnichat.session=1")).resolves.toBeNull();
   });
 
+  it("allows marker fallback when access token is missing but refresh token exists", async () => {
+    const cookieHeader = [
+      `${AUTH_COOKIE_NAMES.refreshToken}=refresh-token`,
+      `${AUTH_COOKIE_NAMES.session}=1`,
+      `${AUTH_COOKIE_NAMES.tenantId}=tenant-b`,
+      `${AUTH_COOKIE_NAMES.workspaceId}=workspace-b`
+    ].join("; ");
+
+    await expect(resolveMiddlewareSession(cookieHeader)).resolves.toEqual({
+      isSuperOwner: false,
+      tenantId: "tenant-b",
+      workspaceId: "workspace-b"
+    });
+  });
+
   it("uses verified JWT claims when JWT verification succeeds", async () => {
     process.env.JWT_SECRET = "test-jwt-secret";
     verifyAccessTokenMock.mockResolvedValue({
