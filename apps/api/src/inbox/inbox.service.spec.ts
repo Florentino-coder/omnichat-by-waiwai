@@ -636,7 +636,9 @@ describe("InboxService", () => {
       aiAutoReplyBusinessHourEnd: 23,
       aiAutoReplyInstructions: null,
       aiEscalationKeywords: ["แอดมิน", "คุยกับคน"],
-      aiAutoReplyConfidenceThreshold: 0.8
+      aiAutoReplyConfidenceThreshold: 0.8,
+      aiPolicyBlockedTopics: [],
+      aiGuardrailNoticeAt: null
     });
 
     await createService(prisma).updateSettings("tenant-1", "user-1", {
@@ -666,7 +668,8 @@ describe("InboxService", () => {
         aiAutoReplyBusinessHourEnd: 22,
         aiAutoReplyInstructions: "ตอบสั้นๆ",
         aiEscalationKeywords: ["แอดมิน"],
-        aiAutoReplyConfidenceThreshold: 0.85
+        aiAutoReplyConfidenceThreshold: 0.85,
+        aiPolicyBlockedTopics: []
       },
       update: {
         inProgressAlertMinutes: 5,
@@ -681,7 +684,9 @@ describe("InboxService", () => {
         aiAutoReplyBusinessHourEnd: 22,
         aiAutoReplyInstructions: "ตอบสั้นๆ",
         aiEscalationKeywords: ["แอดมิน"],
-        aiAutoReplyConfidenceThreshold: 0.85
+        aiAutoReplyConfidenceThreshold: 0.85,
+        aiGuardrailNoticeAt: null,
+        aiPolicyBlockedTopics: undefined
       },
       select: {
         inProgressAlertMinutes: true,
@@ -696,7 +701,9 @@ describe("InboxService", () => {
         aiAutoReplyBusinessHourEnd: true,
         aiAutoReplyInstructions: true,
         aiEscalationKeywords: true,
-        aiAutoReplyConfidenceThreshold: true
+        aiAutoReplyConfidenceThreshold: true,
+        aiGuardrailNoticeAt: true,
+        aiPolicyBlockedTopics: true
       }
     });
     expect(prisma.auditLog.create).toHaveBeenCalledWith({

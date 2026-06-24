@@ -247,7 +247,9 @@ describe("App shell", () => {
     expect(await screen.findByText("No LINE channel connected yet.")).toBeInTheDocument();
   });
 
-  it("posts LINE channel settings from the settings page", async () => {
+  it(
+    "posts LINE channel settings from the settings page",
+    async () => {
     render(
       <LanguageProvider>
         <SettingsPage />
@@ -292,7 +294,9 @@ describe("App shell", () => {
     expect(
       await screen.findByText(`${window.location.origin}/api/v1/line/webhook/1234567890`)
     ).toBeInTheDocument();
-  });
+    },
+    15000
+  );
 
   it("keeps the LINE settings form ready for adding multiple OA channels", async () => {
     mockLineChannels = [

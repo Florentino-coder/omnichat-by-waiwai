@@ -2,7 +2,6 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   AiAgentGender,
   AuditAction,
-  ConversationPriority,
   MessageDirection,
   MessageType
 } from "@prisma/client";
