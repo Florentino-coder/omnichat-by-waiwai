@@ -54,20 +54,27 @@ export default function TeamSettingsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
 
-  const { user } = useAuthSession();
+  const { user, isLoading: isAuthLoading } = useAuthSession();
   const currentUserRole = user?.role as Role | undefined;
   const currentUserWorkspaceId = user?.workspaceId;
   const canInviteOwnerRole = canInviteOwner(currentUserRole);
   const canManageTeamAccess = canManageTeam(currentUserRole);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
     if (!canManageTeamAccess) {
       router.replace("/app/settings");
     }
-  }, [canManageTeamAccess, router]);
+  }, [isAuthLoading, user, canManageTeamAccess, router]);
 
   useEffect(() => {
-    if (!canManageTeamAccess) {
+    if (isAuthLoading || !canManageTeamAccess) {
       return;
     }
     let active = true;
@@ -99,7 +106,19 @@ export default function TeamSettingsPage() {
     return () => {
       active = false;
     };
-  }, [canManageTeamAccess, currentUserWorkspaceId]);
+  }, [isAuthLoading, canManageTeamAccess, currentUserWorkspaceId]);
+
+  if (isAuthLoading) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <p className="text-sm text-muted-foreground">Loading team settings...</p>
+      </div>
+    );
+  }
+
+  if (!canManageTeamAccess) {
+    return null;
+  }
 
   async function loadWorkspaceData(workspaceId: string, active = true): Promise<void> {
     const [membersResult, invitationsResult] = await Promise.all([

@@ -259,7 +259,7 @@ export function AutomationManager() {
   const triggerOptions = useMemo(() => getAutomationTriggerOptions(locale), [locale]);
   const stepOptions = useMemo(() => getAutomationStepOptions(locale), [locale]);
   const { user } = useAuthSession();
-  const role = user?.role ?? "AGENT";
+  const role = user?.role ?? null;
   const workspaceId = user?.workspaceId ?? null;
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);

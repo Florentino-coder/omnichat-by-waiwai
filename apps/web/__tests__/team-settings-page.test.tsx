@@ -1,18 +1,21 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { authFetchOptions } from "./auth-fetch-expect";
 import TeamSettingsPage from "../app/app/settings/team/page";
+import { useAuthSession } from "../app/lib/use-auth-session";
 
 jest.mock("../app/lib/language-context", () => ({
   useLanguage: () => ({ locale: "en", setLocale: () => {} }),
   LanguageProvider: ({ children }: any) => <>{children}</>
 }));
 
+const replaceMock = jest.fn();
+
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() })
+  useRouter: () => ({ push: jest.fn(), replace: replaceMock })
 }));
 
 jest.mock("../app/lib/use-auth-session", () => ({
-  useAuthSession: () => ({
+  useAuthSession: jest.fn(() => ({
     user: {
       id: "user-1",
       email: "admin@omnichat.local",
@@ -23,17 +26,45 @@ jest.mock("../app/lib/use-auth-session", () => ({
     },
     isLoading: false,
     error: null
-  })
+  }))
 }));
+
+const mockedUseAuthSession = useAuthSession as jest.MockedFunction<typeof useAuthSession>;
 
 describe("TeamSettingsPage", () => {
   beforeEach(() => {
+    replaceMock.mockClear();
     window.localStorage.clear();
     window.localStorage.setItem("omnichat.accessToken", "access-token");
+    mockedUseAuthSession.mockReturnValue({
+      user: {
+        id: "user-1",
+        email: "admin@omnichat.local",
+        displayName: "Admin",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        role: "ADMIN"
+      },
+      isLoading: false,
+      error: null
+    });
   });
 
   afterEach(() => {
     delete (globalThis as { fetch?: typeof fetch }).fetch;
+  });
+
+  it("shows loading state and does not redirect before auth session resolves", () => {
+    mockedUseAuthSession.mockReturnValue({
+      user: null,
+      isLoading: true,
+      error: null
+    });
+
+    render(<TeamSettingsPage />);
+
+    expect(screen.getByText("Loading team settings...")).toBeInTheDocument();
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it("lists team members and creates an invitation for the selected workspace", async () => {

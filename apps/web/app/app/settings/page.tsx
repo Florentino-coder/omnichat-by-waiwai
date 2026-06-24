@@ -62,14 +62,17 @@ function SettingsTabGroup({
 function SettingsContent() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
-  const { user } = useAuthSession();
+  const { user, isLoading: isAuthLoading } = useAuthSession();
   const role = user?.role ?? null;
   const [activeTab, setActiveTab] = useState<SettingsTabId>("profile");
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
     setActiveTab(resolveSettingsTab(searchParams.get("tab"), role));
-  }, [searchParams, role]);
+  }, [searchParams, role, isAuthLoading]);
 
   return (
     <div className="h-full overflow-y-auto bg-[#F7F7FA] p-4 sm:p-6 md:p-8">

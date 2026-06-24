@@ -78,7 +78,7 @@ export function KnowledgeDocumentManager() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
   const { user } = useAuthSession();
-  const role = user?.role ?? "AGENT";
+  const role = user?.role ?? null;
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>("all");
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
