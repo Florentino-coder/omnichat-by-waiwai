@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException, Logger } from "@nestjs/common";
-import { AuditAction, BroadcastStatus, BroadcastType } from "@prisma/client";
+import { AuditAction, BroadcastStatus, BroadcastType, Prisma } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { BroadcastLineMessageDto, MulticastLineMessageDto } from "./dto/broadcast-line-message.dto";
@@ -283,49 +283,31 @@ export class LineBroadcastService {
       job.scheduledAt.getTime() > now;
 
     if (isScheduledPending) {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.broadcastJob.update({
-          where: { id: jobId },
-          data: { deletedAt: new Date() }
-        });
-
-        await tx.auditLog.create({
-          data: {
-            tenantId,
-            userId,
-            action: AuditAction.LINE_BROADCAST_CANCELLED,
-            targetType: "BroadcastJob",
-            targetId: jobId,
-            metadata: {
-              lineChannelId: channelId,
-              scheduledAt: job.scheduledAt?.toISOString()
-            }
-          }
-        });
+      await this.softDeleteBroadcastJob(jobId);
+      await this.logBroadcastAuditBestEffort({
+        tenantId,
+        userId,
+        action: AuditAction.LINE_BROADCAST_CANCELLED,
+        targetId: jobId,
+        metadata: {
+          lineChannelId: channelId,
+          scheduledAt: job.scheduledAt?.toISOString()
+        }
       });
       return;
     }
 
     if (job.status === BroadcastStatus.FAILED) {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.broadcastJob.update({
-          where: { id: jobId },
-          data: { deletedAt: new Date() }
-        });
-
-        await tx.auditLog.create({
-          data: {
-            tenantId,
-            userId,
-            action: AuditAction.LINE_BROADCAST_DELETED,
-            targetType: "BroadcastJob",
-            targetId: jobId,
-            metadata: {
-              lineChannelId: channelId,
-              status: job.status
-            }
-          }
-        });
+      await this.softDeleteBroadcastJob(jobId);
+      await this.logBroadcastAuditBestEffort({
+        tenantId,
+        userId,
+        action: AuditAction.LINE_BROADCAST_DELETED,
+        targetId: jobId,
+        metadata: {
+          lineChannelId: channelId,
+          status: job.status
+        }
       });
       return;
     }
@@ -339,6 +321,39 @@ export class LineBroadcastService {
     }
 
     throw new ConflictException("This broadcast cannot be cancelled or deleted");
+  }
+
+  private async softDeleteBroadcastJob(jobId: string): Promise<void> {
+    await this.prisma.broadcastJob.update({
+      where: { id: jobId },
+      data: { deletedAt: new Date() }
+    });
+  }
+
+  private async logBroadcastAuditBestEffort(params: {
+    tenantId: string;
+    userId: string;
+    action: AuditAction;
+    targetId: string;
+    metadata: Prisma.InputJsonValue;
+  }): Promise<void> {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId: params.tenantId,
+          userId: params.userId,
+          action: params.action,
+          targetType: "BroadcastJob",
+          targetId: params.targetId,
+          metadata: params.metadata
+        }
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to write broadcast audit log (${params.action}) for job ${params.targetId}`,
+        error instanceof Error ? error.stack : String(error)
+      );
+    }
   }
 
   private buildLineMessages(text?: string, imageUrl?: string) {

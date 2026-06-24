@@ -324,7 +324,7 @@ describe("LineBroadcastService", () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it("rolls back soft-delete when audit log creation fails", async () => {
+    it("soft-deletes even when audit log creation fails (e.g. enum not migrated)", async () => {
       const prisma = createPrisma();
       const futureDate = new Date(Date.now() + 60 * 60 * 1000);
 
@@ -341,13 +341,32 @@ describe("LineBroadcastService", () => {
       );
 
       const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
-      await expect(
-        service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-1", "user-1")
-      ).rejects.toThrow(/LINE_BROADCAST_CANCELLED/);
+      await service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-1", "user-1");
 
-      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-      expect(prisma.broadcastJob.update).toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.broadcastJob.update).toHaveBeenCalledWith({
+        where: { id: "job-1" },
+        data: { deletedAt: expect.any(Date) }
+      });
       expect(prisma.auditLog.create).toHaveBeenCalled();
+    });
+
+    it("throws ConflictException for pending send-now broadcasts", async () => {
+      const prisma = createPrisma();
+      prisma.broadcastJob.findFirst.mockResolvedValue({
+        id: "job-5",
+        tenantId: "tenant-1",
+        lineChannelId: "line-channel-1",
+        status: BroadcastStatus.PENDING,
+        scheduledAt: null
+      });
+
+      const service = new LineBroadcastService(prisma as unknown as PrismaService, crypto);
+      await expect(
+        service.deleteBroadcastJob("tenant-1", "line-channel-1", "job-5", "user-1")
+      ).rejects.toThrow(ConflictException);
+
+      expect(prisma.broadcastJob.update).not.toHaveBeenCalled();
     });
   });
 });
