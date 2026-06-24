@@ -17,7 +17,7 @@ import {
 import { Badge, Button, Card } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { clearAuthSessionCookies } from "../../lib/session-cookies";
-import { verifySuperOwnerAccess } from "../../lib/super-owner-access";
+import { useSuperOwnerGate } from "../../lib/use-super-owner-gate";
 
 type BackupRun = {
   id: string;
@@ -98,52 +98,13 @@ function healthTone(status: BackupHealth["status"]): string {
 
 export default function SuperAdminBackupsPage() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isLoading: isAuthGateLoading, isReady: isAuthenticated } = useSuperOwnerGate();
   const [runs, setRuns] = useState<BackupRun[]>([]);
   const [health, setHealth] = useState<BackupHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isTriggering, setIsTriggering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    async function verifyAccess(): Promise<void> {
-      const userStr = window.localStorage.getItem("omnichat.user");
-      if (!userStr) {
-        router.push("/login");
-        return;
-      }
-
-      try {
-        const user = JSON.parse(userStr) as { isSuperOwner?: boolean };
-        if (!user.isSuperOwner) {
-          router.push("/login");
-          return;
-        }
-      } catch {
-        router.push("/login");
-        return;
-      }
-
-      const allowed = await verifySuperOwnerAccess();
-      if (!active) {
-        return;
-      }
-      if (!allowed) {
-        router.push("/login");
-        return;
-      }
-      setIsAuthenticated(true);
-    }
-
-    void verifyAccess();
-
-    return () => {
-      active = false;
-    };
-  }, [router]);
 
   const loadBackupOps = useCallback(async () => {
     setIsLoading(true);
@@ -191,7 +152,7 @@ export default function SuperAdminBackupsPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (isAuthGateLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="flex flex-col items-center gap-3">

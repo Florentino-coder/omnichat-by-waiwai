@@ -6,7 +6,7 @@ import { Building2, Plus, Users, LogOut, ArrowRight, ShieldCheck, RefreshCw, Act
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../lib/api-client";
 import { clearAuthSessionCookies } from "../lib/session-cookies";
-import { verifySuperOwnerAccess } from "../lib/super-owner-access";
+import { useSuperOwnerGate } from "../lib/use-super-owner-gate";
 
 interface TenantInfo {
   id: string;
@@ -20,7 +20,7 @@ interface TenantInfo {
 
 export default function SuperAdminPage() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isLoading: isAuthGateLoading, isReady: isAuthenticated } = useSuperOwnerGate();
   const [tenants, setTenants] = useState<TenantInfo[]>([]);
   const [isLoadingTenants, setIsLoadingTenants] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,45 +33,6 @@ export default function SuperAdminPage() {
   const [ownerUsername, setOwnerUsername] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    async function verifyAccess(): Promise<void> {
-      const userStr = window.localStorage.getItem("omnichat.user");
-      if (!userStr) {
-        router.push("/login");
-        return;
-      }
-
-      try {
-        const user = JSON.parse(userStr) as { isSuperOwner?: boolean };
-        if (!user.isSuperOwner) {
-          router.push("/login");
-          return;
-        }
-      } catch {
-        router.push("/login");
-        return;
-      }
-
-      const allowed = await verifySuperOwnerAccess();
-      if (!active) {
-        return;
-      }
-      if (!allowed) {
-        router.push("/login");
-        return;
-      }
-      setIsAuthenticated(true);
-    }
-
-    void verifyAccess();
-
-    return () => {
-      active = false;
-    };
-  }, [router]);
 
   const loadTenants = async () => {
     setIsLoadingTenants(true);
@@ -145,7 +106,7 @@ export default function SuperAdminPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (isAuthGateLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <div className="flex flex-col items-center gap-3">

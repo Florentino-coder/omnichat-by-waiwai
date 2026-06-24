@@ -16,7 +16,7 @@ import {
 import { Badge, Button, Card } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { clearAuthSessionCookies } from "../../lib/session-cookies";
-import { verifySuperOwnerAccess } from "../../lib/super-owner-access";
+import { useSuperOwnerGate } from "../../lib/use-super-owner-gate";
 
 type AiPlatformStats = {
   totalCalls24h: number;
@@ -83,52 +83,13 @@ function latencyTone(ms: number): string {
 
 export default function SuperAdminAiMonitorPage() {
   const router = useRouter();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isLoading: isAuthGateLoading, isReady: isAuthenticated } = useSuperOwnerGate();
   const [stats, setStats] = useState<AiPlatformStats | null>(null);
   const [health, setHealth] = useState<AiProviderHealth[]>([]);
   const [slowest, setSlowest] = useState<AiSlowCall[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-
-    async function verifyAccess(): Promise<void> {
-      const userStr = window.localStorage.getItem("omnichat.user");
-      if (!userStr) {
-        router.push("/login");
-        return;
-      }
-
-      try {
-        const user = JSON.parse(userStr) as { isSuperOwner?: boolean };
-        if (!user.isSuperOwner) {
-          router.push("/login");
-          return;
-        }
-      } catch {
-        router.push("/login");
-        return;
-      }
-
-      const allowed = await verifySuperOwnerAccess();
-      if (!active) {
-        return;
-      }
-      if (!allowed) {
-        router.push("/login");
-        return;
-      }
-      setIsAuthenticated(true);
-    }
-
-    void verifyAccess();
-
-    return () => {
-      active = false;
-    };
-  }, [router]);
 
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) {
@@ -171,7 +132,7 @@ export default function SuperAdminAiMonitorPage() {
     router.push("/login");
   };
 
-  if (!isAuthenticated) {
+  if (isAuthGateLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <RefreshCw className="h-8 w-8 animate-spin text-indigo-400" />
