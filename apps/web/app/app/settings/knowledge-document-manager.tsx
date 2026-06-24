@@ -6,6 +6,11 @@ import { Button, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
+import {
+  canDeleteKnowledge,
+  canManageKnowledge
+} from "../../lib/settings-rbac";
+import { useAuthSession } from "../../lib/use-auth-session";
 
 type LineChannel = {
   id: string;
@@ -72,7 +77,8 @@ function canReindexDocument(status: KnowledgeDocument["status"]): boolean {
 export function KnowledgeDocumentManager() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
-  const [role, setRole] = useState<string>("AGENT");
+  const { user } = useAuthSession();
+  const role = user?.role ?? "AGENT";
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>("all");
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
@@ -85,20 +91,8 @@ export function KnowledgeDocumentManager() {
   const [isReindexingAll, setIsReindexingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canEdit = role === "OWNER" || role === "ADMIN" || role === "AGENT";
-  const canDelete = role === "OWNER" || role === "ADMIN";
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      if (stored) {
-        const parsed = JSON.parse(stored) as { role?: string };
-        setRole(parsed.role ?? "AGENT");
-      }
-    } catch {
-      setRole("AGENT");
-    }
-  }, []);
+  const canEdit = canManageKnowledge(role);
+  const canDelete = canDeleteKnowledge(role);
 
   useEffect(() => {
     async function loadChannels() {

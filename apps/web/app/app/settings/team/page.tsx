@@ -2,11 +2,13 @@
 
 import { MailPlus, Shield, Trash2, UserCog, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../../lib/api-client";
 import { useLanguage } from "../../../lib/language-context";
 import { getMessages } from "../../../lib/i18n";
+import { canInviteOwner, canManageTeam } from "../../../lib/settings-rbac";
+import { useAuthSession } from "../../../lib/use-auth-session";
 
 type Role = "OWNER" | "ADMIN" | "AGENT" | "QC" | "VIEWER";
 
@@ -36,11 +38,6 @@ type Invitation = {
   token?: string;
 };
 
-type AuthUser = {
-  role?: Role;
-  workspaceId?: string;
-};
-
 const roles: Role[] = ["OWNER", "ADMIN", "AGENT", "QC", "VIEWER"];
 
 export default function TeamSettingsPage() {
@@ -57,18 +54,20 @@ export default function TeamSettingsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
 
-  const currentUser = useMemo(readCurrentUser, []);
-  const canInviteOwner = currentUser.role === "OWNER";
-  const canManageTeam = currentUser.role === "OWNER" || currentUser.role === "ADMIN";
+  const { user } = useAuthSession();
+  const currentUserRole = user?.role as Role | undefined;
+  const currentUserWorkspaceId = user?.workspaceId;
+  const canInviteOwnerRole = canInviteOwner(currentUserRole);
+  const canManageTeamAccess = canManageTeam(currentUserRole);
 
   useEffect(() => {
-    if (!canManageTeam) {
+    if (!canManageTeamAccess) {
       router.replace("/app/settings");
     }
-  }, [canManageTeam, router]);
+  }, [canManageTeamAccess, router]);
 
   useEffect(() => {
-    if (!canManageTeam) {
+    if (!canManageTeamAccess) {
       return;
     }
     let active = true;
@@ -81,8 +80,8 @@ export default function TeamSettingsPage() {
         }
         const safeWorkspaces = Array.isArray(workspaceList) ? workspaceList : [];
         const preferredWorkspaceId =
-          currentUser.workspaceId && safeWorkspaces.some((item) => item.id === currentUser.workspaceId)
-            ? currentUser.workspaceId
+          currentUserWorkspaceId && safeWorkspaces.some((item) => item.id === currentUserWorkspaceId)
+            ? currentUserWorkspaceId
             : safeWorkspaces[0]?.id ?? "";
         setWorkspaces(safeWorkspaces);
         setSelectedWorkspaceId(preferredWorkspaceId);
@@ -100,9 +99,7 @@ export default function TeamSettingsPage() {
     return () => {
       active = false;
     };
-    // currentUser is read once from localStorage for this client session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [canManageTeamAccess, currentUserWorkspaceId]);
 
   async function loadWorkspaceData(workspaceId: string, active = true): Promise<void> {
     const [membersResult, invitationsResult] = await Promise.all([
@@ -144,7 +141,7 @@ export default function TeamSettingsPage() {
       setError("Invite email is required.");
       return;
     }
-    if (inviteRole === "OWNER" && !canInviteOwner) {
+    if (inviteRole === "OWNER" && !canInviteOwnerRole) {
       setError("Only owners can invite another owner.");
       return;
     }
@@ -284,7 +281,7 @@ export default function TeamSettingsPage() {
                       value={member.role}
                     >
                       {roles.map((role) => (
-                        <option key={role} disabled={role === "OWNER" && !canInviteOwner} value={role}>
+                        <option key={role} disabled={role === "OWNER" && !canInviteOwnerRole} value={role}>
                           {role}
                         </option>
                       ))}
@@ -328,7 +325,7 @@ export default function TeamSettingsPage() {
                   value={inviteRole}
                 >
                   {roles.map((role) => (
-                    <option key={role} disabled={role === "OWNER" && !canInviteOwner} value={role}>
+                    <option key={role} disabled={role === "OWNER" && !canInviteOwnerRole} value={role}>
                       {role}
                     </option>
                   ))}
@@ -396,15 +393,6 @@ export default function TeamSettingsPage() {
       </section>
     </div>
   );
-}
-
-function readCurrentUser(): AuthUser {
-  try {
-    const raw = window.localStorage.getItem("omnichat.user");
-    return raw ? (JSON.parse(raw) as AuthUser) : {};
-  } catch {
-    return {};
-  }
 }
 
 function getStatusBadgeVariant(status: string): "success" | "warning" | "danger" | "muted" {

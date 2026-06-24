@@ -6,6 +6,8 @@ import { Button, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
+import { canManageSharedQuickReplies } from "../../lib/settings-rbac";
+import { useAuthSession } from "../../lib/use-auth-session";
 
 type LineChannel = {
   id: string;
@@ -42,14 +44,10 @@ const emptyForm: FormState = {
   hotkeyBinding: ""
 };
 
-type UserData = {
-  id: string;
-  role: string;
-};
-
 export function QuickReplyManager() {
   const { locale } = useLanguage();
   const t = getMessages(locale);
+  const { user } = useAuthSession();
 
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [selectedLineChannelId, setSelectedLineChannelId] = useState("");
@@ -63,7 +61,6 @@ export function QuickReplyManager() {
 
   // Tab: shared (ส่วนรวม) vs personal (ส่วนตัว)
   const [replyTab, setReplyTab] = useState<"shared" | "personal">("shared");
-  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
 
   const isEditing = Boolean(editingReplyId);
   const canSave = Boolean(
@@ -78,19 +75,7 @@ export function QuickReplyManager() {
     [channels, selectedLineChannelId]
   );
 
-  // Fetch current user from localStorage to check roles & user ID
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      if (stored) {
-        setCurrentUser(JSON.parse(stored));
-      }
-    } catch {
-      // Ignore
-    }
-  }, []);
-
-  const isAdmin = currentUser?.role === "OWNER" || currentUser?.role === "ADMIN";
+  const canManageShared = canManageSharedQuickReplies(user?.role);
 
   // Load Channels
   useEffect(() => {
@@ -176,7 +161,7 @@ export function QuickReplyManager() {
       imageUrl: form.imageUrl.trim() || undefined,
       hotkeyBinding: (form.hotkeyBinding && form.hotkeyBinding !== "NONE") ? form.hotkeyBinding : undefined,
       // For personal replies, set the userId
-      userId: replyTab === "personal" ? currentUser?.id : undefined
+      userId: replyTab === "personal" ? user?.id : undefined
     };
 
     try {
@@ -300,8 +285,8 @@ export function QuickReplyManager() {
         </button>
       </div>
 
-      {/* Form Card (Hide if Shared tab and user is not Admin) */}
-      {(replyTab === "personal" || isAdmin) ? (
+      {/* Form Card (Hide if Shared tab and user is not Owner/Admin) */}
+      {(replyTab === "personal" || canManageShared) ? (
         <form className="grid gap-4 rounded-xl border border-[#DEDDE6]/80 bg-white p-5 shadow-sm" onSubmit={saveReply}>
           <div className="grid gap-2">
             <Label htmlFor="quick-reply-title">
@@ -418,8 +403,8 @@ export function QuickReplyManager() {
       ) : (
         <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 text-sm text-warning-strong font-medium">
           {locale === "th"
-            ? "⚠️ เฉพาะผู้จัดระบบ (Admin) เท่านั้นที่สามารถสร้างและแก้ไขคำตอบด่วนส่วนรวมได้"
-            : "⚠️ Only administrators can manage shared quick replies."}
+            ? "⚠️ เฉพาะเจ้าของ (Owner) หรือผู้จัดระบบ (Admin) เท่านั้นที่สามารถสร้างและแก้ไขคำตอบด่วนส่วนรวมได้"
+            : "⚠️ Only owners and administrators can manage shared quick replies."}
         </div>
       )}
 
@@ -483,8 +468,8 @@ export function QuickReplyManager() {
               )}
             </div>
 
-            {/* Edit / Delete (Hide if shared and user is not admin) */}
-            {(replyTab === "personal" || isAdmin) ? (
+            {/* Edit / Delete (Hide if shared and user is not Owner/Admin) */}
+            {(replyTab === "personal" || canManageShared) ? (
               <div className="flex shrink-0 gap-1">
                 <button
                   type="button"

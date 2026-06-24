@@ -66,6 +66,34 @@ export function resolveSettingsTab(tabParam: string | null, role: string | null)
   return defaultSettingsTab(role);
 }
 
-export function canManageScenarios(role: string | null | undefined): boolean {
+export function isOwnerOrAdmin(role: string | null | undefined): boolean {
   return role === "OWNER" || role === "ADMIN";
+}
+
+export function canManageSharedQuickReplies(role: string | null | undefined): boolean {
+  return isOwnerOrAdmin(role);
+}
+
+export function canManageAutomation(role: string | null | undefined): boolean {
+  return isOwnerOrAdmin(role);
+}
+
+export function canManageKnowledge(role: string | null | undefined): boolean {
+  return role === "OWNER" || role === "ADMIN" || role === "AGENT";
+}
+
+export function canDeleteKnowledge(role: string | null | undefined): boolean {
+  return isOwnerOrAdmin(role);
+}
+
+export function canManageTeam(role: string | null | undefined): boolean {
+  return isOwnerOrAdmin(role);
+}
+
+export function canInviteOwner(role: string | null | undefined): boolean {
+  return role === "OWNER";
+}
+
+export function canManageScenarios(role: string | null | undefined): boolean {
+  return isOwnerOrAdmin(role);
 }

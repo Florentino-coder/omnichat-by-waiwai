@@ -6,6 +6,8 @@ import { Megaphone, Calendar, Clock, Send, Users, Info, AlertCircle, FileText, I
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { useRouter } from "next/navigation";
+import { isOwnerOrAdmin } from "../../lib/settings-rbac";
+import { useAuthSession } from "../../lib/use-auth-session";
 
 type LineChannel = {
   id: string;
@@ -29,7 +31,8 @@ type BroadcastJob = {
 export default function BroadcastPage() {
   const { locale } = useLanguage();
   const router = useRouter();
-  const [role, setRole] = useState<string | null>(null);
+  const { user, isLoading: isAuthLoading } = useAuthSession();
+  const role = user?.role ?? null;
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [selectedChannelId, setSelectedChannelId] = useState<string>("");
   const [jobs, setJobs] = useState<BroadcastJob[]>([]);
@@ -37,22 +40,17 @@ export default function BroadcastPage() {
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        const userRole = parsed.role ?? "AGENT";
-        setRole(userRole);
-        if (userRole !== "OWNER" && userRole !== "ADMIN") {
-          router.push("/app/inbox");
-        }
-      } else {
-        router.push("/login");
-      }
-    } catch {
-      // Ignore
+    if (isAuthLoading) {
+      return;
     }
-  }, [router]);
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    if (!isOwnerOrAdmin(role)) {
+      router.push("/app/inbox");
+    }
+  }, [isAuthLoading, user, role, router]);
 
   // Form states
   const [type, setType] = useState<"BROADCAST" | "MULTICAST">("BROADCAST");

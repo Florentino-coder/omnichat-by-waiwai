@@ -10,6 +10,8 @@ import {
   getAutomationTriggerOptions,
   getMessages
 } from "../../lib/i18n";
+import { canManageAutomation } from "../../lib/settings-rbac";
+import { useAuthSession } from "../../lib/use-auth-session";
 
 type LineChannel = { id: string; name: string };
 
@@ -256,8 +258,9 @@ export function AutomationManager() {
   const t = getMessages(locale);
   const triggerOptions = useMemo(() => getAutomationTriggerOptions(locale), [locale]);
   const stepOptions = useMemo(() => getAutomationStepOptions(locale), [locale]);
-  const [role, setRole] = useState<string>("AGENT");
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { user } = useAuthSession();
+  const role = user?.role ?? "AGENT";
+  const workspaceId = user?.workspaceId ?? null;
   const [channels, setChannels] = useState<LineChannel[]>([]);
   const [members, setMembers] = useState<WorkspaceMember[]>([]);
   const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
@@ -269,20 +272,7 @@ export function AutomationManager() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canEdit = role === "OWNER" || role === "ADMIN";
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem("omnichat.user");
-      if (stored) {
-        const parsed = JSON.parse(stored) as { role?: string; workspaceId?: string };
-        setRole(parsed.role ?? "AGENT");
-        setWorkspaceId(parsed.workspaceId ?? null);
-      }
-    } catch {
-      setRole("AGENT");
-    }
-  }, []);
+  const canEdit = canManageAutomation(role);
 
   useEffect(() => {
     async function loadChannels() {

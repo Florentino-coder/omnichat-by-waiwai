@@ -11,21 +11,25 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() })
 }));
 
+jest.mock("../app/lib/use-auth-session", () => ({
+  useAuthSession: () => ({
+    user: {
+      id: "user-1",
+      email: "admin@omnichat.local",
+      displayName: "Admin",
+      tenantId: "tenant-1",
+      workspaceId: "workspace-1",
+      role: "ADMIN"
+    },
+    isLoading: false,
+    error: null
+  })
+}));
+
 describe("TeamSettingsPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
     window.localStorage.setItem("omnichat.accessToken", "access-token");
-    window.localStorage.setItem(
-      "omnichat.user",
-      JSON.stringify({
-        id: "user-1",
-        email: "admin@omnichat.local",
-        displayName: "Admin",
-        tenantId: "tenant-1",
-        workspaceId: "workspace-1",
-        role: "ADMIN"
-      })
-    );
   });
 
   afterEach(() => {
