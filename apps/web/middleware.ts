@@ -1,10 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { resolveMiddlewareSession } from "./app/lib/middleware-session";
+import { resolveMiddlewareSessionFromRequest } from "./app/lib/middleware-session";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const cookieHeader = request.headers.get("cookie") ?? undefined;
-  const session = await resolveMiddlewareSession(cookieHeader);
+  const session = await resolveMiddlewareSessionFromRequest(request);
 
   if (pathname.startsWith("/super-admin")) {
     if (!session) {

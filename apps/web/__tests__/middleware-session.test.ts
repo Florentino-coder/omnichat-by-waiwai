@@ -57,7 +57,44 @@ describe("resolveMiddlewareSession", () => {
     });
   });
 
-  it("requires the session marker when JWT verification fails", async () => {
+  it("falls back to tenant marker cookies when JWT verification fails without session marker", async () => {
+    process.env.JWT_SECRET = "test-jwt-secret";
+    verifyAccessTokenMock.mockResolvedValue(null);
+
+    const cookieHeader = [
+      `${AUTH_COOKIE_NAMES.accessToken}=opaque-token`,
+      `${AUTH_COOKIE_NAMES.tenantId}=tenant-b`,
+      `${AUTH_COOKIE_NAMES.workspaceId}=workspace-b`
+    ].join("; ");
+
+    await expect(resolveMiddlewareSession(cookieHeader)).resolves.toEqual({
+      isSuperOwner: false,
+      tenantId: "tenant-b",
+      workspaceId: "workspace-b"
+    });
+  });
+
+  it("merges tenant markers into verified JWT claims when payload lacks tenant context", async () => {
+    process.env.JWT_SECRET = "test-jwt-secret";
+    verifyAccessTokenMock.mockResolvedValue({
+      sub: "user-1",
+      isSuperOwner: false
+    });
+
+    const cookieHeader = [
+      `${AUTH_COOKIE_NAMES.accessToken}=signed-token`,
+      `${AUTH_COOKIE_NAMES.tenantId}=tenant-b`,
+      `${AUTH_COOKIE_NAMES.workspaceId}=workspace-b`
+    ].join("; ");
+
+    await expect(resolveMiddlewareSession(cookieHeader)).resolves.toEqual({
+      isSuperOwner: false,
+      tenantId: "tenant-b",
+      workspaceId: "workspace-b"
+    });
+  });
+
+  it("requires marker fallback when JWT verification fails", async () => {
     process.env.JWT_SECRET = "test-jwt-secret";
     verifyAccessTokenMock.mockResolvedValue(null);
 

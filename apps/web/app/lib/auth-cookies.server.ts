@@ -133,7 +133,7 @@ export function readCookieValue(cookieHeader: string | undefined, name: string):
   if (!cookieHeader) {
     return null;
   }
-  const pattern = new RegExp(`(?:^|;\\s*)${name.replace(".", "\\.")}=([^;]*)`);
+  const pattern = new RegExp(`(?:^|;\\s*)${name.replace(/\./g, "\\.")}=([^;]*)`);
   const match = cookieHeader.match(pattern);
   if (!match?.[1]) {
     return null;

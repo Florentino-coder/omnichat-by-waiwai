@@ -9,21 +9,28 @@ type AuthSessionCookieOptions = {
   workspaceId?: string;
 };
 
+function markerCookieSuffix(maxAge: number): string {
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+  return `path=/; max-age=${maxAge}; SameSite=Lax${secure}`;
+}
+
 export function setAuthSessionCookies(options: AuthSessionCookieOptions = {}): void {
-  document.cookie = `${AUTH_COOKIE_NAMES.session}=1; path=/; max-age=${SESSION_MARKER_MAX_AGE_SECONDS}; SameSite=Lax`;
+  const suffix = markerCookieSuffix(SESSION_MARKER_MAX_AGE_SECONDS);
+  document.cookie = `${AUTH_COOKIE_NAMES.session}=1; ${suffix}`;
 
   if (options.isSuperOwner === true) {
-    document.cookie = `${AUTH_COOKIE_NAMES.superOwner}=1; path=/; max-age=${SESSION_MARKER_MAX_AGE_SECONDS}; SameSite=Lax`;
+    document.cookie = `${AUTH_COOKIE_NAMES.superOwner}=1; ${suffix}`;
   } else if (options.isSuperOwner === false) {
     document.cookie = `${AUTH_COOKIE_NAMES.superOwner}=; path=/; max-age=0`;
   }
 
   if (options.tenantId) {
-    document.cookie = `${AUTH_COOKIE_NAMES.tenantId}=${encodeURIComponent(options.tenantId)}; path=/; max-age=${SESSION_MARKER_MAX_AGE_SECONDS}; SameSite=Lax`;
+    document.cookie = `${AUTH_COOKIE_NAMES.tenantId}=${encodeURIComponent(options.tenantId)}; ${suffix}`;
   }
 
   if (options.workspaceId) {
-    document.cookie = `${AUTH_COOKIE_NAMES.workspaceId}=${encodeURIComponent(options.workspaceId)}; path=/; max-age=${SESSION_MARKER_MAX_AGE_SECONDS}; SameSite=Lax`;
+    document.cookie = `${AUTH_COOKIE_NAMES.workspaceId}=${encodeURIComponent(options.workspaceId)}; ${suffix}`;
   }
 }
 
