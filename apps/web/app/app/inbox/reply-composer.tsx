@@ -30,6 +30,7 @@ interface ReplyComposerProps {
   enableAiSuggest?: boolean;
   enableHybridAutoDraft?: boolean;
   hybridDraftFailedNonce?: number;
+  latestInboundMessageId?: string | null;
   onSendStart?: (payload: { text: string; conversationId: string }) => void;
   onSent?: () => Promise<void> | void;
   refreshSuggestionNonce?: number;
@@ -52,6 +53,7 @@ export function ReplyComposer({
   enableAiSuggest = true,
   enableHybridAutoDraft = true,
   hybridDraftFailedNonce = 0,
+  latestInboundMessageId = null,
   onSendStart,
   onSent,
   refreshSuggestionNonce = 0
@@ -184,10 +186,17 @@ export function ReplyComposer({
 
   // Load active suggestion on refresh nonce
   useEffect(() => {
-    if (conversationId && refreshSuggestionNonce && refreshSuggestionNonce > 0) {
+    if (conversationId && refreshSuggestionNonce > 0) {
       void loadActiveSuggestion(conversationId);
     }
-  }, [refreshSuggestionNonce, enableHybridAutoDraft]);
+  }, [refreshSuggestionNonce, conversationId, enableHybridAutoDraft]);
+
+  // Re-fetch when the latest inbound message changes (e.g. after thread load or SSE refresh)
+  useEffect(() => {
+    if (conversationId && latestInboundMessageId && enableHybridAutoDraft) {
+      void loadActiveSuggestion(conversationId);
+    }
+  }, [latestInboundMessageId, conversationId, enableHybridAutoDraft]);
 
   useEffect(() => {
     if (hybridDraftFailedNonce > 0) {

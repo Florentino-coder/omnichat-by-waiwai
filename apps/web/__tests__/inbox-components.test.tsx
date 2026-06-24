@@ -75,6 +75,9 @@ describe("Inbox components", () => {
     expect(messagesScroll).toHaveClass("flex-1");
     expect(messagesScroll).toHaveClass("min-h-0");
     expect(messagesScroll).toHaveClass("overflow-y-auto");
+    expect(messagesScroll).toHaveClass("flex");
+    expect(messagesScroll).toHaveClass("flex-col");
+    expect(screen.getByTestId("chat-messages-stack")).toHaveClass("mt-auto");
     expect(composer).toHaveClass("shrink-0");
     expect(
       messagesScroll.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING

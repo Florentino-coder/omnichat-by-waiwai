@@ -794,6 +794,7 @@ describe("InboxPage", () => {
 
     expect(threadPanel).toHaveClass("h-full");
     expect(threadPanel).toHaveClass("min-h-0");
+    expect(threadPanel).toHaveClass("flex-1");
     expect(threadPanel).toHaveClass("overflow-hidden");
     expect(chatWindow).toHaveClass("h-full");
     expect(chatWindow).toHaveClass("min-h-0");
@@ -1554,6 +1555,126 @@ describe("InboxPage", () => {
     fireEvent.click(nav.querySelectorAll("button")[1]);
 
     expect(screen.getByTestId("mobile-customer-panel")).toBeInTheDocument();
+  });
+
+  it("loads hybrid draft after messages arrive on a newly selected conversation", async () => {
+    let activeSuggestionCalls = 0;
+    installFetchMock(
+      jest.fn((url: string) => {
+        if (url.includes("/api/v1/inbox/settings")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: {
+                inProgressAlertMinutes: 10,
+                enableAiSuggest: true,
+                enableHybridAutoDraft: true
+              }
+            })
+          });
+        }
+        if (url.includes("/active-suggestion")) {
+          activeSuggestionCalls += 1;
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: {
+                suggestion_id: "suggestion-1",
+                suggestion_text: "Hybrid draft reply",
+                knowledge_citations: [],
+                confidence: 0.92,
+                confidence_threshold: 0.7
+              }
+            })
+          });
+        }
+        if (url.includes("/api/v1/inbox/conversations/conversation-new/messages")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: {
+                messages: [
+                  {
+                    id: "message-new",
+                    direction: "INBOUND",
+                    text: "New customer message",
+                    createdAt: "2026-06-14T01:00:00.000Z"
+                  }
+                ],
+                hasMore: false,
+                oldestId: "message-new"
+              }
+            })
+          });
+        }
+        if (url.includes("/api/v1/inbox/conversations")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: [
+                {
+                  id: "conversation-new",
+                  externalThreadId: "U999",
+                  displayName: "New Customer",
+                  status: "OPEN",
+                  lineChannel: {
+                    id: "line-channel-1",
+                    name: "Main LINE",
+                    badgeColor: "#0ea5e9",
+                    lineChannelId: "1234567890"
+                  },
+                  messages: [
+                    {
+                      id: "preview-new",
+                      direction: "INBOUND",
+                      text: "New customer message",
+                      createdAt: "2026-06-14T01:00:00.000Z"
+                    }
+                  ]
+                }
+              ]
+            })
+          });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({ success: true, data: [] }) });
+      })
+    );
+
+    render(
+      <InboxClient
+        initialConversations={[
+          {
+            id: "conversation-new",
+            externalThreadId: "U999",
+            displayName: "New Customer",
+            status: "OPEN",
+            lineChannel: {
+              id: "line-channel-1",
+              name: "Main LINE",
+              badgeColor: "#0ea5e9",
+              lineChannelId: "1234567890"
+            },
+            messages: [
+              {
+                id: "preview-new",
+                direction: "INBOUND",
+                text: "New customer message",
+                createdAt: "2026-06-14T01:00:00.000Z"
+              }
+            ]
+          }
+        ]}
+      />
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation New Customer" }));
+
+    expect(await screen.findByDisplayValue("Hybrid draft reply")).toBeInTheDocument();
+    expect(activeSuggestionCalls).toBeGreaterThanOrEqual(1);
   });
 
   it("formats conversation previews for inbound, outbound, and sticker messages", () => {

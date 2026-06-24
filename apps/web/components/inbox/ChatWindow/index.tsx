@@ -116,9 +116,12 @@ export function ChatWindow({
       <div
         ref={messagesScrollRef}
         data-testid="chat-messages-scroll"
-        className="min-h-0 flex-1 overflow-y-auto"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       >
-        <div className="flex min-h-full flex-col justify-end space-y-5 px-6 py-5">
+        <div
+          data-testid="chat-messages-stack"
+          className="mt-auto space-y-5 px-6 py-5"
+        >
           <DateSeparator label="15 มิ.ย. · เริ่มแชท" />
           {hasMoreMessages && onLoadOlder ? (
             <div className="flex justify-center pb-2">

@@ -223,6 +223,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const isPrependingMessagesRef = useRef(false);
   const markingReadRef = useRef(new Set<string>());
   const pendingFlowIdRef = useRef<string | undefined>(undefined);
+  const pendingHybridDraftRef = useRef(new Set<string>());
   const sseReceivedMapRef = useRef(new Map<string, number>());
   const stateUpdateMapRef = useRef(new Map<string, number>());
   const componentRenderMapRef = useRef(new Map<string, number>());
@@ -658,6 +659,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           const eventConversationId = event.data?.conversationId;
           if (eventConversationId) {
             void refreshThread(eventConversationId, { quiet: true });
+            if (
+              event.type === "message.created" &&
+              eventConversationId === selectedIdRef.current
+            ) {
+              setRefreshSuggestionNonce((prev) => prev + 1);
+            }
           } else {
             void loadConversations({ quiet: true });
           }
@@ -665,8 +672,11 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
         if (event.type === "ai-suggestion.created") {
           const eventConversationId = event.data?.conversationId;
-          if (eventConversationId && eventConversationId === selectedIdRef.current) {
-            setRefreshSuggestionNonce((prev) => prev + 1);
+          if (eventConversationId) {
+            pendingHybridDraftRef.current.add(eventConversationId);
+            if (eventConversationId === selectedIdRef.current) {
+              setRefreshSuggestionNonce((prev) => prev + 1);
+            }
           }
         }
 
@@ -886,9 +896,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const scrollContainer = messagesScrollRef.current;
         if (scrollContainer) {
           scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          return;
         }
-        messagesEndRef.current?.scrollIntoView?.({ behavior: "auto", block: "end" });
       });
     }
     prevMessageCountRef.current = messages.length;
@@ -1362,6 +1370,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     selectedIdRef.current = id;
     setSelectedId(id);
     setMobileTab("thread");
+    if (pendingHybridDraftRef.current.delete(id)) {
+      setRefreshSuggestionNonce((prev) => prev + 1);
+    }
     void openConversation(id);
   }
 
@@ -1613,7 +1624,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           <>
             <div
               data-testid="chat-thread-panel"
-              className={[mobileTab === "thread" ? "flex" : "hidden", "flex h-full min-h-0 min-w-0 flex-col overflow-hidden md:flex"].join(" ")}
+              className={[
+                mobileTab === "thread" ? "flex" : "hidden",
+                "flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex"
+              ].join(" ")}
             >
               <ChatWindow
                 onClose={() => setSelectedId(null)}
@@ -1627,6 +1641,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                     enableAiSuggest={enableAiSuggest}
                     enableHybridAutoDraft={enableHybridAutoDraft}
                     hybridDraftFailedNonce={hybridDraftFailedNonce}
+                    latestInboundMessageId={latestInboundMessage?.id ?? null}
                     refreshSuggestionNonce={refreshSuggestionNonce}
                     onSendStart={({ text, conversationId }) => {
                       addOptimisticOutboundMessage(conversationId, text);
