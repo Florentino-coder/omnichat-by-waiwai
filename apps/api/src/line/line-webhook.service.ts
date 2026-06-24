@@ -1,16 +1,13 @@
 import { Inject, Injectable, Logger, NotFoundException, forwardRef } from "@nestjs/common";
 import {
   AuditAction,
-  FileType,
   MessageDirection,
   MessageSource,
-  MessageType,
-  RetentionType
+  MessageType
 } from "@prisma/client";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { RealtimeService } from "../realtime/realtime.service";
-import { StorageService } from "../storage/storage.service";
 import { MonitorService } from "../monitor/monitor.service";
 import { ScenarioService } from "../scenario/scenario.service";
 import { AutomationService } from "../automation/automation.service";
@@ -57,7 +54,6 @@ export class LineWebhookService {
     private readonly prisma: PrismaService,
     private readonly cryptoSecret: CryptoSecretService,
     private readonly realtimeService?: RealtimeService,
-    private readonly storageService?: StorageService,
     private readonly monitorService?: MonitorService,
     private readonly scenarioService?: ScenarioService,
     @Inject(forwardRef(() => AutomationService))
@@ -194,81 +190,6 @@ export class LineWebhookService {
         }
       });
 
-      let mediaData: {
-        mediaUrl?: string;
-        mediaMimeType?: string;
-        mediaSize?: number;
-        mediaR2Key?: string;
-        mediaFileName?: string;
-      } = {};
-
-      const isMedia = ([MessageType.IMAGE, MessageType.VIDEO, MessageType.AUDIO, MessageType.FILE] as MessageType[]).includes(messageType);
-      if (isMedia && this.storageService) {
-        try {
-          const accessToken = this.cryptoSecret.decrypt(channel.encryptedChannelAccessToken);
-          const buffer = await this.downloadLineContent(lineMessage.id, accessToken);
-          
-          let fileName = `media_${lineMessage.id}`;
-          let mimeType = "application/octet-stream";
-          let fileTypeClass: FileType = FileType.DOCUMENT;
-
-          if (messageType === MessageType.IMAGE) {
-            fileName = `image_${lineMessage.id}.jpg`;
-            mimeType = "image/jpeg";
-            fileTypeClass = FileType.IMAGE;
-          } else if (messageType === MessageType.VIDEO) {
-            fileName = `video_${lineMessage.id}.mp4`;
-            mimeType = "video/mp4";
-            fileTypeClass = FileType.VIDEO;
-          } else if (messageType === MessageType.AUDIO) {
-            fileName = `audio_${lineMessage.id}.m4a`;
-            mimeType = "audio/x-m4a";
-            fileTypeClass = FileType.AUDIO;
-          } else if (messageType === MessageType.FILE) {
-            fileName = (lineMessage as any).fileName || `file_${lineMessage.id}`;
-            fileTypeClass = FileType.DOCUMENT;
-            // Map common extensions
-            const ext = fileName.split(".").pop()?.toLowerCase();
-            if (ext === "pdf") mimeType = "application/pdf";
-            else if (ext === "doc" || ext === "docx") mimeType = "application/msword";
-            else if (ext === "xls" || ext === "xlsx") mimeType = "application/vnd.ms-excel";
-            else if (ext === "png") mimeType = "image/png";
-            else if (ext === "jpg" || ext === "jpeg") mimeType = "image/jpeg";
-          }
-
-          const uploadResult = await this.storageService.uploadFile(
-            channel.tenantId,
-            conversation.id,
-            fileTypeClass,
-            RetentionType.TEMPORARY,
-            buffer,
-            fileName,
-            mimeType
-          );
-
-          mediaData = {
-            mediaUrl: uploadResult.publicUrl,
-            mediaMimeType: uploadResult.mimeType,
-            mediaSize: uploadResult.fileSize,
-            mediaR2Key: uploadResult.r2Key,
-            mediaFileName: uploadResult.fileName
-          };
-        } catch (downloadErr) {
-          // Create webhook failed audit log
-          await this.prisma.auditLog.create({
-            data: {
-              tenantId: channel.tenantId,
-              action: AuditAction.LINE_WEBHOOK_FAILED,
-              targetType: "Message",
-              targetId: lineMessage.id,
-              metadata: {
-                error: downloadErr instanceof Error ? downloadErr.message : "Media download failed"
-              }
-            }
-          }).catch(() => {});
-        }
-      }
-
       const message = await this.prisma.message.upsert({
         where: {
           lineChannelId_externalMessageId: {
@@ -287,13 +208,11 @@ export class LineWebhookService {
           text: messageType === MessageType.TEXT ? lineMessage.text : null,
           markAsReadToken: event.message?.markAsReadToken,
           rawPayload: lineProfile ? { ...event, lineProfile } : event,
-          sentAt: eventTime,
-          ...mediaData
+          sentAt: eventTime
         },
         update: {
           markAsReadToken: event.message?.markAsReadToken,
-          rawPayload: lineProfile ? { ...event, lineProfile } : event,
-          ...mediaData
+          rawPayload: lineProfile ? { ...event, lineProfile } : event
         }
       });
 
@@ -489,16 +408,6 @@ export class LineWebhookService {
       return MessageType.FILE;
     }
     return undefined;
-  }
-
-  private async downloadLineContent(messageId: string, accessToken: string): Promise<Buffer> {
-    const response = await fetch(`https://api-data.line.me/v2/bot/message/${messageId}/content`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to download LINE content: ${response.statusText}`);
-    }
-    return Buffer.from(await response.arrayBuffer());
   }
 
   private async loadLineProfile(

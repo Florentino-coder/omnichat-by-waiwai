@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Logger, HttpException, HttpStatus } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Logger, HttpException, HttpStatus, BadGatewayException } from "@nestjs/common";
 import {
   AuditAction,
   AiAgentGender,
@@ -10,6 +10,8 @@ import {
   ConversationTagLink,
   Message,
   MessageDirection,
+  MessageSource,
+  MessageType,
   Prisma,
   Role,
   SavedReply,
@@ -47,6 +49,9 @@ import { UpdateInboxSettingsDto } from "./dto/update-inbox-settings.dto";
 import { AiSuggestDto } from "./dto/ai-suggest.dto";
 import { AiTestDto } from "./dto/ai-test.dto";
 import { AiSummaryDto } from "./dto/ai-summary.dto";
+import type { Response } from "express";
+import { Readable } from "stream";
+import type { ReadableStream as WebReadableStream } from "stream/web";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import {
   AI_SUGGEST_USAGE_METRIC,
@@ -163,6 +168,34 @@ export type ConversationMessagesPage = {
   hasMore: boolean;
   oldestId: string | null;
 };
+
+const LINE_MEDIA_MESSAGE_TYPES: MessageType[] = [
+  MessageType.IMAGE,
+  MessageType.VIDEO,
+  MessageType.AUDIO,
+  MessageType.FILE
+];
+
+export function resolveMessageMediaUrl(message: Pick<
+  Message,
+  "id" | "mediaUrl" | "source" | "direction" | "externalMessageId" | "type"
+>): string | null {
+  if (message.mediaUrl) {
+    return message.mediaUrl;
+  }
+
+  const isLineInboundMedia =
+    message.source === MessageSource.LINE &&
+    message.direction === MessageDirection.INBOUND &&
+    message.externalMessageId &&
+    LINE_MEDIA_MESSAGE_TYPES.includes(message.type);
+
+  if (isLineInboundMedia) {
+    return `/api/v1/inbox/messages/${message.id}/media`;
+  }
+
+  return null;
+}
 
 export type CreateTagInput = {
   name: string;
@@ -306,13 +339,82 @@ export class InboxService {
 
     const hasMore = fetched.length > limit;
     const page = hasMore ? fetched.slice(0, limit) : fetched;
-    const messages = page.reverse();
+    const messages = page.reverse().map((message) => ({
+      ...message,
+      mediaUrl: resolveMessageMediaUrl(message)
+    }));
 
     return {
       messages,
       hasMore,
       oldestId: messages.length > 0 ? messages[0].id : null
     };
+  }
+
+  async streamMessageMedia(tenantId: string, messageId: string, res: Response): Promise<void> {
+    const message = await this.prisma.message.findFirst({
+      where: {
+        id: messageId,
+        tenantId,
+        deletedAt: null
+      },
+      include: {
+        lineChannel: {
+          select: {
+            encryptedChannelAccessToken: true
+          }
+        }
+      }
+    });
+
+    if (!message) {
+      throw new NotFoundException("Message not found");
+    }
+
+    if (!LINE_MEDIA_MESSAGE_TYPES.includes(message.type)) {
+      throw new BadRequestException("Message is not a media type");
+    }
+
+    if (!message.externalMessageId) {
+      throw new BadRequestException("Message has no external media reference");
+    }
+
+    if (!message.lineChannel?.encryptedChannelAccessToken) {
+      throw new BadGatewayException("LINE channel access token is unavailable");
+    }
+
+    const accessToken = this.cryptoSecret.decrypt(message.lineChannel.encryptedChannelAccessToken);
+    const lineResponse = await fetch(
+      `https://api-data.line.me/v2/bot/message/${message.externalMessageId}/content`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
+
+    if (lineResponse.status === 404) {
+      throw new NotFoundException("Media not found");
+    }
+
+    if (!lineResponse.ok) {
+      throw new BadGatewayException("Failed to fetch media from LINE");
+    }
+
+    const contentType = lineResponse.headers.get("content-type") ?? "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "private, max-age=300");
+
+    const contentLength = lineResponse.headers.get("content-length");
+    if (contentLength) {
+      res.setHeader("Content-Length", contentLength);
+    }
+
+    if (!lineResponse.body) {
+      res.status(502).end();
+      return;
+    }
+
+    res.status(lineResponse.status);
+    Readable.fromWeb(lineResponse.body as WebReadableStream<Uint8Array>).pipe(res);
   }
 
   async renameCustomer(

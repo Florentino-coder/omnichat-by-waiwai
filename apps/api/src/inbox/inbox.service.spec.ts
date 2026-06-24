@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException, HttpException } from "@nestjs/common";
+import { PassThrough } from "stream";
 import {
   AuditAction,
   ConversationPriority,
@@ -9,7 +10,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AiReplyGeneratorService } from "../ai/ai-reply-generator.service";
-import { InboxService } from "./inbox.service";
+import { InboxService, resolveMessageMediaUrl } from "./inbox.service";
 import { AiSuggestionStatus } from "./dto/update-ai-suggestion.dto";
 
 type MockPrisma = {
@@ -715,6 +716,137 @@ describe("InboxService", () => {
       createService(prisma).getConversationMessages("tenant-1", "conversation-2")
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.message.findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns proxy media URLs for inbound LINE media without stored mediaUrl", async () => {
+    const prisma = createPrisma();
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: "conversation-1",
+      tenantId: "tenant-1"
+    });
+    prisma.message.findMany.mockResolvedValue([
+      {
+        id: "message-image-1",
+        tenantId: "tenant-1",
+        direction: MessageDirection.INBOUND,
+        source: MessageSource.LINE,
+        type: MessageType.IMAGE,
+        externalMessageId: "line-msg-1",
+        mediaUrl: null
+      },
+      {
+        id: "message-text-1",
+        tenantId: "tenant-1",
+        direction: MessageDirection.INBOUND,
+        source: MessageSource.LINE,
+        type: MessageType.TEXT,
+        text: "hello",
+        mediaUrl: null
+      }
+    ]);
+
+    const result = await createService(prisma).getConversationMessages("tenant-1", "conversation-1");
+
+    expect(result.messages[1].mediaUrl).toBe("/api/v1/inbox/messages/message-image-1/media");
+    expect(result.messages[0].mediaUrl).toBeNull();
+  });
+
+  it("keeps existing R2 mediaUrl for legacy inbound LINE media", () => {
+    expect(
+      resolveMessageMediaUrl({
+        id: "message-legacy-1",
+        mediaUrl: "https://cdn.example.com/old-image.jpg",
+        source: MessageSource.LINE,
+        direction: MessageDirection.INBOUND,
+        externalMessageId: "line-msg-legacy",
+        type: MessageType.IMAGE
+      })
+    ).toBe("https://cdn.example.com/old-image.jpg");
+  });
+
+  it("streams inbound LINE media from the Content API for tenant-scoped messages", async () => {
+    const prisma = createPrisma();
+    prisma.message.findFirst.mockResolvedValue({
+      id: "message-image-1",
+      tenantId: "tenant-1",
+      type: MessageType.IMAGE,
+      externalMessageId: "line-msg-1",
+      lineChannel: {
+        encryptedChannelAccessToken: "encrypted-token"
+      }
+    });
+
+    const mediaBody = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        controller.close();
+      }
+    });
+
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        "content-type": "image/jpeg",
+        "content-length": "3"
+      }),
+      body: mediaBody
+    });
+    const originalFetch = global.fetch;
+    global.fetch = fetchMock as typeof fetch;
+
+    const res = Object.assign(new PassThrough(), {
+      status: jest.fn().mockReturnThis(),
+      setHeader: jest.fn(),
+      end: jest.fn()
+    });
+
+    try {
+      await createService(prisma).streamMessageMedia(
+        "tenant-1",
+        "message-image-1",
+        res as unknown as import("express").Response
+      );
+
+      expect(prisma.message.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: "message-image-1",
+          tenantId: "tenant-1",
+          deletedAt: null
+        },
+        include: {
+          lineChannel: {
+            select: {
+              encryptedChannelAccessToken: true
+            }
+          }
+        }
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api-data.line.me/v2/bot/message/line-msg-1/content",
+        expect.objectContaining({
+          headers: { Authorization: "Bearer encrypted-token" }
+        })
+      );
+      expect(res.setHeader).toHaveBeenCalledWith("Content-Type", "image/jpeg");
+      expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "private, max-age=300");
+      expect(res.status).toHaveBeenCalledWith(200);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("returns not found when media message is outside tenant scope", async () => {
+    const prisma = createPrisma();
+    prisma.message.findFirst.mockResolvedValue(null);
+
+    await expect(
+      createService(prisma).streamMessageMedia(
+        "tenant-1",
+        "message-other-tenant",
+        {} as import("express").Response
+      )
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it("renames a customer conversation inside tenant scope and writes an audit log", async () => {

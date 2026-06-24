@@ -512,7 +512,6 @@ describe("LineWebhookService", () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       automationService,
       aiAutoReplyService
     ).process("line-channel-1", {
@@ -587,7 +586,6 @@ describe("LineWebhookService", () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       automationService,
       aiAutoReplyService,
       aiHybridDraftService
@@ -654,7 +652,6 @@ describe("LineWebhookService", () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       automationService,
       aiAutoReplyService,
       aiHybridDraftService
@@ -670,5 +667,52 @@ describe("LineWebhookService", () => {
     });
 
     expect(aiHybridDraftService.tryHybridDraft).not.toHaveBeenCalled();
+  });
+
+  it("stores inbound LINE image messages without downloading media to storage", async () => {
+    const prisma = createPrisma();
+    prisma.lineChannel.findUnique.mockResolvedValue(activeLineChannel());
+    prisma.conversation.upsert.mockResolvedValue({ id: "conversation-1" });
+    prisma.message.upsert.mockResolvedValue({ id: "message-1" });
+    prisma.lineChannel.update.mockResolvedValue({ id: "line-channel-1" });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+    const crypto = {
+      decrypt: jest.fn().mockReturnValue("channel-secret"),
+      encrypt: jest.fn()
+    } as unknown as CryptoSecretService;
+
+    await new LineWebhookService(prisma as unknown as PrismaService, crypto).process(
+      "line-channel-1",
+      {
+        events: [
+          {
+            type: "message",
+            source: { type: "user", userId: "U123" },
+            message: { id: "img-1", type: "image" },
+            timestamp: 1700000000000
+          }
+        ]
+      }
+    );
+
+    expect(prisma.message.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          type: MessageType.IMAGE,
+          externalMessageId: "img-1",
+          text: null
+        }),
+        update: expect.not.objectContaining({
+          mediaUrl: expect.anything()
+        })
+      })
+    );
+    expect(prisma.auditLog.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: AuditAction.LINE_WEBHOOK_FAILED
+        })
+      })
+    );
   });
 });

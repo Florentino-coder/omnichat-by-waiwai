@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
+import type { Response } from "express";
 import {
   Conversation,
   ConversationInternalNote,
@@ -73,6 +74,16 @@ export class InboxController {
       limit: parsedLimit,
       before: before || undefined
     });
+  }
+
+  @Get("messages/:messageId/media")
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
+  async getMessageMedia(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("messageId") messageId: string,
+    @Res() res: Response
+  ): Promise<void> {
+    await this.inboxService.streamMessageMedia(ctx.tenantId, messageId, res);
   }
 
   @Get("tags")
