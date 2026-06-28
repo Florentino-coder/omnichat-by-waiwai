@@ -123,6 +123,17 @@ describe("App shell", () => {
             json: async () => ({ success: true, data: newChannel })
           };
         }
+        if (method === "DELETE") {
+          const channelId = url.split("/").pop();
+          mockLineChannels = mockLineChannels.filter((channel) => channel.id !== channelId);
+          return {
+            status: 204,
+            ok: true,
+            json: async () => {
+              throw new SyntaxError("Unexpected end of JSON input");
+            }
+          };
+        }
         return {
           ok: true,
           json: async () => ({ success: true, data: mockLineChannels })
@@ -230,9 +241,8 @@ describe("App shell", () => {
       "/app/settings"
     );
 
-    const customersButton = await within(nav).findByRole("button", { name: "Customers" });
-    expect(customersButton).toBeInTheDocument();
-    expect(customersButton).toBeDisabled();
+    const customersButton = within(nav).queryByRole("button", { name: "Customers" });
+    expect(customersButton).not.toBeInTheDocument();
 
     expect(within(nav).getByRole("link", { name: "Reports" })).toHaveAttribute(
       "href",
@@ -349,6 +359,38 @@ describe("App shell", () => {
     });
     expect(await screen.findByText("2 connected")).toBeInTheDocument();
     expect(nameInput).toHaveValue("");
+  });
+
+  it("deletes a LINE channel with 204 and keeps the session", async () => {
+    mockLineChannels = [
+      {
+        id: "line-channel-1",
+        name: "Line OA 1",
+        badgeColor: "#4f46e5",
+        lineChannelId: "1111111111",
+        workspaceId: "workspace-1",
+        createdAt: "2026-06-14T01:02:00.000Z"
+      }
+    ];
+
+    render(
+      <LanguageProvider>
+        <SettingsPage />
+      </LanguageProvider>
+    );
+
+    expect(await screen.findByRole("button", { name: "ลบ channel" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "ลบ channel" }));
+    fireEvent.click(screen.getByRole("button", { name: "ยืนยันลบ" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/line/channels/line-channel-1",
+        authFetchOptions({ method: "DELETE" })
+      );
+    });
+    expect(await screen.findByText("No LINE channel connected yet.")).toBeInTheDocument();
+    expect(window.location.href).not.toContain("/login");
   });
 
   it("manages quick replies per LINE OA from settings", async () => {

@@ -64,6 +64,7 @@ export function LineChannelForm() {
 
   // Copy toast
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
 
   const isComplete = Object.values(form).every((value) => value.trim().length > 0);
   const selectedWorkspaceName = useMemo(
@@ -118,12 +119,18 @@ export function LineChannelForm() {
       setForm((current) => ({ ...current, [field]: event.target.value }));
       setMessage(null);
       setError(null);
+      setShowValidation(false);
     };
 
   const saveChannel = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
 
-    if (!isComplete || isSaving) {
+    if (!isComplete) {
+      setShowValidation(true);
+      return;
+    }
+
+    if (isSaving) {
       return;
     }
 
@@ -152,6 +159,7 @@ export function LineChannelForm() {
         name: "",
         workspaceId: current.workspaceId
       }));
+      setShowValidation(false);
     } catch {
       setError("Could not save LINE channel. Check values and role permissions.");
     } finally {
@@ -415,6 +423,9 @@ export function LineChannelForm() {
               </option>
             ))}
           </select>
+          {showValidation && !form.workspaceId.trim() ? (
+            <p className="text-xs text-danger">Required</p>
+          ) : null}
           {selectedWorkspaceName ? (
             <p className="text-xs text-muted-foreground">Selected: {selectedWorkspaceName}</p>
           ) : null}
@@ -429,6 +440,9 @@ export function LineChannelForm() {
             placeholder="เช่น Official Account ของบริษัท"
             autoComplete="off"
           />
+          {showValidation && !form.name.trim() ? (
+            <p className="text-xs text-danger">Required</p>
+          ) : null}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="badgeColor">Badge color</Label>
@@ -462,6 +476,9 @@ export function LineChannelForm() {
             placeholder="LINE channel ID"
             autoComplete="off"
           />
+          {showValidation && !form.lineChannelId.trim() ? (
+            <p className="text-xs text-danger">Required</p>
+          ) : null}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="channelSecret">Channel secret</Label>
@@ -474,6 +491,9 @@ export function LineChannelForm() {
             autoComplete="off"
             type="password"
           />
+          {showValidation && !form.channelSecret.trim() ? (
+            <p className="text-xs text-danger">Required</p>
+          ) : null}
         </div>
         <div className="grid gap-2">
           <Label htmlFor="channelAccessToken">Channel access token</Label>
@@ -486,9 +506,12 @@ export function LineChannelForm() {
             autoComplete="off"
             type="password"
           />
+          {showValidation && !form.channelAccessToken.trim() ? (
+            <p className="text-xs text-danger">Required</p>
+          ) : null}
         </div>
         {message ? <p className="text-sm text-success">{message}</p> : null}
-        <Button type="submit" disabled={!isComplete || isSaving} className="w-fit">
+        <Button type="submit" disabled={isSaving} className="w-fit">
           {isSaving ? "Saving..." : "Add LINE OA channel"}
         </Button>
       </form>

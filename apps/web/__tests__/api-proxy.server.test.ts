@@ -13,6 +13,15 @@ describe("buildBffResponseFromUpstream", () => {
     expect(response.headers.get("Content-Type")).toBeNull();
   });
 
+  it("forwards upstream 205 Reset Content with null body", async () => {
+    const upstream = new Response(null, { status: 205 });
+
+    const response = await buildBffResponseFromUpstream(upstream);
+
+    expect(response.status).toBe(205);
+    expect(await response.text()).toBe("");
+  });
+
   it("forwards upstream 409 conflict JSON unchanged", async () => {
     const payload = {
       success: false,
