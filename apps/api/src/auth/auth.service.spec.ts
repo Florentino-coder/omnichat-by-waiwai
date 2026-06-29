@@ -752,4 +752,56 @@ describe("AuthService", () => {
       role: Role.OWNER
     });
   });
+
+  it("resets password when identifier and registered email match", async () => {
+    const prisma = createPrisma();
+    const refreshSessions = createRefreshSessions();
+    prisma.user.findFirst.mockResolvedValue({
+      id: "user-1",
+      email: "owner@omnichat.local",
+      passwordHash: "old-hash",
+      memberships: [{ tenantId: "tenant-1", workspaceId: "workspace-1", role: Role.OWNER, isActive: true }]
+    });
+    prisma.user.update.mockResolvedValue({ id: "user-1" });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createService(prisma, refreshSessions).resetPasswordByEmailVerification({
+      identifier: "owner",
+      email: "Owner@OmniChat.local",
+      newPassword: "NewPassword123!"
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { passwordHash: expect.any(String) }
+    });
+    expect(refreshSessions.deleteAllForUser).toHaveBeenCalledWith("user-1");
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: "tenant-1",
+        userId: "user-1",
+        action: AuditAction.PASSWORD_CHANGED,
+        metadata: { source: "forgot_password" }
+      }
+    });
+  });
+
+  it("rejects forgot password when registered email does not match", async () => {
+    const prisma = createPrisma();
+    prisma.user.findFirst.mockResolvedValue({
+      id: "user-1",
+      email: "owner@omnichat.local",
+      passwordHash: "old-hash",
+      memberships: [{ tenantId: "tenant-1", workspaceId: "workspace-1", role: Role.OWNER, isActive: true }]
+    });
+
+    await expect(
+      createService(prisma).resetPasswordByEmailVerification({
+        identifier: "owner",
+        email: "wrong@example.com",
+        newPassword: "NewPassword123!"
+      })
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
 });

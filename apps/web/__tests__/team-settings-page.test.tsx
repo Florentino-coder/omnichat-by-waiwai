@@ -98,7 +98,15 @@ describe("TeamSettingsPage", () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ success: true, data: { id: "invite-1" } })
+        json: async () => ({
+          success: true,
+          data: {
+            id: "invite-1",
+            invitation: { id: "invite-1" },
+            inviteToken: "token-1",
+            inviteUrl: "http://localhost:3000/invite/accept?token=token-1"
+          }
+        })
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -134,7 +142,7 @@ describe("TeamSettingsPage", () => {
     fireEvent.change(screen.getByLabelText("Invite role"), {
       target: { value: "AGENT" }
     });
-    fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create invite link" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/v1/invitations", authFetchOptions({
@@ -148,5 +156,8 @@ describe("TeamSettingsPage", () => {
       }));
     });
     expect(await screen.findByText("agent@omnichat.local")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Invite link")).toHaveValue(
+      "http://localhost:3000/invite/accept?token=token-1"
+    );
   });
 });

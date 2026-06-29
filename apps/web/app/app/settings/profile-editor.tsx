@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Save, KeyRound } from "lucide-react";
+import { Save, KeyRound, Bell } from "lucide-react";
 import { Button, Input, Label, Card } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
 import { clearAuthSessionCookies } from "../../lib/session-cookies";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
+import { useBrowserNotifications } from "../../lib/use-browser-notifications";
 
 type UserProfile = {
   id: string;
@@ -19,6 +20,13 @@ type UserProfile = {
 export function ProfileEditor({ active }: { active: boolean }) {
   const { locale } = useLanguage();
   const t = getMessages(locale);
+  const {
+    enabled: desktopNotificationsEnabled,
+    permission: notificationPermission,
+    supported: notificationsSupported,
+    setPrefEnabled: setDesktopNotificationsEnabled,
+    requestPermission: requestDesktopNotificationPermission
+  } = useBrowserNotifications();
 
   // Profile Form State
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -238,6 +246,39 @@ export function ProfileEditor({ active }: { active: boolean }) {
           </Button>
         </form>
       </Card>
+
+      {notificationsSupported ? (
+        <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white rounded-2xl">
+          <div className="flex flex-col gap-1 border-b border-[#DEDDE6]/60 pb-4 mb-6">
+            <h2 className="font-heading text-lg font-semibold text-[#16182B] flex items-center gap-2">
+              <Bell size={18} aria-hidden="true" />
+              {t.desktopNotifications}
+            </h2>
+            <p className="text-sm text-[#767A8C]">{t.desktopNotificationsHint}</p>
+          </div>
+          <label className="flex items-center gap-3 text-sm">
+            <input
+              checked={desktopNotificationsEnabled}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setDesktopNotificationsEnabled(next);
+                if (next && notificationPermission === "default") {
+                  void requestDesktopNotificationPermission();
+                }
+              }}
+              type="checkbox"
+            />
+            {t.enableDesktopNotifications}
+          </label>
+          {notificationPermission === "denied" ? (
+            <p className="mt-2 text-xs text-amber-700">
+              {locale === "th"
+                ? "เบราว์เซอร์บล็อกการแจ้งเตือน โปรดอนุญาตในการตั้งค่าเบราว์เซอร์"
+                : "Notifications are blocked in your browser settings."}
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
 
       {/* Password Reset Card */}
       <Card className="border border-[#DEDDE6]/80 p-6 shadow-sm bg-white rounded-2xl">

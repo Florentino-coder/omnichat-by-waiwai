@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { AuditAction, InvitationStatus, Role } from "@prisma/client";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import { MailService } from "../mail/mail.service";
@@ -101,13 +102,19 @@ const createMail = (): Pick<MailService, "sendInvitationEmail"> => ({
   sendInvitationEmail: jest.fn<Promise<void>, [Parameters<MailService["sendInvitationEmail"]>[0]]>().mockResolvedValue(undefined)
 });
 
+const createConfig = (values: Record<string, string> = {}): Pick<ConfigService, "get"> => ({
+  get: jest.fn((key: string) => values[key])
+});
+
 const createService = (
   prisma: MockPrisma,
-  mailService: Pick<MailService, "sendInvitationEmail"> = createMail()
+  mailService: Pick<MailService, "sendInvitationEmail"> = createMail(),
+  configService: Pick<ConfigService, "get"> = createConfig({ APP_BASE_URL: "http://localhost:3000" })
 ): InvitationsService =>
   new InvitationsService(
     prisma as unknown as PrismaService,
-    mailService as MailService
+    mailService as MailService,
+    configService as ConfigService
   );
 
 const pendingInvitation = {
@@ -180,6 +187,29 @@ describe("InvitationsService", () => {
         targetId: "invitation-1"
       })
     });
+    expect(mailService.sendInvitationEmail).not.toHaveBeenCalled();
+    expect(result.inviteToken).toEqual(expect.any(String));
+    expect(result.inviteUrl).toContain("/invite/accept?token=");
+  });
+
+  it("sends invitation email when INVITE_SEND_EMAIL is enabled", async () => {
+    const prisma = createPrisma();
+    const mailService = createMail();
+    const configService = createConfig({
+      APP_BASE_URL: "http://localhost:3000",
+      INVITE_SEND_EMAIL: "true"
+    });
+    prisma.tenant.findUnique.mockResolvedValue({ id: "tenant-1", name: "Tenant" });
+    prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1", name: "Support" });
+    prisma.invitation.create.mockResolvedValue(pendingInvitation);
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    const result = await createService(prisma, mailService, configService).create("tenant-1", "owner-1", {
+      workspaceId: "workspace-1",
+      email: "Agent@Example.com",
+      role: Role.AGENT
+    });
+
     expect(mailService.sendInvitationEmail).toHaveBeenCalledWith({
       to: "agent@example.com",
       inviteToken: result.inviteToken,
@@ -187,12 +217,12 @@ describe("InvitationsService", () => {
       workspaceName: "Support",
       expiresAt: pendingInvitation.expiresAt
     });
-    expect(result.inviteToken).toEqual(expect.any(String));
   });
 
-  it("rejects create when invitation email delivery fails", async () => {
+  it("rejects create when invitation email delivery fails and email sending is enabled", async () => {
     const prisma = createPrisma();
     const mailService = createMail();
+    const configService = createConfig({ INVITE_SEND_EMAIL: "true" });
     jest
       .mocked(mailService.sendInvitationEmail)
       .mockRejectedValue(new Error("Email delivery failed"));
@@ -206,7 +236,7 @@ describe("InvitationsService", () => {
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
 
     await expect(
-      createService(prisma, mailService).create("tenant-1", "owner-1", {
+      createService(prisma, mailService, configService).create("tenant-1", "owner-1", {
         workspaceId: "workspace-1",
         email: "Agent@Example.com",
         role: Role.AGENT

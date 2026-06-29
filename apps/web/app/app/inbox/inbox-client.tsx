@@ -4,6 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@omnichat/ui";
 import { devTrace, devTraceError } from "../../lib/dev-trace";
+import {
+  showInboundMessageNotification
+} from "../../lib/browser-notifications";
+import { useBrowserNotifications } from "../../lib/use-browser-notifications";
 import { ChatWindow, type ChatMessageItem } from "../../../components/inbox/ChatWindow";
 import {
   ConversationList,
@@ -83,6 +87,8 @@ type TenantRealtimeEvent = {
   type: string;
   data?: {
     conversationId?: string;
+    messageId?: string;
+    direction?: MessageDirection;
     flowId?: string;
   };
   flowId?: string;
@@ -174,6 +180,17 @@ type ConvReadState = "unread" | "read-not-replied" | "normal";
 export default function InboxClient({ initialConversations = [] }: InboxClientProps) {
   const { locale } = useLanguage();
   const t = getMessages(locale);
+  const {
+    enabled: desktopNotificationsEnabled,
+    permission: notificationPermission,
+    supported: notificationsSupported,
+    requestPermission: requestDesktopNotificationPermission
+  } = useBrowserNotifications();
+  const [notificationBannerDismissed, setNotificationBannerDismissed] = useState(false);
+  const desktopNotificationsEnabledRef = useRef(false);
+  const notificationPermissionRef = useRef<NotificationPermission | "unsupported">("default");
+  desktopNotificationsEnabledRef.current = desktopNotificationsEnabled;
+  notificationPermissionRef.current = notificationPermission;
   const [conversations, setConversations] = useState<InboxConversation[]>(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
@@ -683,6 +700,30 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
               eventConversationId === selectedIdRef.current
             ) {
               setRefreshSuggestionNonce((prev) => prev + 1);
+            }
+            if (
+              event.type === "message.created" &&
+              event.data?.direction === "INBOUND" &&
+              event.data.messageId &&
+              eventConversationId &&
+              desktopNotificationsEnabledRef.current &&
+              notificationPermissionRef.current === "granted" &&
+              typeof document !== "undefined" &&
+              document.hidden
+            ) {
+              const conversation = conversationsRef.current.find(
+                (item) => item.id === eventConversationId
+              );
+              showInboundMessageNotification({
+                messageId: event.data.messageId,
+                conversationId: eventConversationId,
+                customerName: conversation ? customerLabel(conversation) : "Customer",
+                onSelectConversation: (conversationId) => {
+                  setSelectedId(conversationId);
+                  selectedIdRef.current = conversationId;
+                  setMobileTab("chats");
+                }
+              });
             }
           } else {
             void loadConversations({ quiet: true });
@@ -1625,6 +1666,29 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     <section aria-labelledby="inbox-heading" className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <h1 id="inbox-heading" className="sr-only">Unified Inbox</h1>
       {error ? <p className="shrink-0 px-6 py-2 text-sm text-danger">{error}</p> : null}
+      {notificationsSupported &&
+      desktopNotificationsEnabled &&
+      notificationPermission === "default" &&
+      !notificationBannerDismissed ? (
+        <div className="mx-6 mb-2 flex flex-wrap items-center gap-3 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2">
+          <p className="flex-1 text-sm text-indigo-900">{t.desktopNotificationsBanner}</p>
+          <Button
+            size="sm"
+            onClick={() => void requestDesktopNotificationPermission()}
+            type="button"
+          >
+            {t.enableDesktopNotifications}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setNotificationBannerDismissed(true)}
+            type="button"
+          >
+            {t.cancelEdit}
+          </Button>
+        </div>
+      ) : null}
       {resolveUnrepliedCount !== null ? (
         <div
           className="mx-6 mb-2 flex items-center gap-3 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2"

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { Role, Workspace, WorkspaceMember } from "@prisma/client";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { TenantCtx } from "../auth/decorators/tenant-context.decorator";
@@ -7,6 +7,7 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { TenantGuard } from "../auth/guards/tenant.guard";
 import { JwtTenantPayload } from "../auth/types/auth.types";
 import { CreateWorkspaceDto } from "./dto/create-workspace.dto";
+import { AdminResetPasswordDto } from "./dto/admin-reset-password.dto";
 import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 import { UpdateWorkspaceDto } from "./dto/update-workspace.dto";
 import { WorkspacesService } from "./workspaces.service";
@@ -88,6 +89,25 @@ export class WorkspacesController {
     @Param("id") id: string,
     @Param("userId") userId: string
   ): Promise<WorkspaceMember> {
-    return this.workspacesService.removeMember(ctx.tenantId, id, userId);
+    return this.workspacesService.removeMember(ctx.tenantId, id, userId, ctx.sub);
+  }
+
+  @Post(":id/members/:userId/reset-password")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(Role.ADMIN)
+  resetMemberPassword(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Body() dto: AdminResetPasswordDto
+  ): Promise<void> {
+    return this.workspacesService.resetMemberPassword(
+      ctx.tenantId,
+      id,
+      userId,
+      ctx.sub,
+      ctx.role,
+      dto
+    );
   }
 }

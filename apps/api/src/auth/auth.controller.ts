@@ -10,6 +10,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import type { Request } from "express";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { readRefreshTokenFromCookieHeader } from "./auth-cookie.util";
 import { TenantCtx } from "./decorators/tenant-context.decorator";
 import { AuthService } from "./auth.service";
@@ -18,6 +19,7 @@ import { RefreshTokenDto } from "./dto/refresh-token.dto";
 import { SwitchTenantDto } from "./dto/switch-tenant.dto";
 import { TwoFaCodeDto } from "./dto/two-fa-code.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { TenantGuard } from "./guards/tenant.guard";
 import {
@@ -104,6 +106,14 @@ export class AuthController {
     @Body() dto: TwoFaCodeDto
   ): Promise<void> {
     return this.authService.disableTwoFa(ctx, dto.code);
+  }
+
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ "forgot-password": { limit: 5, ttl: 900_000 } })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    await this.authService.resetPasswordByEmailVerification(dto);
   }
 
   @Post("change-password")

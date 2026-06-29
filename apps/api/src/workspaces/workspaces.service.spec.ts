@@ -1,6 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { AuditAction, Role } from "@prisma/client";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
+import { RefreshSessionService } from "../auth/refresh-session.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { WorkspacesService } from "./workspaces.service";
 
@@ -27,6 +28,12 @@ type MockPrisma = {
   auditLog: {
     create: jest.Mock<Promise<unknown>, [unknown]>;
   };
+  refreshToken: {
+    updateMany: jest.Mock<Promise<unknown>, [unknown]>;
+  };
+  user: {
+    update: jest.Mock<Promise<unknown>, [unknown]>;
+  };
 };
 
 const createPrisma = (): MockPrisma => ({
@@ -51,11 +58,27 @@ const createPrisma = (): MockPrisma => ({
   },
   auditLog: {
     create: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  refreshToken: {
+    updateMany: jest.fn<Promise<unknown>, [unknown]>()
+  },
+  user: {
+    update: jest.fn<Promise<unknown>, [unknown]>()
   }
 });
 
-const createService = (prisma: MockPrisma): WorkspacesService =>
-  new WorkspacesService(prisma as unknown as PrismaService);
+const createRefreshSessions = (): Pick<RefreshSessionService, "deleteAllForUser"> => ({
+  deleteAllForUser: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined)
+});
+
+const createService = (
+  prisma: MockPrisma,
+  refreshSessions: Pick<RefreshSessionService, "deleteAllForUser"> = createRefreshSessions()
+): WorkspacesService =>
+  new WorkspacesService(
+    prisma as unknown as PrismaService,
+    refreshSessions as RefreshSessionService
+  );
 
 describe("WorkspacesService", () => {
   it("lists only non-deleted workspaces in the tenant", async () => {
@@ -150,6 +173,73 @@ describe("WorkspacesService", () => {
     expect(prisma.workspaceMember.update).toHaveBeenCalledWith({
       where: { id: "member-1" },
       data: { role: Role.ADMIN }
+    });
+  });
+
+  it("removes a member, revokes sessions, and writes an audit log", async () => {
+    const prisma = createPrisma();
+    const refreshSessions = createRefreshSessions();
+    prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "member-2",
+      role: Role.AGENT,
+      userId: "user-2"
+    });
+    prisma.workspaceMember.count.mockResolvedValue(2);
+    prisma.workspaceMember.update.mockResolvedValue({ id: "member-2", isActive: false });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createService(prisma, refreshSessions).removeMember(
+      "tenant-1",
+      "workspace-1",
+      "user-2",
+      "admin-1"
+    );
+
+    expect(refreshSessions.deleteAllForUser).toHaveBeenCalledWith("user-2");
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        userId: "admin-1",
+        action: AuditAction.USER_REMOVED,
+        targetId: "user-2"
+      })
+    });
+  });
+
+  it("resets a member password and revokes their sessions", async () => {
+    const prisma = createPrisma();
+    const refreshSessions = createRefreshSessions();
+    prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "member-2",
+      role: Role.AGENT,
+      userId: "user-2"
+    });
+    prisma.user.update.mockResolvedValue({ id: "user-2" });
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await createService(prisma, refreshSessions).resetMemberPassword(
+      "tenant-1",
+      "workspace-1",
+      "user-2",
+      "admin-1",
+      Role.ADMIN,
+      { newPassword: "NewPassword123!" }
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-2" },
+      data: { passwordHash: expect.any(String) }
+    });
+    expect(refreshSessions.deleteAllForUser).toHaveBeenCalledWith("user-2");
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: AuditAction.PASSWORD_CHANGED,
+        metadata: { source: "admin_reset", workspaceId: "workspace-1" }
+      })
     });
   });
 });

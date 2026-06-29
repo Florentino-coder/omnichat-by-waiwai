@@ -1,6 +1,6 @@
 "use client";
 
-import { MailPlus, Shield, Trash2, UserCog, Copy } from "lucide-react";
+import { KeyRound, MailPlus, Shield, Trash2, UserCog, Copy, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
@@ -53,8 +53,15 @@ export default function TeamSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmittingInvite, setIsSubmittingInvite] = useState(false);
+  const [createdInviteUrl, setCreatedInviteUrl] = useState<string | null>(null);
+  const [resetPasswordMember, setResetPasswordMember] = useState<WorkspaceMember | null>(null);
+  const [resetPasswordValue, setResetPasswordValue] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [removeTargetMember, setRemoveTargetMember] = useState<WorkspaceMember | null>(null);
+  const [isRemovingMember, setIsRemovingMember] = useState(false);
 
   const { user, isLoading: isAuthLoading } = useAuthSession();
+  const currentUserId = user?.id;
   const currentUserRole = user?.role as Role | undefined;
   const currentUserWorkspaceId = user?.workspaceId;
   const canInviteOwnerRole = canInviteOwner(currentUserRole);
@@ -169,21 +176,25 @@ export default function TeamSettingsPage() {
     setError(null);
     setNotice(null);
     try {
-      await apiFetch<Invitation>("/api/v1/invitations", {
-        body: JSON.stringify({
-          workspaceId: selectedWorkspaceId,
-          email: inviteEmail.trim(),
-          role: inviteRole
-        }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST"
-      });
+      const result = await apiFetch<{ invitation: Invitation; inviteToken: string; inviteUrl: string }>(
+        "/api/v1/invitations",
+        {
+          body: JSON.stringify({
+            workspaceId: selectedWorkspaceId,
+            email: inviteEmail.trim(),
+            role: inviteRole
+          }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST"
+        }
+      );
       setInviteEmail("");
       setInviteRole("AGENT");
+      setCreatedInviteUrl(result.inviteUrl);
       await loadInvitations(selectedWorkspaceId);
-      setNotice("Invitation sent.");
+      setNotice(t.inviteLinkCreated);
     } catch (inviteError) {
-      setError(readMessage(inviteError, "Could not send invitation."));
+      setError(readMessage(inviteError, "Could not create invitation link."));
     } finally {
       setIsSubmittingInvite(false);
     }
@@ -209,20 +220,65 @@ export default function TeamSettingsPage() {
     }
   }
 
-  async function removeMember(member: WorkspaceMember): Promise<void> {
-    if (!selectedWorkspaceId) {
+  async function confirmRemoveMember(): Promise<void> {
+    const member = removeTargetMember;
+    if (!member || !selectedWorkspaceId) {
       return;
     }
+    setIsRemovingMember(true);
     setError(null);
     try {
       await apiFetch<WorkspaceMember>(
         `/api/v1/workspaces/${selectedWorkspaceId}/members/${member.userId}`,
         { method: "DELETE" }
       );
+      setRemoveTargetMember(null);
+      setNotice(
+        locale === "th"
+          ? `ลบ ${member.user?.displayName ?? member.userId} แล้ว`
+          : `Removed ${member.user?.displayName ?? member.userId}`
+      );
       await loadWorkspaceData(selectedWorkspaceId);
     } catch (removeError) {
       setError(readMessage(removeError, "Could not remove member."));
+    } finally {
+      setIsRemovingMember(false);
     }
+  }
+
+  async function submitResetPassword(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const member = resetPasswordMember;
+    if (!member || !selectedWorkspaceId || resetPasswordValue.length < 8) {
+      return;
+    }
+    setIsResettingPassword(true);
+    setError(null);
+    try {
+      await apiFetch<void>(
+        `/api/v1/workspaces/${selectedWorkspaceId}/members/${member.userId}/reset-password`,
+        {
+          body: JSON.stringify({ newPassword: resetPasswordValue }),
+          headers: { "Content-Type": "application/json" },
+          method: "POST"
+        }
+      );
+      setResetPasswordMember(null);
+      setResetPasswordValue("");
+      setNotice(
+        locale === "th"
+          ? `รีเซ็ตรหัสผ่านของ ${member.user?.displayName ?? member.userId} แล้ว`
+          : `Reset password for ${member.user?.displayName ?? member.userId}`
+      );
+    } catch (resetError) {
+      setError(readMessage(resetError, "Could not reset password."));
+    } finally {
+      setIsResettingPassword(false);
+    }
+  }
+
+  async function removeMember(member: WorkspaceMember): Promise<void> {
+    setRemoveTargetMember(member);
   }
 
   async function revokeInvitation(invitation: Invitation): Promise<void> {
@@ -286,16 +342,24 @@ export default function TeamSettingsPage() {
               {members.length === 0 ? (
                 <p className="py-4 text-sm text-muted-foreground">{t.noActiveMembers}</p>
               ) : null}
-              {members.map((member) => (
+              {members.map((member) => {
+                const isSelf = member.userId === currentUserId;
+                return (
                 <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{member.user?.displayName ?? member.userId}</p>
+                    <p className="truncate text-sm font-medium">
+                      {member.user?.displayName ?? member.userId}
+                      {isSelf ? (
+                        <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+                      ) : null}
+                    </p>
                     <p className="truncate text-xs text-muted-foreground">{member.user?.email ?? member.userId}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <select
                       aria-label={`Role for ${member.user?.email ?? member.userId}`}
                       className="h-8 rounded-md border border-border bg-white px-2 text-xs"
+                      disabled={isSelf}
                       onChange={(event) => void updateMemberRole(member, event.target.value as Role)}
                       value={member.role}
                     >
@@ -306,7 +370,21 @@ export default function TeamSettingsPage() {
                       ))}
                     </select>
                     <Button
+                      aria-label={`Reset password for ${member.user?.email ?? member.userId}`}
+                      disabled={isSelf}
+                      onClick={() => {
+                        setResetPasswordMember(member);
+                        setResetPasswordValue("");
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      <KeyRound size={14} aria-hidden="true" />
+                    </Button>
+                    <Button
                       aria-label={`Remove ${member.user?.email ?? member.userId}`}
+                      disabled={isSelf}
                       onClick={() => void removeMember(member)}
                       size="sm"
                       type="button"
@@ -316,7 +394,8 @@ export default function TeamSettingsPage() {
                     </Button>
                   </div>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </Card>
 
@@ -351,7 +430,7 @@ export default function TeamSettingsPage() {
                 </select>
               </div>
               <Button disabled={isSubmittingInvite || !selectedWorkspaceId} type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-md shadow-indigo-600/20">
-                {t.sendInvite}
+                {t.createInviteLink}
               </Button>
             </form>
 
@@ -409,6 +488,119 @@ export default function TeamSettingsPage() {
             </div>
           </Card>
         </div>
+
+        {createdInviteUrl ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="dialog"
+            aria-labelledby="invite-link-title"
+          >
+            <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-lg">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <h2 id="invite-link-title" className="font-heading text-base font-medium">
+                  {t.inviteLinkCreated}
+                </h2>
+                <Button
+                  aria-label={t.closeModal}
+                  onClick={() => setCreatedInviteUrl(null)}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  <X size={14} aria-hidden="true" />
+                </Button>
+              </div>
+              <p className="mb-3 text-sm text-muted-foreground">
+                {locale === "th"
+                  ? "แชร์ลิงก์นี้กับสมาชิกใหม่เพื่อให้เข้าร่วม workspace"
+                  : "Share this link with the invitee to join the workspace."}
+              </p>
+              <div className="flex gap-2">
+                <Input readOnly value={createdInviteUrl} aria-label="Invite link" />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(createdInviteUrl);
+                    setNotice(t.copiedLink);
+                  }}
+                >
+                  <Copy size={14} aria-hidden="true" className="mr-1" />
+                  {t.copyInviteLink}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {resetPasswordMember ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="dialog"
+            aria-labelledby="reset-password-title"
+          >
+            <form
+              className="w-full max-w-md rounded-lg bg-white p-5 shadow-lg"
+              onSubmit={(event) => void submitResetPassword(event)}
+            >
+              <h2 id="reset-password-title" className="font-heading text-base font-medium">
+                {t.resetPasswordFor} {resetPasswordMember.user?.displayName ?? resetPasswordMember.userId}
+              </h2>
+              <div className="mt-4 grid gap-2">
+                <Label htmlFor="admin-new-password">{t.newPassword}</Label>
+                <Input
+                  id="admin-new-password"
+                  minLength={8}
+                  onChange={(event) => setResetPasswordValue(event.target.value)}
+                  required
+                  type="password"
+                  value={resetPasswordValue}
+                />
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  onClick={() => setResetPasswordMember(null)}
+                  type="button"
+                  variant="secondary"
+                >
+                  {t.cancelEdit}
+                </Button>
+                <Button disabled={isResettingPassword || resetPasswordValue.length < 8} type="submit">
+                  {t.resetPassword}
+                </Button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+
+        {removeTargetMember ? (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            role="alertdialog"
+            aria-labelledby="remove-member-title"
+          >
+            <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-lg">
+              <h2 id="remove-member-title" className="font-heading text-base font-medium">
+                {t.confirmRemoveMember}
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">{t.confirmRemoveMemberBody}</p>
+              <p className="mt-1 text-sm font-medium">
+                {removeTargetMember.user?.displayName ?? removeTargetMember.userId}
+              </p>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button onClick={() => setRemoveTargetMember(null)} type="button" variant="secondary">
+                  {t.cancelEdit}
+                </Button>
+                <Button
+                  disabled={isRemovingMember}
+                  onClick={() => void confirmRemoveMember()}
+                  type="button"
+                >
+                  {t.confirmRemoveMember}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </div>
   );

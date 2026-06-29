@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { AuditAction, Invitation, InvitationStatus, User } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
@@ -15,7 +16,8 @@ const INVITATION_EXPIRY_DAYS = 7;
 export class InvitationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailService: MailService
+    private readonly mailService: MailService,
+    private readonly configService: ConfigService
   ) {}
 
   async create(
@@ -52,25 +54,30 @@ export class InvitationsService {
       }
     });
 
-    try {
-      await this.mailService.sendInvitationEmail({
-        to: invitation.email,
-        inviteToken: token,
-        tenantName: context.tenantName,
-        workspaceName: context.workspaceName,
-        expiresAt: invitation.expiresAt
-      });
-    } catch (error) {
-      await this.prisma.invitation.update({
-        where: { id: invitation.id },
-        data: { status: InvitationStatus.REVOKED }
-      });
-      throw error;
+    const inviteUrl = this.buildInviteUrl(token);
+
+    if (this.shouldSendInviteEmail()) {
+      try {
+        await this.mailService.sendInvitationEmail({
+          to: invitation.email,
+          inviteToken: token,
+          tenantName: context.tenantName,
+          workspaceName: context.workspaceName,
+          expiresAt: invitation.expiresAt
+        });
+      } catch (error) {
+        await this.prisma.invitation.update({
+          where: { id: invitation.id },
+          data: { status: InvitationStatus.REVOKED }
+        });
+        throw error;
+      }
     }
 
     return {
       invitation,
-      inviteToken: token
+      inviteToken: token,
+      inviteUrl
     };
   }
 
@@ -286,5 +293,18 @@ export class InvitationsService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + INVITATION_EXPIRY_DAYS);
     return expiresAt;
+  }
+
+  private shouldSendInviteEmail(): boolean {
+    const value = this.configService.get<string>("INVITE_SEND_EMAIL");
+    return value === "true" || value === "1";
+  }
+
+  private buildInviteUrl(token: string): string {
+    const baseUrl = (this.configService.get<string>("APP_BASE_URL") ?? "http://localhost:3000").replace(
+      /\/+$/,
+      ""
+    );
+    return `${baseUrl}/invite/accept?token=${encodeURIComponent(token)}`;
   }
 }

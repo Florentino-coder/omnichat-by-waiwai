@@ -8,4 +8,5 @@ export type InvitationWithContext = Invitation & {
 export interface CreatedInvitationResponse {
   invitation: Invitation;
   inviteToken: string;
+  inviteUrl: string;
 }

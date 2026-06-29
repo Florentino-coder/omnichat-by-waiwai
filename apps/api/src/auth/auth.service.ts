@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
 import { AuditAction, User, WorkspaceMember } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
@@ -9,6 +9,7 @@ import { CryptoSecretService } from "./crypto-secret.service";
 import { RefreshSessionService } from "./refresh-session.service";
 import { TotpService } from "./totp.service";
 import { ChangePasswordDto } from "./dto/change-password.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import {
   AuthResponse,
   AuthTokens,
@@ -624,6 +625,35 @@ export class AuthService {
         action: AuditAction.PASSWORD_CHANGED
       }
     });
+  }
+
+  async resetPasswordByEmailVerification(dto: ForgotPasswordDto): Promise<void> {
+    const user = await this.findLoginUser(dto.identifier);
+
+    if (!user || user.email.toLowerCase() !== dto.email.trim().toLowerCase()) {
+      throw new UnauthorizedException("Invalid credentials");
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash }
+    });
+
+    await this.revokeAllUserRefreshTokens(user.id);
+    await this.refreshSessionService.deleteAllForUser(user.id);
+
+    const membership = user.memberships.find((item) => item.isActive);
+    if (membership) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId: membership.tenantId,
+          userId: user.id,
+          action: AuditAction.PASSWORD_CHANGED,
+          metadata: { source: "forgot_password" }
+        }
+      });
+    }
   }
 
   private async getTwoFaUser(userId: string): Promise<Pick<User, "id" | "email" | "twoFaSecret" | "twoFaEnabled">> {

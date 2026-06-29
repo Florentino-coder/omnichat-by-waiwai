@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "../prisma/prisma.module";
 import { RedisModule } from "../redis/redis.module";
 import { AuthController } from "./auth.controller";
@@ -12,7 +13,18 @@ import { RolesGuard } from "./guards/roles.guard";
 import { TenantGuard } from "./guards/tenant.guard";
 
 @Module({
-  imports: [JwtModule.register({}), PrismaModule, RedisModule],
+  imports: [
+    JwtModule.register({}),
+    ThrottlerModule.forRoot([
+      {
+        name: "forgot-password",
+        ttl: 900_000,
+        limit: 5
+      }
+    ]),
+    PrismaModule,
+    RedisModule
+  ],
   controllers: [AuthController],
   providers: [
     AuthService,
@@ -27,6 +39,7 @@ import { TenantGuard } from "./guards/tenant.guard";
     JwtModule,
     AuthService,
     CryptoSecretService,
+    RefreshSessionService,
     JwtAuthGuard,
     TenantGuard,
     RolesGuard
