@@ -238,7 +238,9 @@ export class LineWebhookService {
         conversationId: conversation.id,
         messageId: message.id,
         lineChannelId: channel.id,
-        direction: MessageDirection.INBOUND
+        direction: MessageDirection.INBOUND,
+        customerName: conversation.displayName ?? lineProfile?.displayName ?? "Customer",
+        preview: inboundMessagePreview(messageType, lineMessage.text)
       }, flowId);
 
       if (
@@ -638,6 +640,28 @@ export class LineWebhookService {
 
     return customer.id;
   }
+}
+
+function inboundMessagePreview(type: MessageType, text?: string | null): string {
+  if (type === MessageType.TEXT && text?.trim()) {
+    return text.trim().slice(0, 120);
+  }
+  if (type === MessageType.STICKER) {
+    return "Sticker";
+  }
+  if (type === MessageType.IMAGE) {
+    return "Image";
+  }
+  if (type === MessageType.VIDEO) {
+    return "Video";
+  }
+  if (type === MessageType.AUDIO) {
+    return "Audio";
+  }
+  if (type === MessageType.FILE) {
+    return "File";
+  }
+  return "New message";
 }
 
 function readString(value: unknown): string | undefined {

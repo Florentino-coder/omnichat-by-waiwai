@@ -6,6 +6,7 @@ import { UserMenu } from "./user-menu";
 import { LanguageProvider, useLanguage } from "../lib/language-context";
 import { useAuthSession } from "../lib/use-auth-session";
 import { useProactiveSessionRefresh } from "../lib/use-proactive-session-refresh";
+import { TenantInboundNotificationListener } from "./tenant-inbound-notification-listener";
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -34,6 +35,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   return (
     <main className="flex h-dvh overflow-hidden bg-[#F7F7FA] text-foreground">
+      <TenantInboundNotificationListener />
       <nav aria-label="Primary" className="flex w-14 shrink-0 flex-col items-center gap-2 border-r border-border bg-white py-3">
         {isAuthLoading
           ? Array.from({ length: 5 }, (_, index) => (

@@ -112,7 +112,13 @@ describe("browser-notifications", () => {
     expect(result).toEqual({ ok: true });
     expect(notificationMock).toHaveBeenCalledWith(
       "OmniChat — ทดสอบ",
-      expect.objectContaining({ tag: "omnichat-test-notification" })
+      expect.objectContaining({ tag: expect.stringMatching(/^omnichat-test-\d+$/) })
     );
+
+    const result2 = showTestDesktopNotification();
+    expect(result2).toEqual({ ok: true });
+    expect(notificationMock).toHaveBeenCalledTimes(2);
+    const tags = notificationMock.mock.calls.map((call) => call[1]?.tag);
+    expect(tags[0]).not.toBe(tags[1]);
   });
 });

@@ -138,9 +138,10 @@ export function showTestDesktopNotification():
   }
 
   try {
+    const stamp = Date.now();
     const notification = new Notification("OmniChat — ทดสอบ", {
-      body: "ถ้าเห็นข้อความนี้ การแจ้งเตือนทำงานแล้ว",
-      tag: "omnichat-test-notification",
+      body: `ถ้าเห็นข้อความนี้ การแจ้งเตือนทำงานแล้ว (${new Date(stamp).toLocaleTimeString()})`,
+      tag: `omnichat-test-${stamp}`,
     });
 
     notification.onclick = () => {

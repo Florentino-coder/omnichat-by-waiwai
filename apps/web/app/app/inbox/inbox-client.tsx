@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@omnichat/ui";
-import { devTrace, devTraceError } from "../../lib/dev-trace";
+import { devTrace } from "../../lib/dev-trace";
 import {
   canShowDesktopNotification,
   showInboundMessageNotification,
   shouldShowDesktopNotification
 } from "../../lib/browser-notifications";
+import { setActiveInboxConversationId } from "../../lib/inbox-focus";
 import { useBrowserNotifications } from "../../lib/use-browser-notifications";
+import { streamTenantEvents } from "../../lib/tenant-sse-stream";
 import { ChatWindow, type ChatMessageItem } from "../../../components/inbox/ChatWindow";
 import {
   ConversationList,
@@ -18,11 +20,7 @@ import {
 } from "../../../components/inbox/ConversationList";
 import { CustomerPanel } from "../../../components/inbox/CustomerPanel";
 import { BottomNav, type MobileInboxTab } from "../../../components/inbox/mobile/BottomNav";
-import {
-  apiFetch,
-  authorizedFetch,
-  handleLogoutRedirect
-} from "../../lib/api-client";
+import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 import { ReplyComposer } from "./reply-composer";
@@ -83,17 +81,6 @@ type WorkspaceMember = {
     displayName?: string | null;
     email?: string | null;
   } | null;
-};
-
-type TenantRealtimeEvent = {
-  type: string;
-  data?: {
-    conversationId?: string;
-    messageId?: string;
-    direction?: MessageDirection;
-    flowId?: string;
-  };
-  flowId?: string;
 };
 
 type ConversationTag = {
@@ -569,7 +556,14 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
+    setActiveInboxConversationId(selectedId);
   }, [selectedId]);
+
+  useEffect(() => {
+    return () => {
+      setActiveInboxConversationId(null);
+    };
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -716,7 +710,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
               showInboundMessageNotification({
                 messageId: event.data.messageId,
                 conversationId: eventConversationId,
-                customerName: conversation ? customerLabel(conversation) : "Customer",
+                customerName:
+                  event.data.customerName ??
+                  (conversation ? customerLabel(conversation) : "Customer"),
+                body: event.data.preview,
                 onSelectConversation: (conversationId) => {
                   setSelectedId(conversationId);
                   selectedIdRef.current = conversationId;
@@ -2011,113 +2008,6 @@ function telemetryAuthHeaders(): Record<string, string> {
     headers.Authorization = `Bearer ${legacyToken}`;
   }
   return headers;
-}
-
-type StreamTenantEventsResult = "completed" | "auth_failed" | "aborted";
-
-type StreamTenantEventsOptions = {
-  onOpen?: () => void;
-  onClose?: () => void;
-};
-
-async function streamTenantEvents(
-  tenantId: string,
-  signal: AbortSignal,
-  onEvent: (event: TenantRealtimeEvent) => void,
-  options?: StreamTenantEventsOptions
-): Promise<StreamTenantEventsResult> {
-  if (signal.aborted) {
-    return "aborted";
-  }
-
-  try {
-    const streamUrl = `/api/v1/sse/tenant/${encodeURIComponent(tenantId)}`;
-    const response = await authorizedFetch(streamUrl, { signal });
-
-    if (signal.aborted) {
-      return "aborted";
-    }
-
-    if (response.status === 401) {
-      handleLogoutRedirect();
-      return "auth_failed";
-    }
-
-    const reader = response.body?.getReader();
-    if (!response.ok || !reader) {
-      return "completed";
-    }
-
-    options?.onOpen?.();
-    devTrace("[TRACE] SSE_OPEN", Date.now());
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-    try {
-      while (!signal.aborted) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
-        buffer += decoder.decode(value, { stream: true });
-        let boundary = buffer.indexOf("\n\n");
-        while (boundary >= 0) {
-          const block = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
-          devTrace(
-            "[TRACE] RAW_SSE_MESSAGE",
-            Date.now(),
-            block
-          );
-          const event = parseSseBlock(block);
-          if (event) {
-            onEvent(event);
-          } else {
-            devTraceError(
-              "[TRACE] SSE_PARSE_ERROR",
-              "Could not parse block:",
-              block
-            );
-          }
-          boundary = buffer.indexOf("\n\n");
-        }
-      }
-    } finally {
-      reader.releaseLock();
-      options?.onClose?.();
-    }
-    return signal.aborted ? "aborted" : "completed";
-  } catch {
-    options?.onClose?.();
-    if (!signal.aborted) {
-      // Polling remains as fallback when the realtime stream is unavailable.
-    }
-    return signal.aborted ? "aborted" : "completed";
-  }
-}
-
-function parseSseBlock(block: string): TenantRealtimeEvent | null {
-  const lines = block.split(/\r?\n/);
-  const eventType = lines.find((line) => line.startsWith("event:"))?.slice("event:".length).trim();
-  const dataLine = lines.find((line) => line.startsWith("data:"))?.slice("data:".length).trim();
-
-  let parsedData: any = null;
-  if (dataLine) {
-    try {
-      parsedData = JSON.parse(dataLine);
-    } catch {
-      // ignore
-    }
-  }
-
-  const type = eventType || parsedData?.type || parsedData?.event;
-  if (!type) {
-    return null;
-  }
-
-  const flowId = parsedData?.flowId;
-
-  return { type, data: parsedData, flowId };
 }
 
 function readMessage(error: unknown, fallback: string): string {

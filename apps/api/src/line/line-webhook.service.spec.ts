@@ -247,7 +247,9 @@ describe("LineWebhookService", () => {
       expect.objectContaining({
         conversationId: "conversation-1",
         messageId: "message-1",
-        direction: MessageDirection.INBOUND
+        direction: MessageDirection.INBOUND,
+        customerName: expect.any(String),
+        preview: expect.any(String)
       }),
       undefined
     );
