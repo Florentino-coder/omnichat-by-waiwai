@@ -3,9 +3,8 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import {
-  canShowDesktopNotification,
-  shouldShowDesktopNotification,
-  showInboundMessageNotification,
+  isInboundRealtimeDirection,
+  tryShowInboundMessageNotification,
 } from "../lib/browser-notifications";
 import { getActiveInboxConversationId } from "../lib/inbox-focus";
 import { streamTenantEvents } from "../lib/tenant-sse-stream";
@@ -44,23 +43,19 @@ export function TenantInboundNotificationListener() {
         const conversationId = event.data?.conversationId;
         const messageId = event.data?.messageId;
         if (
-          event.data?.direction !== "INBOUND" ||
+          !isInboundRealtimeDirection(event.data?.direction) ||
           !conversationId ||
-          !messageId ||
-          !canShowDesktopNotification() ||
-          !shouldShowDesktopNotification({
-            incomingConversationId: conversationId,
-            activeConversationId: getActiveInboxConversationId(),
-          })
+          !messageId
         ) {
           return;
         }
 
-        showInboundMessageNotification({
+        tryShowInboundMessageNotification({
           messageId,
           conversationId,
-          customerName: event.data.customerName ?? "Customer",
-          body: event.data.preview,
+          customerName: event.data?.customerName ?? "Customer",
+          body: event.data?.preview,
+          activeConversationId: getActiveInboxConversationId(),
           onSelectConversation: (id) => {
             window.location.assign(`/app/inbox?conversation=${encodeURIComponent(id)}`);
           },

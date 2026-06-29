@@ -5,9 +5,10 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@omnichat/ui";
 import { devTrace } from "../../lib/dev-trace";
 import {
-  canShowDesktopNotification,
-  showInboundMessageNotification,
-  shouldShowDesktopNotification
+  isInboundRealtimeDirection,
+  notifyNewInboundFromConversationSnapshots,
+  tryShowInboundMessageNotification,
+  type ConversationInboundSnapshot,
 } from "../../lib/browser-notifications";
 import { setActiveInboxConversationId } from "../../lib/inbox-focus";
 import { useBrowserNotifications } from "../../lib/use-browser-notifications";
@@ -176,6 +177,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     requestPermission: requestDesktopNotificationPermission
   } = useBrowserNotifications();
   const [notificationBannerDismissed, setNotificationBannerDismissed] = useState(false);
+  const conversationsHydratedRef = useRef(initialConversations.length > 0);
   const [conversations, setConversations] = useState<InboxConversation[]>(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
@@ -384,9 +386,25 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           return;
         }
         const safeData = Array.isArray(data) ? data : [];
+        const previousConversations = conversationsRef.current;
         const nextConversations = options?.append
           ? [...conversationsRef.current, ...safeData]
           : safeData;
+
+        if (conversationsHydratedRef.current && !options?.append) {
+          notifyNewInboundFromConversationSnapshots(
+            previousConversations.map(toConversationInboundSnapshot),
+            nextConversations.map(toConversationInboundSnapshot),
+            selectedIdRef.current,
+            (conversationId) => {
+              setSelectedId(conversationId);
+              selectedIdRef.current = conversationId;
+              setMobileTab("chats");
+            }
+          );
+        }
+        conversationsHydratedRef.current = true;
+
         setHasMoreConversations(safeData.length === CONVERSATION_PAGE_SIZE);
         conversationsRef.current = nextConversations;
 
@@ -695,31 +713,32 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             }
             if (
               event.type === "message.created" &&
-              event.data?.direction === "INBOUND" &&
+              event.data &&
+              isInboundRealtimeDirection(event.data.direction) &&
               event.data.messageId &&
-              eventConversationId &&
-              canShowDesktopNotification() &&
-              shouldShowDesktopNotification({
-                incomingConversationId: eventConversationId,
-                activeConversationId: selectedIdRef.current,
-              })
+              eventConversationId
             ) {
-              const conversation = conversationsRef.current.find(
-                (item) => item.id === eventConversationId
-              );
-              showInboundMessageNotification({
-                messageId: event.data.messageId,
-                conversationId: eventConversationId,
-                customerName:
-                  event.data.customerName ??
-                  (conversation ? customerLabel(conversation) : "Customer"),
-                body: event.data.preview,
-                onSelectConversation: (conversationId) => {
-                  setSelectedId(conversationId);
-                  selectedIdRef.current = conversationId;
-                  setMobileTab("chats");
-                }
-              });
+              const eventData = event.data;
+              const inboundMessageId = eventData.messageId;
+              if (inboundMessageId) {
+                const conversation = conversationsRef.current.find(
+                  (item) => item.id === eventConversationId
+                );
+                tryShowInboundMessageNotification({
+                  messageId: inboundMessageId,
+                  conversationId: eventConversationId,
+                  customerName:
+                    eventData.customerName ??
+                    (conversation ? customerLabel(conversation) : "Customer"),
+                  body: eventData.preview,
+                  activeConversationId: selectedIdRef.current,
+                  onSelectConversation: (conversationId) => {
+                    setSelectedId(conversationId);
+                    selectedIdRef.current = conversationId;
+                    setMobileTab("chats");
+                  },
+                });
+              }
             }
           } else {
             void loadConversations({ quiet: true });
@@ -2077,6 +2096,21 @@ function isStickerMessage(message: {
   rawPayload?: LineMessagePayload | null;
 }): boolean {
   return message.type === "STICKER" || message.rawPayload?.message?.type === "sticker";
+}
+
+function toConversationInboundSnapshot(conversation: InboxConversation): ConversationInboundSnapshot {
+  const latest = conversation.messages?.[0];
+  return {
+    id: conversation.id,
+    customerName: customerLabel(conversation),
+    latestMessage: latest
+      ? {
+          id: latest.id,
+          direction: latest.direction,
+          body: messageSummary(latest),
+        }
+      : null,
+  };
 }
 
 function lineChannelBadgeStyle(lineChannel: InboxConversation["lineChannel"]) {

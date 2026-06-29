@@ -89,6 +89,87 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   return Notification.requestPermission();
 }
 
+export function isInboundRealtimeDirection(direction?: string): boolean {
+  if (!direction) {
+    // Older API payloads may omit direction; message.created defaults to inbound.
+    return true;
+  }
+  return direction.toUpperCase() !== "OUTBOUND";
+}
+
+export type InboundNotificationPayload = {
+  messageId: string;
+  conversationId: string;
+  customerName: string;
+  body?: string;
+  activeConversationId?: string | null;
+  onSelectConversation: (conversationId: string) => void;
+};
+
+export function tryShowInboundMessageNotification(payload: InboundNotificationPayload): boolean {
+  if (!canShowDesktopNotification()) {
+    return false;
+  }
+  if (
+    !shouldShowDesktopNotification({
+      incomingConversationId: payload.conversationId,
+      activeConversationId: payload.activeConversationId,
+    })
+  ) {
+    return false;
+  }
+
+  showInboundMessageNotification({
+    messageId: payload.messageId,
+    conversationId: payload.conversationId,
+    customerName: payload.customerName,
+    body: payload.body,
+    onSelectConversation: payload.onSelectConversation,
+  });
+  return true;
+}
+
+export type ConversationInboundSnapshot = {
+  id: string;
+  customerName: string;
+  latestMessage?: {
+    id: string;
+    direction: string;
+    body?: string;
+  } | null;
+};
+
+/** Fallback when SSE metadata is missing but the inbox list refreshed with a new inbound preview. */
+export function notifyNewInboundFromConversationSnapshots(
+  previous: ConversationInboundSnapshot[],
+  next: ConversationInboundSnapshot[],
+  activeConversationId: string | null,
+  onSelectConversation: (conversationId: string) => void
+): void {
+  const previousLatestByConversation = new Map(
+    previous.map((conversation) => [conversation.id, conversation.latestMessage?.id ?? null])
+  );
+
+  for (const conversation of next) {
+    const latest = conversation.latestMessage;
+    if (!latest || latest.direction !== "INBOUND" || latest.id.startsWith("optimistic-")) {
+      continue;
+    }
+    if (previousLatestByConversation.get(conversation.id) === latest.id) {
+      continue;
+    }
+
+    tryShowInboundMessageNotification({
+      messageId: latest.id,
+      conversationId: conversation.id,
+      customerName: conversation.customerName,
+      body: latest.body,
+      activeConversationId,
+      onSelectConversation,
+    });
+  }
+}
+
 export function showInboundMessageNotification(options: {
   messageId: string;
   customerName: string;

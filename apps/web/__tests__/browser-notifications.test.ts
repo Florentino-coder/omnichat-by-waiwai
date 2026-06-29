@@ -1,4 +1,6 @@
 import {
+  isInboundRealtimeDirection,
+  notifyNewInboundFromConversationSnapshots,
   readDesktopNotificationsPref,
   resetNotifiedMessageIdsForTests,
   shouldShowDesktopNotification,
@@ -120,5 +122,52 @@ describe("browser-notifications", () => {
     expect(notificationMock).toHaveBeenCalledTimes(2);
     const tags = notificationMock.mock.calls.map((call) => call[1]?.tag);
     expect(tags[0]).not.toBe(tags[1]);
+  });
+
+  it("treats missing SSE direction as inbound", () => {
+    expect(isInboundRealtimeDirection(undefined)).toBe(true);
+    expect(isInboundRealtimeDirection("INBOUND")).toBe(true);
+    expect(isInboundRealtimeDirection("OUTBOUND")).toBe(false);
+  });
+
+  it("notifies when conversation list gains a new inbound preview", () => {
+    const notificationMock = jest.fn();
+    class MockNotification {
+      static permission: NotificationPermission = "granted";
+      onclick: (() => void) | null = null;
+      constructor(public title: string, public options?: NotificationOptions) {
+        notificationMock(title, options);
+      }
+      close() {}
+    }
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      value: MockNotification
+    });
+    writeDesktopNotificationsPref(true);
+
+    notifyNewInboundFromConversationSnapshots(
+      [
+        {
+          id: "conversation-1",
+          customerName: "Customer",
+          latestMessage: { id: "message-old", direction: "INBOUND", body: "Hi" },
+        },
+      ],
+      [
+        {
+          id: "conversation-1",
+          customerName: "Customer",
+          latestMessage: { id: "message-new", direction: "INBOUND", body: "Sticker" },
+        },
+      ],
+      null,
+      () => undefined
+    );
+
+    expect(notificationMock).toHaveBeenCalledWith(
+      "Customer",
+      expect.objectContaining({ body: "Sticker", tag: "message-new" })
+    );
   });
 });
