@@ -35,6 +35,7 @@ interface ChatWindowProps {
   disableActions?: boolean;
   disablePriority?: boolean;
   disableQuickReply?: boolean;
+  quickReplyHotkeyHint?: string;
   disableStatus?: boolean;
   emptyText?: string;
   isLoading?: boolean;
@@ -69,6 +70,7 @@ export function ChatWindow({
   disableActions = false,
   disablePriority = false,
   disableQuickReply = false,
+  quickReplyHotkeyHint,
   disableStatus = false,
   emptyText,
   isLoading = false,
@@ -104,6 +106,7 @@ export function ChatWindow({
         disableActions={disableActions}
         disablePriority={disablePriority}
         disableQuickReply={disableQuickReply}
+        quickReplyHotkeyHint={quickReplyHotkeyHint}
         disableStatus={disableStatus}
         onOpenCustomer={onOpenCustomer}
         onQuickReply={onQuickReply}

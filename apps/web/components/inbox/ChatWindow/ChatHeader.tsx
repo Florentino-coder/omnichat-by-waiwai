@@ -15,6 +15,7 @@ interface ChatHeaderProps {
   disableActions?: boolean;
   disablePriority?: boolean;
   disableQuickReply?: boolean;
+  quickReplyHotkeyHint?: string;
   disableStatus?: boolean;
   statusElapsed?: string | null;
   statusMenuOpen?: boolean;
@@ -37,6 +38,7 @@ export function ChatHeader({
   disableActions = false,
   disablePriority = false,
   disableQuickReply = false,
+  quickReplyHotkeyHint,
   disableStatus = false,
   statusElapsed,
   statusMenuOpen = false,
@@ -97,6 +99,11 @@ export function ChatHeader({
         <button
           type="button"
           aria-label="Insert saved reply"
+          title={
+            quickReplyHotkeyHint
+              ? `Quick reply (${quickReplyHotkeyHint})`
+              : "Quick reply"
+          }
           className="hidden min-h-14 items-center gap-2 rounded-xl border-2 border-[#D6D4DD] bg-white px-4 py-2 text-sm font-semibold text-[#585B68] hover:bg-secondary disabled:opacity-60 sm:inline-flex"
           disabled={disableActions || disableQuickReply}
           onClick={onQuickReply}

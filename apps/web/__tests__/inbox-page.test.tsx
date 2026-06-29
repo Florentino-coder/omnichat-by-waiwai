@@ -920,6 +920,84 @@ describe("InboxPage", () => {
     });
   });
 
+  it("shows inline confirm before resolving a conversation with unreplied messages", async () => {
+    const fetchMock = installFetchMock(
+      jest.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        const method = init?.method?.toUpperCase() ?? "GET";
+
+        if (url.includes("/unreplied-count")) {
+          return {
+            ok: true,
+            json: async () => ({ success: true, data: { count: 2 } })
+          };
+        }
+
+        if (url.includes("/status") && method === "PATCH") {
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: { id: "conversation-1", status: "RESOLVED" }
+            })
+          };
+        }
+
+        if (url.includes("/api/v1/inbox/conversations")) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              data: [
+                {
+                  id: "conversation-1",
+                  externalThreadId: "U123",
+                  displayName: "Customer A",
+                  status: "OPEN",
+                  lastMessageAt: "2026-06-14T01:00:00.000Z",
+                  lineChannel: {
+                    id: "line-channel-1",
+                    name: "Line OA 1",
+                    badgeColor: "#4f46e5",
+                    lineChannelId: "1234567890"
+                  },
+                  messages: []
+                }
+              ]
+            })
+          };
+        }
+
+        return {
+          ok: true,
+          json: async () => ({ success: true, data: [] })
+        };
+      })
+    );
+
+    render(await InboxPage());
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open conversation Customer A" }));
+    fireEvent.click(screen.getByRole("button", { name: "Change conversation status" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "ดำเนินการแล้ว" }));
+
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "ยังมี 2 ข้อความที่ยังไม่ได้ตอบ"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "ยืนยัน" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/v1/inbox/conversations/conversation-1/status",
+        authFetchOptions({
+          body: JSON.stringify({ status: "RESOLVED" }),
+          headers: { "Content-Type": "application/json" },
+          method: "PATCH"
+        })
+      );
+    });
+  });
+
   it("loads more conversations in pages of 10", async () => {
     const firstPage = Array.from({ length: 10 }, (_, index) => ({
       id: `conversation-${index + 1}`,

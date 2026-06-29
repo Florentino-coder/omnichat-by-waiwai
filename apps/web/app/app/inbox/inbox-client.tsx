@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { Button } from "@omnichat/ui";
+import { devTrace, devTraceError } from "../../lib/dev-trace";
 import { ChatWindow, type ChatMessageItem } from "../../../components/inbox/ChatWindow";
 import {
   ConversationList,
@@ -214,6 +216,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const [now, setNow] = useState(0);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
+  const [isLoadingOperations, setIsLoadingOperations] = useState(false);
+  const [resolveUnrepliedCount, setResolveUnrepliedCount] = useState<number | null>(null);
   const isMountedRef = useRef(false);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
@@ -229,8 +233,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const sseReceivedMapRef = useRef(new Map<string, number>());
   const stateUpdateMapRef = useRef(new Map<string, number>());
   const componentRenderMapRef = useRef(new Map<string, number>());
-  const isLoadingOperations = false;
   const sentTracesRef = useRef(new Map<string, Set<string>>());
+  const browserReceivedPostedRef = useRef(new Set<string>());
+  const sseConnectedRef = useRef(false);
   const renderCount = useRef(0);
 
   const trace = useCallback((flowId: string, stage: string) => {
@@ -245,7 +250,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
     sentStages.add(stage);
 
-    console.log(`[TRACE] [${stage}]`, flowId, timestamp);
+    devTrace(`[TRACE] [${stage}]`, flowId, timestamp);
 
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
     void fetch(`${apiBaseUrl}/api/v1/telemetry/client-trace`, {
@@ -295,6 +300,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       ),
     [savedReplies, selectedConversation]
   );
+  const quickReplyHotkeyHint = useMemo(() => {
+    const bindings = activeSavedReplies
+      .map((reply) => reply.hotkeyBinding)
+      .filter((binding): binding is string => Boolean(binding));
+    return bindings.length > 0 ? bindings.join(", ") : undefined;
+  }, [activeSavedReplies]);
   const unreadCount = useMemo(
     () => conversations.filter((conversation) => getReadState(conversation, selectedId) === "unread").length,
     [conversations, selectedId]
@@ -380,7 +391,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const pendingFlowId = pendingFlowIdRef.current;
         if (pendingFlowId) {
           const now = Date.now();
-          console.log("[TRACE] STATE_UPDATE", pendingFlowId, now);
+          devTrace("[TRACE] STATE_UPDATE", pendingFlowId, now);
           trace(pendingFlowId, "STATE_UPDATE");
           stateUpdateMapRef.current.set(pendingFlowId, now);
         }
@@ -421,7 +432,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           const pendingFlowId = pendingFlowIdRef.current;
           if (pendingFlowId) {
             const now = Date.now();
-            console.log("[TRACE] STATE_UPDATE", pendingFlowId, now);
+            devTrace("[TRACE] STATE_UPDATE", pendingFlowId, now);
             trace(pendingFlowId, "STATE_UPDATE");
             stateUpdateMapRef.current.set(pendingFlowId, now);
           }
@@ -620,9 +631,12 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       }
 
       const connTime = Date.now();
-      console.log(`[TRACE] [SSE_CONNECT] ts=${connTime} time=${new Date(connTime).toISOString()}`);
+      devTrace(`[TRACE] [SSE_CONNECT] ts=${connTime} time=${new Date(connTime).toISOString()}`);
 
-      void streamTenantEvents(tenantId as string, abortController.signal, (event) => {
+      void streamTenantEvents(
+        tenantId as string,
+        abortController.signal,
+        (event) => {
         if (!isMountedRef.current) {
           return;
         }
@@ -630,8 +644,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         const flowId = event.flowId || event.data?.flowId;
         if (flowId) {
           const now = Date.now();
-          console.log("[TRACE] BROWSER_RECEIVE", flowId, now);
-          console.log("[TRACE] SSE_HANDLER_START", flowId, now);
+          devTrace("[TRACE] BROWSER_RECEIVE", flowId, now);
+          devTrace("[TRACE] SSE_HANDLER_START", flowId, now);
           trace(flowId, "BROWSER_RECEIVE");
           trace(flowId, "SSE_HANDLER_START");
 
@@ -639,13 +653,16 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           const sseReceivedVal = now;
           sseReceivedMapRef.current.set(flowId, sseReceivedVal);
 
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-          void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
-            method: "POST",
-            credentials: "include",
-            headers: telemetryAuthHeaders(),
-            body: JSON.stringify({ flowId, timestamp: now })
-          });
+          if (!browserReceivedPostedRef.current.has(flowId)) {
+            browserReceivedPostedRef.current.add(flowId);
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
+            void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
+              method: "POST",
+              credentials: "include",
+              headers: telemetryAuthHeaders(),
+              body: JSON.stringify({ flowId, timestamp: now })
+            });
+          }
           pendingFlowIdRef.current = flowId;
           performance.mark(`render-start-${flowId}`);
         }
@@ -688,21 +705,30 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
             setHybridDraftFailedNonce((prev) => prev + 1);
           }
         }
-      })
+      },
+        {
+          onOpen: () => {
+            sseConnectedRef.current = true;
+          },
+          onClose: () => {
+            sseConnectedRef.current = false;
+          }
+        }
+      )
         .then((result) => {
           if (result === "auth_failed" || abortController.signal.aborted) {
             return;
           }
           const discTime = Date.now();
-          console.log(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
-          console.log(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
+          devTrace(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
+          devTrace(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
           reconnectTimeoutId = window.setTimeout(startStream, 1000);
         })
         .catch(() => {
           if (!abortController.signal.aborted) {
             const discTime = Date.now();
-            console.log(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
-            console.log(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
+            devTrace(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
+            devTrace(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
             reconnectTimeoutId = window.setTimeout(startStream, 1000);
           }
         });
@@ -881,7 +907,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     setHasMoreMessages(false);
     void loadMessages(selectedId);
     const refreshTimer = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && !sseConnectedRef.current) {
         void loadMessages(selectedId, { quiet: true });
       }
     }, 10000);
@@ -909,6 +935,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     setNicknameDraft(selectedCustomerName);
     setAssigneeDraft(selectedConversation?.assignedToMemberId ?? "");
     setNoteDraft("");
+    setResolveUnrepliedCount(null);
   }, [selectedConversation?.assignedToMemberId, selectedCustomerName, selectedId]);
 
   useEffect(() => {
@@ -949,41 +976,48 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   }, [activeSavedReplies, selectedConversation, isQuickReplyAutoEnter, isSendingQuickReply]);
 
   async function loadInboxOperations(conversationId: string): Promise<void> {
+    setIsLoadingOperations(true);
     const lineChannelId = selectedConversation?.lineChannel.id;
     const customerId = selectedConversation?.customerId;
 
-    const [tagResult, replyResult, noteResult, customerResult] = await Promise.allSettled([
-      apiFetch<ConversationTag[]>("/api/v1/inbox/tags"),
-      apiFetch<SavedReply[]>(
-        lineChannelId
-          ? `/api/v1/inbox/saved-replies?lineChannelId=${encodeURIComponent(lineChannelId)}`
-          : "/api/v1/inbox/saved-replies"
-      ),
-      apiFetch<ConversationInternalNote[]>(`/api/v1/inbox/conversations/${conversationId}/notes`),
-      customerId
-        ? apiFetch<{ id: string; phone?: string | null; email?: string | null }>(`/api/v1/customers/${customerId}`)
-        : Promise.resolve(null)
-    ]);
+    try {
+      const [tagResult, replyResult, noteResult, customerResult] = await Promise.allSettled([
+        apiFetch<ConversationTag[]>("/api/v1/inbox/tags"),
+        apiFetch<SavedReply[]>(
+          lineChannelId
+            ? `/api/v1/inbox/saved-replies?lineChannelId=${encodeURIComponent(lineChannelId)}`
+            : "/api/v1/inbox/saved-replies"
+        ),
+        apiFetch<ConversationInternalNote[]>(`/api/v1/inbox/conversations/${conversationId}/notes`),
+        customerId
+          ? apiFetch<{ id: string; phone?: string | null; email?: string | null }>(`/api/v1/customers/${customerId}`)
+          : Promise.resolve(null)
+      ]);
 
-    if (!isMountedRef.current || conversationsRef.current.every((item) => item.id !== conversationId)) {
-      return;
-    }
-    if (tagResult.status === "fulfilled") {
-      setTags(Array.isArray(tagResult.value) ? tagResult.value : []);
-    }
-    if (replyResult.status === "fulfilled") {
-      setSavedReplies(Array.isArray(replyResult.value) ? replyResult.value : []);
-    }
-    if (noteResult.status === "fulfilled") {
-      setInternalNotes(Array.isArray(noteResult.value) ? noteResult.value : []);
-    }
-    if (customerResult.status === "fulfilled" && customerResult.value) {
-      const cust = customerResult.value as { phone?: string | null; email?: string | null };
-      setCustomerPhone(cust?.phone ?? null);
-      setCustomerEmail(cust?.email ?? null);
-    } else {
-      setCustomerPhone(null);
-      setCustomerEmail(null);
+      if (!isMountedRef.current || conversationsRef.current.every((item) => item.id !== conversationId)) {
+        return;
+      }
+      if (tagResult.status === "fulfilled") {
+        setTags(Array.isArray(tagResult.value) ? tagResult.value : []);
+      }
+      if (replyResult.status === "fulfilled") {
+        setSavedReplies(Array.isArray(replyResult.value) ? replyResult.value : []);
+      }
+      if (noteResult.status === "fulfilled") {
+        setInternalNotes(Array.isArray(noteResult.value) ? noteResult.value : []);
+      }
+      if (customerResult.status === "fulfilled" && customerResult.value) {
+        const cust = customerResult.value;
+        setCustomerPhone(cust?.phone ?? null);
+        setCustomerEmail(cust?.email ?? null);
+      } else {
+        setCustomerPhone(null);
+        setCustomerEmail(null);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingOperations(false);
+      }
     }
   }
 
@@ -1094,29 +1128,9 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     }
   }
 
-  async function updateConversationStatus(status: ConversationStatus): Promise<void> {
+  async function applyConversationStatus(status: ConversationStatus): Promise<void> {
     if (!selectedConversation || isSavingStatus) {
       return;
-    }
-
-    if (status === "RESOLVED") {
-      try {
-        const { count } = await apiFetch<{ count: number }>(
-          `/api/v1/inbox/conversations/${selectedConversation.id}/unreplied-count`
-        );
-        if (count > 0) {
-          const confirmed = window.confirm(
-            t.resolveUnrepliedWarning.replace("{count}", String(count))
-          );
-          if (!confirmed) {
-            setIsStatusMenuOpen(false);
-            return;
-          }
-        }
-      } catch (countError) {
-        setError(readMessage(countError, "Could not verify unreplied messages."));
-        return;
-      }
     }
 
     setIsSavingStatus(true);
@@ -1149,6 +1163,35 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     } finally {
       setIsSavingStatus(false);
     }
+  }
+
+  async function updateConversationStatus(status: ConversationStatus): Promise<void> {
+    if (!selectedConversation || isSavingStatus) {
+      return;
+    }
+
+    if (status === "RESOLVED") {
+      try {
+        const { count } = await apiFetch<{ count: number }>(
+          `/api/v1/inbox/conversations/${selectedConversation.id}/unreplied-count`
+        );
+        if (count > 0) {
+          setResolveUnrepliedCount(count);
+          setIsStatusMenuOpen(false);
+          return;
+        }
+      } catch (countError) {
+        setError(readMessage(countError, "Could not verify unreplied messages."));
+        return;
+      }
+    }
+
+    await applyConversationStatus(status);
+  }
+
+  async function confirmResolveWithUnreplied(): Promise<void> {
+    setResolveUnrepliedCount(null);
+    await applyConversationStatus("RESOLVED");
   }
 
   async function saveAlertMinutes(): Promise<void> {
@@ -1312,7 +1355,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     setError(null);
     try {
       const newTag = await apiFetch<ConversationTag>("/api/v1/inbox/tags", {
-        body: JSON.stringify({ name: name.trim(), color: "#4f46e5" }),
+        body: JSON.stringify({ name: name.trim() }),
         headers: { "Content-Type": "application/json" },
         method: "POST"
       });
@@ -1554,16 +1597,16 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     if (pendingFlowId) {
       trace(pendingFlowId, "DOM_PAINTED");
     }
-    console.log("[TRACE] [DOM_PAINTED]", Date.now());
+    devTrace("[TRACE] [DOM_PAINTED]", Date.now());
   }, [messages, trace]);
 
   renderCount.current++;
-  console.log(
+  devTrace(
     "[TRACE] MESSAGE_LIST_RENDER",
     renderCount.current,
     Date.now()
   );
-  console.log(
+  devTrace(
     "[TRACE] MESSAGE_COUNT",
     messages.length
   );
@@ -1572,7 +1615,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   if (pendingFlowIdForRender) {
     trace(pendingFlowIdForRender, "REACT_RENDER_START");
     const now = Date.now();
-    console.log("[TRACE] [COMPONENT_RENDER]", pendingFlowIdForRender, now);
+    devTrace("[TRACE] [COMPONENT_RENDER]", pendingFlowIdForRender, now);
     if (!componentRenderMapRef.current.has(pendingFlowIdForRender)) {
       componentRenderMapRef.current.set(pendingFlowIdForRender, now);
     }
@@ -1582,6 +1625,33 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     <section aria-labelledby="inbox-heading" className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white">
       <h1 id="inbox-heading" className="sr-only">Unified Inbox</h1>
       {error ? <p className="shrink-0 px-6 py-2 text-sm text-danger">{error}</p> : null}
+      {resolveUnrepliedCount !== null ? (
+        <div
+          className="mx-6 mb-2 flex items-center gap-3 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2"
+          role="alertdialog"
+          aria-labelledby="resolve-unreplied-title"
+        >
+          <AlertTriangle size={16} className="shrink-0 text-amber-700" aria-hidden="true" />
+          <p id="resolve-unreplied-title" className="flex-1 text-sm text-amber-900">
+            {t.resolveUnrepliedWarning.replace("{count}", String(resolveUnrepliedCount))}
+          </p>
+          <Button
+            size="sm"
+            onClick={() => void confirmResolveWithUnreplied()}
+            disabled={isSavingStatus}
+          >
+            {isSavingStatus ? "Saving..." : locale === "th" ? "ยืนยัน" : "Confirm"}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setResolveUnrepliedCount(null)}
+            disabled={isSavingStatus}
+          >
+            {locale === "th" ? "ยกเลิก" : "Cancel"}
+          </Button>
+        </div>
+      ) : null}
 
       <div
         data-testid="inbox-layout"
@@ -1692,6 +1762,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
                 onQuickReply={() => {
                   setMobileTab("customers");
                 }}
+                quickReplyHotkeyHint={quickReplyHotkeyHint}
                 onUpdatePriority={updatePriority}
                 onUpdateStatus={(status) => void updateConversationStatus(status)}
                 priority={conversationPriority(selectedConversation)}
@@ -1881,10 +1952,16 @@ function telemetryAuthHeaders(): Record<string, string> {
 
 type StreamTenantEventsResult = "completed" | "auth_failed" | "aborted";
 
+type StreamTenantEventsOptions = {
+  onOpen?: () => void;
+  onClose?: () => void;
+};
+
 async function streamTenantEvents(
   tenantId: string,
   signal: AbortSignal,
-  onEvent: (event: TenantRealtimeEvent) => void
+  onEvent: (event: TenantRealtimeEvent) => void,
+  options?: StreamTenantEventsOptions
 ): Promise<StreamTenantEventsResult> {
   if (signal.aborted) {
     return "aborted";
@@ -1908,41 +1985,47 @@ async function streamTenantEvents(
       return "completed";
     }
 
-    console.log("[TRACE] SSE_OPEN", Date.now());
+    options?.onOpen?.();
+    devTrace("[TRACE] SSE_OPEN", Date.now());
 
     const decoder = new TextDecoder();
     let buffer = "";
-    while (!signal.aborted) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      buffer += decoder.decode(value, { stream: true });
-      let boundary = buffer.indexOf("\n\n");
-      while (boundary >= 0) {
-        const block = buffer.slice(0, boundary);
-        buffer = buffer.slice(boundary + 2);
-        console.log(
-          "[TRACE] RAW_SSE_MESSAGE",
-          Date.now(),
-          block
-        );
-        const event = parseSseBlock(block);
-        if (event) {
-          onEvent(event);
-        } else {
-          console.error(
-            "[TRACE] SSE_PARSE_ERROR",
-            "Could not parse block:",
+    try {
+      while (!signal.aborted) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+        buffer += decoder.decode(value, { stream: true });
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary >= 0) {
+          const block = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+          devTrace(
+            "[TRACE] RAW_SSE_MESSAGE",
+            Date.now(),
             block
           );
+          const event = parseSseBlock(block);
+          if (event) {
+            onEvent(event);
+          } else {
+            devTraceError(
+              "[TRACE] SSE_PARSE_ERROR",
+              "Could not parse block:",
+              block
+            );
+          }
+          boundary = buffer.indexOf("\n\n");
         }
-        boundary = buffer.indexOf("\n\n");
       }
+    } finally {
+      reader.releaseLock();
+      options?.onClose?.();
     }
-    reader.releaseLock();
     return signal.aborted ? "aborted" : "completed";
   } catch {
+    options?.onClose?.();
     if (!signal.aborted) {
       // Polling remains as fallback when the realtime stream is unavailable.
     }

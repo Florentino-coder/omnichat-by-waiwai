@@ -16,17 +16,47 @@ type LineChannel = {
   lineChannelId: string;
 };
 
+type LineTextMessage = {
+  type: "text";
+  text: string;
+};
+
+type LineImageMessage = {
+  type: "image";
+  originalContentUrl: string;
+  previewImageUrl: string;
+};
+
+type LineBroadcastMessage = LineTextMessage | LineImageMessage;
+
+type MulticastMessagePayload = {
+  to?: string[];
+  messages: LineBroadcastMessage[];
+};
+
+type BroadcastJobMessages = LineBroadcastMessage[] | MulticastMessagePayload;
+
 type BroadcastJob = {
   id: string;
   type: "BROADCAST" | "MULTICAST";
   status: "PENDING" | "PROCESSING" | "SENT" | "FAILED";
   recipientCount: number | null;
-  messages: any;
+  messages: BroadcastJobMessages;
   scheduledAt: string | null;
   sentAt: string | null;
   errorMessage: string | null;
   createdAt: string;
 };
+
+function getJobMessageList(job: BroadcastJob): LineBroadcastMessage[] {
+  if (job.type === "BROADCAST") {
+    return Array.isArray(job.messages) ? job.messages : [];
+  }
+  if (job.messages && typeof job.messages === "object" && !Array.isArray(job.messages)) {
+    return Array.isArray(job.messages.messages) ? job.messages.messages : [];
+  }
+  return [];
+}
 
 export default function BroadcastPage() {
   const { locale } = useLanguage();
@@ -559,24 +589,11 @@ export default function BroadcastPage() {
                       </thead>
                       <tbody className="divide-y divide-[#DEDDE6]/40 text-[#16182B]">
                         {jobs.map((job) => {
-                          // Extract content info
-                          let textSnippet = "";
-                          let hasImage = false;
-
-                          if (job.type === "BROADCAST") {
-                            const msgs = Array.isArray(job.messages) ? job.messages : [];
-                            const txtMsg = msgs.find((m: any) => m.type === "text");
-                            const imgMsg = msgs.find((m: any) => m.type === "image");
-                            textSnippet = txtMsg?.text || "";
-                            hasImage = !!imgMsg;
-                          } else {
-                            const payload = job.messages as any;
-                            const msgs = Array.isArray(payload?.messages) ? payload.messages : [];
-                            const txtMsg = msgs.find((m: any) => m.type === "text");
-                            const imgMsg = msgs.find((m: any) => m.type === "image");
-                            textSnippet = txtMsg?.text || "";
-                            hasImage = !!imgMsg;
-                          }
+                          const msgs = getJobMessageList(job);
+                          const txtMsg = msgs.find((message) => message.type === "text");
+                          const imgMsg = msgs.find((message) => message.type === "image");
+                          const textSnippet = txtMsg?.type === "text" ? txtMsg.text : "";
+                          const hasImage = Boolean(imgMsg);
 
                           return (
                             <tr key={job.id} className="hover:bg-slate-50/50">
