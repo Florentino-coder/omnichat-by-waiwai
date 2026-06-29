@@ -7,6 +7,7 @@ import { apiFetch } from "../../lib/api-client";
 import { clearAuthSessionCookies } from "../../lib/session-cookies";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
+import { showTestDesktopNotification } from "../../lib/browser-notifications";
 import { useBrowserNotifications } from "../../lib/use-browser-notifications";
 
 type UserProfile = {
@@ -33,6 +34,8 @@ export function ProfileEditor({ active }: { active: boolean }) {
   const [displayName, setDisplayName] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [notificationTestMessage, setNotificationTestMessage] = useState<string | null>(null);
+  const [notificationTestIsError, setNotificationTestIsError] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
   // Password Form State
@@ -255,21 +258,67 @@ export function ProfileEditor({ active }: { active: boolean }) {
               {t.desktopNotifications}
             </h2>
             <p className="text-sm text-[#767A8C]">{t.desktopNotificationsHint}</p>
+            <p className="text-sm text-amber-700">{t.desktopNotificationsWindowsHint}</p>
           </div>
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              checked={desktopNotificationsEnabled}
-              onChange={(event) => {
-                const next = event.target.checked;
-                setDesktopNotificationsEnabled(next);
-                if (next && notificationPermission === "default") {
-                  void requestDesktopNotificationPermission();
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-3 text-sm">
+              <input
+                checked={desktopNotificationsEnabled}
+                onChange={(event) => {
+                  setNotificationTestMessage(null);
+                  setNotificationTestIsError(false);
+                  const next = event.target.checked;
+                  setDesktopNotificationsEnabled(next);
+                  if (next && notificationPermission === "default") {
+                    void requestDesktopNotificationPermission();
+                  }
+                }}
+                type="checkbox"
+              />
+              {t.enableDesktopNotifications}
+            </label>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={!desktopNotificationsEnabled || notificationPermission !== "granted"}
+              onClick={() => {
+                const result = showTestDesktopNotification();
+                if (result.ok) {
+                  setNotificationTestIsError(false);
+                  setNotificationTestMessage(t.testDesktopNotificationSent);
+                  return;
                 }
+                setNotificationTestIsError(true);
+                if (result.reason === "denied") {
+                  setNotificationTestMessage(t.testDesktopNotificationDenied);
+                  window.alert(`${t.testDesktopNotificationDenied}\n\n${t.desktopNotificationsWindowsHint}`);
+                  return;
+                }
+                if (result.reason === "disabled") {
+                  setNotificationTestMessage(t.testDesktopNotificationDisabled);
+                  return;
+                }
+                if (result.reason === "unsupported") {
+                  setNotificationTestMessage(t.testDesktopNotificationFailed);
+                  window.alert(t.testDesktopNotificationFailed);
+                  return;
+                }
+                const detail = result.message ? `\n\n${result.message}` : "";
+                setNotificationTestMessage(t.testDesktopNotificationFailed);
+                window.alert(`${t.testDesktopNotificationFailed}${detail}\n\n${t.desktopNotificationsWindowsHint}`);
               }}
-              type="checkbox"
-            />
-            {t.enableDesktopNotifications}
-          </label>
+            >
+              {t.testDesktopNotification}
+            </Button>
+          </div>
+          {notificationTestMessage ? (
+            <p
+              className={`mt-2 text-xs ${notificationTestIsError ? "text-amber-700" : "text-emerald-700"}`}
+            >
+              {notificationTestMessage}
+            </p>
+          ) : null}
           {notificationPermission === "denied" ? (
             <p className="mt-2 text-xs text-amber-700">
               {locale === "th"

@@ -705,7 +705,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
               event.data.messageId &&
               eventConversationId &&
               canShowDesktopNotification() &&
-              shouldShowDesktopNotification()
+              shouldShowDesktopNotification({
+                incomingConversationId: eventConversationId,
+                activeConversationId: selectedIdRef.current,
+              })
             ) {
               const conversation = conversationsRef.current.find(
                 (item) => item.id === eventConversationId

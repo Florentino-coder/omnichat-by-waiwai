@@ -3,6 +3,7 @@ import {
   resetNotifiedMessageIdsForTests,
   shouldShowDesktopNotification,
   showInboundMessageNotification,
+  showTestDesktopNotification,
   writeDesktopNotificationsPref
 } from "../app/lib/browser-notifications";
 
@@ -63,5 +64,55 @@ describe("browser-notifications", () => {
     Object.defineProperty(document, "hidden", { configurable: true, value: false });
     jest.spyOn(document, "hasFocus").mockReturnValue(true);
     expect(shouldShowDesktopNotification()).toBe(false);
+  });
+
+  it("shows when inbox tab focused but user is not viewing that conversation", () => {
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+
+    expect(
+      shouldShowDesktopNotification({
+        incomingConversationId: "conversation-inbound",
+        activeConversationId: null,
+      })
+    ).toBe(true);
+
+    expect(
+      shouldShowDesktopNotification({
+        incomingConversationId: "conversation-inbound",
+        activeConversationId: "conversation-other",
+      })
+    ).toBe(true);
+
+    expect(
+      shouldShowDesktopNotification({
+        incomingConversationId: "conversation-inbound",
+        activeConversationId: "conversation-inbound",
+      })
+    ).toBe(false);
+  });
+
+  it("fires test notification when permission and pref are granted", () => {
+    const notificationMock = jest.fn();
+    class MockNotification {
+      static permission: NotificationPermission = "granted";
+      onclick: (() => void) | null = null;
+      constructor(public title: string, public options?: NotificationOptions) {
+        notificationMock(title, options);
+      }
+      close() {}
+    }
+    Object.defineProperty(window, "Notification", {
+      configurable: true,
+      value: MockNotification
+    });
+    writeDesktopNotificationsPref(true);
+
+    const result = showTestDesktopNotification();
+    expect(result).toEqual({ ok: true });
+    expect(notificationMock).toHaveBeenCalledWith(
+      "OmniChat — ทดสอบ",
+      expect.objectContaining({ tag: "omnichat-test-notification" })
+    );
   });
 });

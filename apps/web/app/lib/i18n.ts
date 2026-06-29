@@ -58,7 +58,16 @@ export const messages = {
     confirmRemoveMemberBody: "ลบสมาชิกคนนี้ออกจาก workspace นี้หรือไม่?",
     desktopNotifications: "การแจ้งเตือนบนเดสก์ท็อป",
     desktopNotificationsHint:
-      "แจ้งเตือนเมื่อมีข้อความ LINE เข้า ขณะสลับแท็บหรือเปิดแอปอื่นทับ (ต้องเปิดหน้า Inbox ค้างไว้)",
+      "แจ้งเตือนเมื่อมีข้อความ LINE เข้า — ขณะสลับแท็บ/แอปอื่น หรือเมื่อเปิด Inbox แต่ยังไม่ได้เลือกห้องนั้น (ต้องเปิดหน้า Inbox ค้างไว้)",
+    desktopNotificationsWindowsHint:
+      "ถ้าไม่เห็นแบนเนอร์: ปิด ห้ามรบกวน (Focus assist) ใน Windows และเปิดแบนเนอร์ให้ Microsoft Edge ใน การตั้งค่า > ระบบ > การแจ้งเตือน",
+    testDesktopNotification: "ทดสอบการแจ้งเตือน",
+    testDesktopNotificationSent:
+      "ส่งการแจ้งเตือนทดสอบแล้ว — ดูมุมล่างขวาของจอ (ถ้าไม่เห็น ให้ปิดโหมดห้ามรบกวนใน Windows)",
+    testDesktopNotificationDenied: "เบราว์เซอร์ยังไม่อนุญาตการแจ้งเตือน",
+    testDesktopNotificationDisabled: "เปิดสวิตช์การแจ้งเตือนก่อน",
+    testDesktopNotificationFailed:
+      "สร้างการแจ้งเตือนไม่สำเร็จ — ลองรีเฟรชหน้าแล้วอนุญาตการแจ้งเตือนใหม่",
     enableDesktopNotifications: "เปิดการแจ้งเตือน",
     desktopNotificationsBanner: "เปิดการแจ้งเตือนบนเดสก์ท็อปเพื่อรับข้อความใหม่",
     pendingInvitations: "คำเชิญที่รอดำเนินการ",
@@ -520,7 +529,16 @@ export const messages = {
     confirmRemoveMemberBody: "Remove this member from the workspace?",
     desktopNotifications: "Desktop notifications",
     desktopNotificationsHint:
-      "Alert on inbound LINE messages when you switch tabs or another app is in front (keep Inbox open)",
+      "Alert on inbound LINE messages when you switch tabs/apps, or when Inbox is open but you are not viewing that conversation (keep Inbox open in a tab).",
+    desktopNotificationsWindowsHint:
+      "If no banner appears: turn off Focus assist (Do Not Disturb) in Windows and allow banners for Microsoft Edge under Settings > System > Notifications.",
+    testDesktopNotification: "Test notification",
+    testDesktopNotificationSent:
+      "Test notification sent — check the bottom-right corner (if missing, turn off Windows Focus assist)",
+    testDesktopNotificationDenied: "Browser has not granted notification permission",
+    testDesktopNotificationDisabled: "Turn on the notification switch first",
+    testDesktopNotificationFailed:
+      "Could not create a notification — refresh the page and grant permission again",
     enableDesktopNotifications: "Enable notifications",
     desktopNotificationsBanner: "Enable desktop notifications to get alerts for new messages",
     pendingInvitations: "Pending invitations",

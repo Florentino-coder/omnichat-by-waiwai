@@ -28,14 +28,37 @@ export function isNotificationSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-/** User is not actively viewing this browser tab (another tab or another app has focus). */
-export function shouldShowDesktopNotification(): boolean {
+export type DesktopNotificationContext = {
+  /** Conversation that received the inbound message. */
+  incomingConversationId: string;
+  /** Conversation currently open in the inbox thread panel, if any. */
+  activeConversationId?: string | null;
+};
+
+/**
+ * Show a desktop notification when the user is not actively reading that thread:
+ * - another tab/app has focus, or
+ * - inbox tab is focused but a different conversation is selected (or none).
+ */
+export function shouldShowDesktopNotification(context?: DesktopNotificationContext): boolean {
   if (typeof document === "undefined") {
     return false;
   }
+
   const pageHasFocus =
     typeof document.hasFocus === "function" ? document.hasFocus() : !document.hidden;
-  return document.hidden || !pageHasFocus;
+  const tabInBackground = document.hidden || !pageHasFocus;
+
+  if (tabInBackground) {
+    return true;
+  }
+
+  if (context?.incomingConversationId) {
+    const activeId = context.activeConversationId ?? null;
+    return activeId !== context.incomingConversationId;
+  }
+
+  return false;
 }
 
 export function canShowDesktopNotification(): boolean {
@@ -79,18 +102,57 @@ export function showInboundMessageNotification(options: {
   if (notifiedMessageIds.has(options.messageId)) {
     return;
   }
-  notifiedMessageIds.add(options.messageId);
 
-  const notification = new Notification(options.customerName, {
-    body: options.body ?? "New inbound message",
-    tag: options.messageId
-  });
+  try {
+    const notification = new Notification(options.customerName, {
+      body: options.body ?? "New inbound message",
+      tag: options.messageId,
+    });
 
-  notification.onclick = () => {
-    window.focus();
-    options.onSelectConversation(options.conversationId);
-    notification.close();
-  };
+    notifiedMessageIds.add(options.messageId);
+
+    notification.onclick = () => {
+      window.focus();
+      options.onSelectConversation(options.conversationId);
+      notification.close();
+    };
+  } catch {
+    // Constructor can throw if permission was revoked or OS blocks notifications.
+  }
+}
+
+/** Fires immediately — use from Settings to verify browser/OS notification setup. */
+export function showTestDesktopNotification():
+  | { ok: true }
+  | { ok: false; reason: "unsupported" | "denied" | "disabled" | "failed"; message?: string } {
+  if (!isNotificationSupported()) {
+    return { ok: false, reason: "unsupported" };
+  }
+
+  if (Notification.permission !== "granted") {
+    return { ok: false, reason: "denied" };
+  }
+
+  if (!readDesktopNotificationsPref()) {
+    return { ok: false, reason: "disabled" };
+  }
+
+  try {
+    const notification = new Notification("OmniChat — ทดสอบ", {
+      body: "ถ้าเห็นข้อความนี้ การแจ้งเตือนทำงานแล้ว",
+      tag: "omnichat-test-notification",
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+
+    return { ok: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown";
+    return { ok: false, reason: "failed", message };
+  }
 }
 
 export function resetNotifiedMessageIdsForTests(): void {
