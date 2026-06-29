@@ -57,7 +57,8 @@ export const messages = {
     confirmRemoveMember: "ยืนยันการลบสมาชิก",
     confirmRemoveMemberBody: "ลบสมาชิกคนนี้ออกจาก workspace นี้หรือไม่?",
     desktopNotifications: "การแจ้งเตือนบนเดสก์ท็อป",
-    desktopNotificationsHint: "แจ้งเตือนเมื่อมีข้อความใหม่ขณะแท็บไม่ได้เปิดอยู่",
+    desktopNotificationsHint:
+      "แจ้งเตือนเมื่อมีข้อความ LINE เข้า ขณะสลับแท็บหรือเปิดแอปอื่นทับ (ต้องเปิดหน้า Inbox ค้างไว้)",
     enableDesktopNotifications: "เปิดการแจ้งเตือน",
     desktopNotificationsBanner: "เปิดการแจ้งเตือนบนเดสก์ท็อปเพื่อรับข้อความใหม่",
     pendingInvitations: "คำเชิญที่รอดำเนินการ",
@@ -518,7 +519,8 @@ export const messages = {
     confirmRemoveMember: "Remove member",
     confirmRemoveMemberBody: "Remove this member from the workspace?",
     desktopNotifications: "Desktop notifications",
-    desktopNotificationsHint: "Notify when new messages arrive while the tab is hidden",
+    desktopNotificationsHint:
+      "Alert on inbound LINE messages when you switch tabs or another app is in front (keep Inbox open)",
     enableDesktopNotifications: "Enable notifications",
     desktopNotificationsBanner: "Enable desktop notifications to get alerts for new messages",
     pendingInvitations: "Pending invitations",

@@ -1,6 +1,7 @@
 import {
   readDesktopNotificationsPref,
   resetNotifiedMessageIdsForTests,
+  shouldShowDesktopNotification,
   showInboundMessageNotification,
   writeDesktopNotificationsPref
 } from "../app/lib/browser-notifications";
@@ -31,6 +32,7 @@ describe("browser-notifications", () => {
       configurable: true,
       value: MockNotification
     });
+    writeDesktopNotificationsPref(true);
 
     const onSelectConversation = jest.fn();
     showInboundMessageNotification({
@@ -47,5 +49,19 @@ describe("browser-notifications", () => {
     });
 
     expect(notificationMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows when tab hidden or window lost focus", () => {
+    Object.defineProperty(document, "hidden", { configurable: true, value: true });
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    expect(shouldShowDesktopNotification()).toBe(true);
+
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    jest.spyOn(document, "hasFocus").mockReturnValue(false);
+    expect(shouldShowDesktopNotification()).toBe(true);
+
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    jest.spyOn(document, "hasFocus").mockReturnValue(true);
+    expect(shouldShowDesktopNotification()).toBe(false);
   });
 });

@@ -5,7 +5,9 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@omnichat/ui";
 import { devTrace, devTraceError } from "../../lib/dev-trace";
 import {
-  showInboundMessageNotification
+  canShowDesktopNotification,
+  showInboundMessageNotification,
+  shouldShowDesktopNotification
 } from "../../lib/browser-notifications";
 import { useBrowserNotifications } from "../../lib/use-browser-notifications";
 import { ChatWindow, type ChatMessageItem } from "../../../components/inbox/ChatWindow";
@@ -187,10 +189,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     requestPermission: requestDesktopNotificationPermission
   } = useBrowserNotifications();
   const [notificationBannerDismissed, setNotificationBannerDismissed] = useState(false);
-  const desktopNotificationsEnabledRef = useRef(false);
-  const notificationPermissionRef = useRef<NotificationPermission | "unsupported">("default");
-  desktopNotificationsEnabledRef.current = desktopNotificationsEnabled;
-  notificationPermissionRef.current = notificationPermission;
   const [conversations, setConversations] = useState<InboxConversation[]>(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<InboxMessage[]>([]);
@@ -706,10 +704,8 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
               event.data?.direction === "INBOUND" &&
               event.data.messageId &&
               eventConversationId &&
-              desktopNotificationsEnabledRef.current &&
-              notificationPermissionRef.current === "granted" &&
-              typeof document !== "undefined" &&
-              document.hidden
+              canShowDesktopNotification() &&
+              shouldShowDesktopNotification()
             ) {
               const conversation = conversationsRef.current.find(
                 (item) => item.id === eventConversationId

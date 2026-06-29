@@ -28,6 +28,27 @@ export function isNotificationSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
+/** User is not actively viewing this browser tab (another tab or another app has focus). */
+export function shouldShowDesktopNotification(): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const pageHasFocus =
+    typeof document.hasFocus === "function" ? document.hasFocus() : !document.hidden;
+  return document.hidden || !pageHasFocus;
+}
+
+export function canShowDesktopNotification(): boolean {
+  if (!isNotificationSupported()) {
+    return false;
+  }
+  return Notification.permission === "granted" && readDesktopNotificationsPref();
+}
+
+export function syncNotificationPermission(): NotificationPermission | "unsupported" {
+  return getNotificationPermission();
+}
+
 export function getNotificationPermission(): NotificationPermission | "unsupported" {
   if (!isNotificationSupported()) {
     return "unsupported";
@@ -52,7 +73,7 @@ export function showInboundMessageNotification(options: {
   body?: string;
   onSelectConversation: (conversationId: string) => void;
 }): void {
-  if (!isNotificationSupported() || Notification.permission !== "granted") {
+  if (!canShowDesktopNotification()) {
     return;
   }
   if (notifiedMessageIds.has(options.messageId)) {
