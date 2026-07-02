@@ -32,7 +32,9 @@ export function useMessages({
         const data = await apiFetch<ConversationMessagesPage | InboxMessage[]>(
           `/api/v1/inbox/conversations/${conversationId}/messages?limit=50`
         );
+        console.log('[SSE] loadMessages fetched data for:', conversationId, '| currently selected:', selectedIdRef.current, '| match:', selectedIdRef.current === conversationId, '| isMounted:', isMountedRef.current);
         if (isMountedRef.current && selectedIdRef.current === conversationId) {
+          console.log('[SSE] condition matched! Setting messages state with:', Array.isArray(data) ? data.length : (data as any)?.messages?.length, 'messages');
           onStateUpdateTrace();
           const page = Array.isArray(data)
             ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }

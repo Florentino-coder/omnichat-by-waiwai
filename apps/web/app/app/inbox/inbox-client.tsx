@@ -464,6 +464,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const refreshThread = useCallback(
     async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
       const quiet = options?.quiet ?? true;
+      console.log('[SSE] refreshThread called for conversationId:', conversationId, '| currently selectedIdRef.current:', selectedIdRef.current);
       await Promise.all([
         loadConversations({ quiet }),
         selectedIdRef.current === conversationId
