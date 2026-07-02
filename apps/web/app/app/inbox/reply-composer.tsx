@@ -211,6 +211,8 @@ export function ReplyComposer({
   // Re-fetch when the latest inbound message changes (e.g. after thread load or SSE refresh)
   useEffect(() => {
     if (conversationId && latestInboundMessageId && enableHybridAutoDraft) {
+      console.log('[AI Draft] New inbound message received. Clearing suppressActiveSuggestionRef.');
+      suppressActiveSuggestionRef.current = false;
       void loadActiveSuggestion(conversationId);
     }
   }, [latestInboundMessageId, conversationId, enableHybridAutoDraft]);
