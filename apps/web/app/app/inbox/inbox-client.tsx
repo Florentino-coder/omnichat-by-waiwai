@@ -303,6 +303,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     loadOlderMessages,
   } = useMessages({
     selectedIdRef,
+    isMountedRef,
     messagesScrollRef,
     isPrependingMessagesRef,
     setError,
@@ -470,7 +471,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
           : Promise.resolve()
       ]);
     },
-    [loadConversations, loadMessages]
+    [loadConversations, loadMessages, selectedIdRef]
   );
 
   function addOptimisticOutboundMessage(conversationId: string, text: string): void {

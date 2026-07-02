@@ -4,12 +4,14 @@ import type { InboxMessage, ConversationMessagesPage } from "../inbox-client";
 
 export function useMessages({
   selectedIdRef,
+  isMountedRef,
   messagesScrollRef,
   isPrependingMessagesRef,
   setError,
   onStateUpdateTrace,
 }: {
   selectedIdRef: MutableRefObject<string | null>;
+  isMountedRef: MutableRefObject<boolean>;
   messagesScrollRef: MutableRefObject<HTMLDivElement | null>;
   isPrependingMessagesRef: MutableRefObject<boolean>;
   setError: (error: string | null) => void;
@@ -19,15 +21,6 @@ export function useMessages({
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
-
-  const isMountedRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   const loadMessages = useCallback(
     async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
