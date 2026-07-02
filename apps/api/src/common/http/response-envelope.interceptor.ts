@@ -36,6 +36,17 @@ export class ResponseEnvelopeInterceptor<T>
     context: ExecutionContext,
     next: CallHandler<T>
   ): Observable<SuccessEnvelope<T> | MaybeEnvelope<T> | void> {
+    // Bypassing SSE endpoints from response wrapping
+    if (context.getType() === "http") {
+      const request = context.switchToHttp().getRequest<any>();
+      if (
+        request?.headers?.accept === "text/event-stream" ||
+        request?.path?.includes("/sse/")
+      ) {
+        return next.handle();
+      }
+    }
+
     const statusCode = this.reflector.get<number>(
       HTTP_CODE_METADATA,
       context.getHandler()
