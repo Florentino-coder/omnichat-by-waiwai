@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, MutableRefObject } from "react";
+import { useCallback, useState, MutableRefObject } from "react";
 import { apiFetch } from "../../../lib/api-client";
 import type { InboxMessage, ConversationMessagesPage } from "../inbox-client";
 
