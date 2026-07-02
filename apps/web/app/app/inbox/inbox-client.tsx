@@ -464,7 +464,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const refreshThread = useCallback(
     async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
       const quiet = options?.quiet ?? true;
-      console.log('[SSE] refreshThread called for conversationId:', conversationId, '| currently selectedIdRef.current:', selectedIdRef.current);
       await Promise.all([
         loadConversations({ quiet }),
         selectedIdRef.current === conversationId
@@ -1230,10 +1229,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       isActive: conversation.id === selectedId
     };
   });
-  console.log(
-    '[RENDER] inbox-client re-rendering. Messages count:', messages.length,
-    '| Last message in state:', messages[messages.length - 1]?.text, 'at', messages[messages.length - 1]?.createdAt
-  );
   const lastOutboundMessage = [...messages].reverse().find((message) => message.direction === "OUTBOUND");
   const threadAiAutoReplyBadge = isAiAutoReplyOutboundMessage(lastOutboundMessage)
     ? t.aiAutoReplyBadge

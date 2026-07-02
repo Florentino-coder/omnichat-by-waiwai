@@ -32,15 +32,12 @@ export function useMessages({
         const data = await apiFetch<ConversationMessagesPage | InboxMessage[]>(
           `/api/v1/inbox/conversations/${conversationId}/messages?limit=50`
         );
-        console.log('[SSE] loadMessages fetched data for:', conversationId, '| currently selected:', selectedIdRef.current, '| match:', selectedIdRef.current === conversationId, '| isMounted:', isMountedRef.current);
         if (isMountedRef.current && selectedIdRef.current === conversationId) {
-          console.log('[SSE] condition matched! Setting messages state with:', Array.isArray(data) ? data.length : (data as any)?.messages?.length, 'messages');
           onStateUpdateTrace();
           const page = Array.isArray(data)
             ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }
             : data;
           const fetchedMessages = Array.isArray(page.messages) ? page.messages : [];
-          console.log('[SSE] Fetched messages range: First (Oldest):', fetchedMessages[0]?.text, 'at', fetchedMessages[0]?.createdAt, '| Last (Newest):', fetchedMessages[fetchedMessages.length - 1]?.text, 'at', fetchedMessages[fetchedMessages.length - 1]?.createdAt);
           
           if (options?.quiet) {
             setMessages((prev) => {
@@ -60,11 +57,9 @@ export function useMessages({
               }
               
               const merged = [...realPrev, ...newOnes, ...remainingOptimistic];
-              console.log('[SSE] Merged messages. Prev:', prev.length, '| Fetched:', fetchedMessages.length, '| Added:', newOnes.length, '| Remaining Optimistic:', remainingOptimistic.length, '| Total:', merged.length);
               return merged.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
             });
           } else {
-            console.log('[SSE] Fresh load. Replacing messages state with fetched:', fetchedMessages.length);
             setMessages(fetchedMessages);
           }
           setHasMoreMessages(Boolean(page.hasMore));
