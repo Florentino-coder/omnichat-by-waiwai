@@ -125,10 +125,13 @@ export function ReplyComposer({
 
   // Load active suggestion helper
   const loadActiveSuggestion = async (convId: string) => {
+    console.log('[AI Draft] loadActiveSuggestion helper called for convId:', convId, 'enableHybridAutoDraft:', enableHybridAutoDraft, 'suppressActiveSuggestion:', suppressActiveSuggestionRef.current);
     if (!enableHybridAutoDraft || suppressActiveSuggestionRef.current) {
+      console.log('[AI Draft] loadActiveSuggestion early return due to disable or suppress');
       return;
     }
     try {
+      console.log('[AI Draft] fetching active suggestion from API...');
       const res = await apiFetch<{
         suggestion_id: string | null;
         suggestion_text: string | null;
@@ -136,6 +139,7 @@ export function ReplyComposer({
         confidence?: number | null;
         confidence_threshold?: number;
       }>(`/api/v1/inbox/conversations/${convId}/active-suggestion`);
+      console.log('[AI Draft] API response received:', JSON.stringify(res, null, 2));
 
       if (res) {
         setConfidence(res.confidence ?? null);
@@ -146,17 +150,25 @@ export function ReplyComposer({
           const currentVal = textareaRef.current ? textareaRef.current.value : text;
           const isComposerEmptyOrUnmodified =
             currentVal.trim() === "" || currentVal === lastSuggestionText;
+          console.log('[AI Draft] suggestion check:', {
+            suggestion_id: res.suggestion_id,
+            currentVal,
+            lastSuggestionText,
+            isComposerEmptyOrUnmodified
+          });
 
           if (isComposerEmptyOrUnmodified) {
             setSuggestionId(res.suggestion_id);
             setKnowledgeCitations(res.knowledge_citations || []);
             if (res.suggestion_text) {
+              console.log('[AI Draft] setting composer text to:', res.suggestion_text);
               isProgrammaticRef.current = true;
               setText(res.suggestion_text);
               setLastSuggestionText(res.suggestion_text);
               setKnowledgeOnlyMode(false);
               setKnowledgeOnlyFromQuota(false);
             } else {
+              console.log('[AI Draft] setting composer text to empty (knowledge only)');
               isProgrammaticRef.current = true;
               setText("");
               setLastSuggestionText("");
@@ -164,11 +176,15 @@ export function ReplyComposer({
               setKnowledgeOnlyFromQuota(false);
             }
             setCameFromAiGenerate(true);
+          } else {
+            console.log('[AI Draft] composer was modified, preventing overwrite');
           }
+        } else {
+          console.log('[AI Draft] no suggestion_id in response');
         }
       }
     } catch (err) {
-      // Ignore
+      console.error('[AI Draft] loadActiveSuggestion threw error:', err);
     }
   };
 
@@ -186,6 +202,7 @@ export function ReplyComposer({
 
   // Load active suggestion on refresh nonce
   useEffect(() => {
+    console.log('[AI Draft] useEffect refreshSuggestionNonce changed:', refreshSuggestionNonce, 'conversationId:', conversationId);
     if (conversationId && refreshSuggestionNonce > 0) {
       void loadActiveSuggestion(conversationId);
     }
