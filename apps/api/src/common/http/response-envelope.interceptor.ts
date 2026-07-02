@@ -43,7 +43,7 @@ export class ResponseEnvelopeInterceptor<T>
         request?.headers?.accept === "text/event-stream" ||
         request?.path?.includes("/sse/")
       ) {
-        return next.handle();
+        return next.handle() as any;
       }
     }
 
