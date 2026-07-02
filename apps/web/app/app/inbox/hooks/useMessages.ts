@@ -39,7 +39,9 @@ export function useMessages({
           const page = Array.isArray(data)
             ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }
             : data;
-          setMessages(Array.isArray(page.messages) ? page.messages : []);
+          const messagesArray = Array.isArray(page.messages) ? page.messages : [];
+          console.log('[SSE] Fetched messages range: First (Oldest):', messagesArray[0]?.text, 'at', messagesArray[0]?.createdAt, '| Last (Newest):', messagesArray[messagesArray.length - 1]?.text, 'at', messagesArray[messagesArray.length - 1]?.createdAt);
+          setMessages(messagesArray);
           setHasMoreMessages(Boolean(page.hasMore));
         }
       } catch (loadError) {

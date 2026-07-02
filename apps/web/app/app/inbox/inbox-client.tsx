@@ -1230,6 +1230,10 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       isActive: conversation.id === selectedId
     };
   });
+  console.log(
+    '[RENDER] inbox-client re-rendering. Messages count:', messages.length,
+    '| Last message in state:', messages[messages.length - 1]?.text, 'at', messages[messages.length - 1]?.createdAt
+  );
   const lastOutboundMessage = [...messages].reverse().find((message) => message.direction === "OUTBOUND");
   const threadAiAutoReplyBadge = isAiAutoReplyOutboundMessage(lastOutboundMessage)
     ? t.aiAutoReplyBadge
