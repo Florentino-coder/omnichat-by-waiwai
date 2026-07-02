@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const p = new PrismaClient(); p.knowledgeChunk.count().then(c => console.log('CHUNK_COUNT_IS:', c)).finally(() => p.$disconnect());

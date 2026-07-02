@@ -11,8 +11,25 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger("Bootstrap");
   logger.log(`Bootstrapping API (NODE_ENV=${process.env.NODE_ENV ?? "unknown"})`);
   const app = await NestFactory.create(AppModule, { rawBody: true });
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (allowedOrigins.length === 0) {
+    throw new Error("ALLOWED_ORIGINS must be set — refusing to start with open CORS");
+  }
+
   app.enableCors({
-    origin: true,
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(requestOrigin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`Origin ${requestOrigin} not allowed by CORS`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
   });

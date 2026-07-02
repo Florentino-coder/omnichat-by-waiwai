@@ -5,14 +5,11 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@omnichat/ui";
 import { devTrace } from "../../lib/dev-trace";
 import {
-  isInboundRealtimeDirection,
   notifyNewInboundFromConversationSnapshots,
-  tryShowInboundMessageNotification,
   type ConversationInboundSnapshot,
 } from "../../lib/browser-notifications";
 import { setActiveInboxConversationId } from "../../lib/inbox-focus";
 import { useBrowserNotifications } from "../../lib/use-browser-notifications";
-import { streamTenantEvents } from "../../lib/tenant-sse-stream";
 import { ChatWindow, type ChatMessageItem } from "../../../components/inbox/ChatWindow";
 import {
   ConversationList,
@@ -25,14 +22,19 @@ import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages } from "../../lib/i18n";
 import { ReplyComposer } from "./reply-composer";
+import { useConversations } from "./hooks/useConversations";
+import { useMessages } from "./hooks/useMessages";
+import { useCustomerPanel } from "./hooks/useCustomerPanel";
+import { useAiSuggest } from "./hooks/useAiSuggest";
+import { useInboxSSE } from "./hooks/useInboxSSE";
 
-type ConversationMessagesPage = {
+export type ConversationMessagesPage = {
   messages: InboxMessage[];
   hasMore: boolean;
   oldestId: string | null;
 };
 
-type MessageDirection = "INBOUND" | "OUTBOUND";
+export type MessageDirection = "INBOUND" | "OUTBOUND";
 type ConversationStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 type ConversationPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
 
@@ -84,7 +86,7 @@ type WorkspaceMember = {
   } | null;
 };
 
-type ConversationTag = {
+export type ConversationTag = {
   id: string;
   name: string;
   color?: string | null;
@@ -97,7 +99,7 @@ type ConversationTagLink = {
   tag?: ConversationTag | null;
 };
 
-type SavedReply = {
+export type SavedReply = {
   id: string;
   lineChannelId?: string | null;
   title: string;
@@ -108,14 +110,14 @@ type SavedReply = {
   hotkeyBinding?: string | null;
 };
 
-type ConversationInternalNote = {
+export type ConversationInternalNote = {
   id: string;
   body: string;
   createdAt: string;
   authorMemberId?: string | null;
 };
 
-type InboxMessage = {
+export type InboxMessage = {
   id: string;
   direction: MessageDirection;
   type?: string | null;
@@ -129,7 +131,7 @@ type InboxMessage = {
   mediaFileName?: string | null;
 };
 
-type LineMessagePayload = {
+export type LineMessagePayload = {
   omnichatMeta?: {
     triggeredBy?: string;
     escalation?: boolean;
@@ -177,56 +179,29 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     requestPermission: requestDesktopNotificationPermission
   } = useBrowserNotifications();
   const [notificationBannerDismissed, setNotificationBannerDismissed] = useState(false);
-  const conversationsHydratedRef = useRef(initialConversations.length > 0);
-  const [conversations, setConversations] = useState<InboxConversation[]>(initialConversations);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<InboxMessage[]>([]);
-  const [isLoadingConversations, setIsLoadingConversations] = useState(initialConversations.length === 0);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [hasMoreMessages, setHasMoreMessages] = useState(false);
-  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nicknameDraft, setNicknameDraft] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [hasMoreConversations, setHasMoreConversations] = useState(false);
-  const [isLoadingMoreConversations, setIsLoadingMoreConversations] = useState(false);
   const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [inProgressAlertMinutes, setInProgressAlertMinutes] = useState(10);
   const [alertMinutesDraft, setAlertMinutesDraft] = useState("10");
   const [isSavingAlertMinutes, setIsSavingAlertMinutes] = useState(false);
-  const [enableAiSuggest, setEnableAiSuggest] = useState(true);
-  const [enableHybridAutoDraft, setEnableHybridAutoDraft] = useState(true);
   const [assigneeDraft, setAssigneeDraft] = useState("");
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
   const [isSavingPriority, setIsSavingPriority] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
-  const [composerInsertText, setComposerInsertText] = useState("");
-  const [composerInsertNonce, setComposerInsertNonce] = useState(0);
-  const [refreshSuggestionNonce, setRefreshSuggestionNonce] = useState(0);
-  const [hybridDraftFailedNonce, setHybridDraftFailedNonce] = useState(0);
-  const [isQuickReplyAutoEnter, setIsQuickReplyAutoEnter] = useState(false);
-  const [isSendingQuickReply, setIsSendingQuickReply] = useState(false);
-  const [tags, setTags] = useState<ConversationTag[]>([]);
-  const [savedReplies, setSavedReplies] = useState<SavedReply[]>([]);
-  const [internalNotes, setInternalNotes] = useState<ConversationInternalNote[]>([]);
-  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
-  const [customerEmail, setCustomerEmail] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<MobileInboxTab>("chats");
   const [now, setNow] = useState(0);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
-  const [isLoadingOperations, setIsLoadingOperations] = useState(false);
   const [resolveUnrepliedCount, setResolveUnrepliedCount] = useState<number | null>(null);
   const isMountedRef = useRef(false);
   const selectedIdRef = useRef<string | null>(null);
   selectedIdRef.current = selectedId;
   const hasInitialConversationsRef = useRef(initialConversations.length > 0);
-  const conversationsRef = useRef<InboxConversation[]>(initialConversations);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef(0);
@@ -264,6 +239,120 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       body: JSON.stringify({ flowId, stage, timestamp })
     }).catch(() => {});
   }, []);
+
+  const {
+    conversations,
+    setConversations,
+    conversationsRef,
+    isLoadingConversations,
+    setIsLoadingConversations,
+    hasMoreConversations,
+    setHasMoreConversations,
+    isLoadingMoreConversations,
+    setIsLoadingMoreConversations,
+    searchQuery,
+    setSearchQuery,
+    activeFilter,
+    setActiveFilter,
+    error,
+    setError,
+    loadConversations,
+  } = useConversations({
+    initialConversations,
+    onConversationsLoaded: useCallback((previous, next, isAppend, isHydrated) => {
+      if (isHydrated && !isAppend) {
+        notifyNewInboundFromConversationSnapshots(
+          previous.map(toConversationInboundSnapshot),
+          next.map(toConversationInboundSnapshot),
+          selectedIdRef.current,
+          (conversationId) => {
+            setSelectedId(conversationId);
+            selectedIdRef.current = conversationId;
+            setMobileTab("chats");
+          }
+        );
+      }
+      setSelectedId((current) => {
+        if (current && next.some((conversation) => conversation.id === current)) {
+          selectedIdRef.current = current;
+          return current;
+        }
+        selectedIdRef.current = null;
+        return null;
+      });
+    }, []),
+    onStateUpdateTrace: useCallback(() => {
+      const pendingFlowId = pendingFlowIdRef.current;
+      if (pendingFlowId) {
+        const now = Date.now();
+        devTrace("[TRACE] STATE_UPDATE", pendingFlowId, now);
+        trace(pendingFlowId, "STATE_UPDATE");
+        stateUpdateMapRef.current.set(pendingFlowId, now);
+      }
+    }, [trace]),
+  });
+
+  const {
+    messages,
+    setMessages,
+    isLoadingMessages,
+    hasMoreMessages,
+    setHasMoreMessages,
+    isLoadingOlderMessages,
+    loadMessages,
+    loadOlderMessages,
+  } = useMessages({
+    selectedIdRef,
+    messagesScrollRef,
+    isPrependingMessagesRef,
+    setError,
+    onStateUpdateTrace: useCallback(() => {
+      const pendingFlowId = pendingFlowIdRef.current;
+      if (pendingFlowId) {
+        const now = Date.now();
+        devTrace("[TRACE] STATE_UPDATE", pendingFlowId, now);
+        trace(pendingFlowId, "STATE_UPDATE");
+        stateUpdateMapRef.current.set(pendingFlowId, now);
+      }
+    }, [trace]),
+  });
+
+  const {
+    tags,
+    setTags,
+    savedReplies,
+    internalNotes,
+    setInternalNotes,
+    customerPhone,
+    customerEmail,
+    isLoadingOperations,
+    loadInboxOperations,
+    saveContactDetails,
+  } = useCustomerPanel({
+    selectedConversation: conversations.find((c) => c.id === selectedId) ?? null,
+    conversationsRef,
+    isMountedRef,
+    setError,
+  });
+
+  const {
+    enableAiSuggest,
+    setEnableAiSuggest,
+    enableHybridAutoDraft,
+    setEnableHybridAutoDraft,
+    composerInsertText,
+    composerInsertNonce,
+    insertComposerText,
+    refreshSuggestionNonce,
+    setRefreshSuggestionNonce,
+    hybridDraftFailedNonce,
+    setHybridDraftFailedNonce,
+    isQuickReplyAutoEnter,
+    setIsQuickReplyAutoEnter,
+    isSendingQuickReply,
+    setIsSendingQuickReply,
+    toggleQuickReplyAutoEnter,
+  } = useAiSuggest();
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
@@ -371,154 +460,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     return byText;
   }, [activeFilter, conversations, locale, searchQuery, selectedId, t]);
 
-  const loadConversations = useCallback(
-    async (options?: { append?: boolean; offset?: number; quiet?: boolean }): Promise<void> => {
-      if (!options?.quiet) {
-        setIsLoadingConversations(true);
-      }
-      setError(null);
-      try {
-        const offset = options?.offset ?? 0;
-        const data = await apiFetch<InboxConversation[]>(
-          `/api/v1/inbox/conversations?limit=${CONVERSATION_PAGE_SIZE}&offset=${offset}`
-        );
-        if (!isMountedRef.current) {
-          return;
-        }
-        const safeData = Array.isArray(data) ? data : [];
-        const previousConversations = conversationsRef.current;
-        const nextConversations = options?.append
-          ? [...conversationsRef.current, ...safeData]
-          : safeData;
-
-        if (conversationsHydratedRef.current && !options?.append) {
-          notifyNewInboundFromConversationSnapshots(
-            previousConversations.map(toConversationInboundSnapshot),
-            nextConversations.map(toConversationInboundSnapshot),
-            selectedIdRef.current,
-            (conversationId) => {
-              setSelectedId(conversationId);
-              selectedIdRef.current = conversationId;
-              setMobileTab("chats");
-            }
-          );
-        }
-        conversationsHydratedRef.current = true;
-
-        setHasMoreConversations(safeData.length === CONVERSATION_PAGE_SIZE);
-        conversationsRef.current = nextConversations;
-
-        const pendingFlowId = pendingFlowIdRef.current;
-        if (pendingFlowId) {
-          const now = Date.now();
-          devTrace("[TRACE] STATE_UPDATE", pendingFlowId, now);
-          trace(pendingFlowId, "STATE_UPDATE");
-          stateUpdateMapRef.current.set(pendingFlowId, now);
-        }
-
-        setConversations(nextConversations);
-        setSelectedId((current) => {
-          if (current && nextConversations.some((conversation) => conversation.id === current)) {
-            selectedIdRef.current = current;
-            return current;
-          }
-          selectedIdRef.current = null;
-          return null;
-        });
-      } catch (loadError) {
-        if (isMountedRef.current) {
-          setError(readMessage(loadError, "Could not load conversations."));
-        }
-      } finally {
-        if (isMountedRef.current && !options?.quiet) {
-          setIsLoadingConversations(false);
-        }
-      }
-    },
-    []
-  );
-
-  const loadMessages = useCallback(
-    async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
-      if (!options?.quiet) {
-        setIsLoadingMessages(true);
-      }
-      setError(null);
-      try {
-        const data = await apiFetch<ConversationMessagesPage | InboxMessage[]>(
-          `/api/v1/inbox/conversations/${conversationId}/messages?limit=50`
-        );
-        if (isMountedRef.current && selectedIdRef.current === conversationId) {
-          const pendingFlowId = pendingFlowIdRef.current;
-          if (pendingFlowId) {
-            const now = Date.now();
-            devTrace("[TRACE] STATE_UPDATE", pendingFlowId, now);
-            trace(pendingFlowId, "STATE_UPDATE");
-            stateUpdateMapRef.current.set(pendingFlowId, now);
-          }
-          const page = Array.isArray(data)
-            ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }
-            : data;
-          setMessages(Array.isArray(page.messages) ? page.messages : []);
-          setHasMoreMessages(Boolean(page.hasMore));
-        }
-      } catch (loadError) {
-        if (isMountedRef.current && !options?.quiet) {
-          setError(readMessage(loadError, "Could not load messages."));
-        }
-      } finally {
-        if (isMountedRef.current && selectedIdRef.current === conversationId && !options?.quiet) {
-          setIsLoadingMessages(false);
-        }
-      }
-    },
-    [trace]
-  );
-
-  const loadOlderMessages = useCallback(async (): Promise<void> => {
-    const conversationId = selectedIdRef.current;
-    const oldestId = messages[0]?.id;
-    if (!conversationId || !oldestId || !hasMoreMessages || isLoadingOlderMessages) {
-      return;
-    }
-
-    const scrollContainer = messagesScrollRef.current;
-    const previousScrollHeight = scrollContainer?.scrollHeight ?? 0;
-
-    setIsLoadingOlderMessages(true);
-    isPrependingMessagesRef.current = true;
-    try {
-      const data = await apiFetch<ConversationMessagesPage | InboxMessage[]>(
-        `/api/v1/inbox/conversations/${conversationId}/messages?limit=50&before=${encodeURIComponent(oldestId)}`
-      );
-
-      if (selectedIdRef.current !== conversationId) {
-        return;
-      }
-
-      const page = Array.isArray(data)
-        ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }
-        : data;
-
-      setMessages((current) => [...(Array.isArray(page.messages) ? page.messages : []), ...current]);
-      setHasMoreMessages(Boolean(page.hasMore));
-
-      window.requestAnimationFrame(() => {
-        if (scrollContainer) {
-          scrollContainer.scrollTop = scrollContainer.scrollHeight - previousScrollHeight;
-        }
-        isPrependingMessagesRef.current = false;
-      });
-    } catch (loadError) {
-      isPrependingMessagesRef.current = false;
-      if (isMountedRef.current) {
-        setError(readMessage(loadError, "Could not load older messages."));
-      }
-    } finally {
-      setIsLoadingOlderMessages(false);
-    }
-  }, [hasMoreMessages, isLoadingOlderMessages, messages]);
-
   const refreshThread = useCallback(
     async (conversationId: string, options?: { quiet?: boolean }): Promise<void> => {
       const quiet = options?.quiet ?? true;
@@ -567,10 +508,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       return next;
     });
   }
-
-  useEffect(() => {
-    conversationsRef.current = conversations;
-  }, [conversations]);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -643,162 +580,24 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     };
   }, [initialConversations.length, loadConversations]);
 
-  useEffect(() => {
-    const tenantId = currentUser?.tenantId;
-    if (!tenantId) {
-      return;
-    }
-
-    const abortController = new AbortController();
-    let reconnectTimeoutId: number | undefined;
-
-    function startStream() {
-      if (abortController.signal.aborted) {
-        return;
-      }
-
-      const connTime = Date.now();
-      devTrace(`[TRACE] [SSE_CONNECT] ts=${connTime} time=${new Date(connTime).toISOString()}`);
-
-      void streamTenantEvents(
-        tenantId as string,
-        abortController.signal,
-        (event) => {
-        if (!isMountedRef.current) {
-          return;
-        }
-
-        const flowId = event.flowId || event.data?.flowId;
-        if (flowId) {
-          const now = Date.now();
-          devTrace("[TRACE] BROWSER_RECEIVE", flowId, now);
-          devTrace("[TRACE] SSE_HANDLER_START", flowId, now);
-          trace(flowId, "BROWSER_RECEIVE");
-          trace(flowId, "SSE_HANDLER_START");
-
-          // Store SSE receive timestamp
-          const sseReceivedVal = now;
-          sseReceivedMapRef.current.set(flowId, sseReceivedVal);
-
-          if (!browserReceivedPostedRef.current.has(flowId)) {
-            browserReceivedPostedRef.current.add(flowId);
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-            void fetch(`${apiBaseUrl}/api/v1/monitor/browser-received`, {
-              method: "POST",
-              credentials: "include",
-              headers: telemetryAuthHeaders(),
-              body: JSON.stringify({ flowId, timestamp: now })
-            });
-          }
-          pendingFlowIdRef.current = flowId;
-          performance.mark(`render-start-${flowId}`);
-        }
-
-        if (
-          event.type === "message.created" ||
-          event.type === "message.deleted" ||
-          event.type === "conversation.updated"
-        ) {
-          if (flowId) {
-            trace(flowId, "STATE_UPDATE");
-          }
-          const eventConversationId = event.data?.conversationId;
-          if (eventConversationId) {
-            void refreshThread(eventConversationId, { quiet: true });
-            if (
-              event.type === "message.created" &&
-              eventConversationId === selectedIdRef.current
-            ) {
-              setRefreshSuggestionNonce((prev) => prev + 1);
-            }
-            if (
-              event.type === "message.created" &&
-              event.data &&
-              isInboundRealtimeDirection(event.data.direction) &&
-              event.data.messageId &&
-              eventConversationId
-            ) {
-              const eventData = event.data;
-              const inboundMessageId = eventData.messageId;
-              if (inboundMessageId) {
-                const conversation = conversationsRef.current.find(
-                  (item) => item.id === eventConversationId
-                );
-                tryShowInboundMessageNotification({
-                  messageId: inboundMessageId,
-                  conversationId: eventConversationId,
-                  customerName:
-                    eventData.customerName ??
-                    (conversation ? customerLabel(conversation) : "Customer"),
-                  body: eventData.preview,
-                  activeConversationId: selectedIdRef.current,
-                  onSelectConversation: (conversationId) => {
-                    setSelectedId(conversationId);
-                    selectedIdRef.current = conversationId;
-                    setMobileTab("chats");
-                  },
-                });
-              }
-            }
-          } else {
-            void loadConversations({ quiet: true });
-          }
-        }
-
-        if (event.type === "ai-suggestion.created") {
-          const eventConversationId = event.data?.conversationId;
-          if (eventConversationId) {
-            pendingHybridDraftRef.current.add(eventConversationId);
-            if (eventConversationId === selectedIdRef.current) {
-              setRefreshSuggestionNonce((prev) => prev + 1);
-            }
-          }
-        }
-
-        if (event.type === "ai-suggestion.failed") {
-          const eventConversationId = event.data?.conversationId;
-          if (eventConversationId && eventConversationId === selectedIdRef.current) {
-            setHybridDraftFailedNonce((prev) => prev + 1);
-          }
-        }
-      },
-        {
-          onOpen: () => {
-            sseConnectedRef.current = true;
-          },
-          onClose: () => {
-            sseConnectedRef.current = false;
-          }
-        }
-      )
-        .then((result) => {
-          if (result === "auth_failed" || abortController.signal.aborted) {
-            return;
-          }
-          const discTime = Date.now();
-          devTrace(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
-          devTrace(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
-          reconnectTimeoutId = window.setTimeout(startStream, 1000);
-        })
-        .catch(() => {
-          if (!abortController.signal.aborted) {
-            const discTime = Date.now();
-            devTrace(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
-            devTrace(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
-            reconnectTimeoutId = window.setTimeout(startStream, 1000);
-          }
-        });
-    }
-
-    startStream();
-
-    return () => {
-      abortController.abort();
-      if (reconnectTimeoutId) {
-        window.clearTimeout(reconnectTimeoutId);
-      }
-    };
-  }, [currentUser?.tenantId, loadConversations, refreshThread]);
+  useInboxSSE({
+    tenantId: currentUser?.tenantId,
+    isMountedRef,
+    pendingFlowIdRef,
+    sseReceivedMapRef,
+    browserReceivedPostedRef,
+    sseConnectedRef,
+    trace,
+    refreshThread,
+    loadConversations,
+    selectedIdRef,
+    setRefreshSuggestionNonce,
+    conversationsRef,
+    setSelectedId,
+    setMobileTab,
+    pendingHybridDraftRef,
+    setHybridDraftFailedNonce,
+  });
 
   useEffect(() => {
     const pendingFlowId = pendingFlowIdRef.current;
@@ -1031,52 +830,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     };
   }, [activeSavedReplies, selectedConversation, isQuickReplyAutoEnter, isSendingQuickReply]);
 
-  async function loadInboxOperations(conversationId: string): Promise<void> {
-    setIsLoadingOperations(true);
-    const lineChannelId = selectedConversation?.lineChannel.id;
-    const customerId = selectedConversation?.customerId;
-
-    try {
-      const [tagResult, replyResult, noteResult, customerResult] = await Promise.allSettled([
-        apiFetch<ConversationTag[]>("/api/v1/inbox/tags"),
-        apiFetch<SavedReply[]>(
-          lineChannelId
-            ? `/api/v1/inbox/saved-replies?lineChannelId=${encodeURIComponent(lineChannelId)}`
-            : "/api/v1/inbox/saved-replies"
-        ),
-        apiFetch<ConversationInternalNote[]>(`/api/v1/inbox/conversations/${conversationId}/notes`),
-        customerId
-          ? apiFetch<{ id: string; phone?: string | null; email?: string | null }>(`/api/v1/customers/${customerId}`)
-          : Promise.resolve(null)
-      ]);
-
-      if (!isMountedRef.current || conversationsRef.current.every((item) => item.id !== conversationId)) {
-        return;
-      }
-      if (tagResult.status === "fulfilled") {
-        setTags(Array.isArray(tagResult.value) ? tagResult.value : []);
-      }
-      if (replyResult.status === "fulfilled") {
-        setSavedReplies(Array.isArray(replyResult.value) ? replyResult.value : []);
-      }
-      if (noteResult.status === "fulfilled") {
-        setInternalNotes(Array.isArray(noteResult.value) ? noteResult.value : []);
-      }
-      if (customerResult.status === "fulfilled" && customerResult.value) {
-        const cust = customerResult.value;
-        setCustomerPhone(cust?.phone ?? null);
-        setCustomerEmail(cust?.email ?? null);
-      } else {
-        setCustomerPhone(null);
-        setCustomerEmail(null);
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingOperations(false);
-      }
-    }
-  }
-
   async function markLineConversationAsRead(conversationId: string): Promise<void> {
     if (markingReadRef.current.has(conversationId)) {
       return;
@@ -1146,27 +899,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       setError(readMessage(saveError, "Could not rename customer."));
     } finally {
       setIsSavingName(false);
-    }
-  }
-
-  async function saveContactDetails(phone: string, email: string): Promise<void> {
-    if (!selectedConversation?.customerId) {
-      return;
-    }
-    setError(null);
-    try {
-      const updated = await apiFetch<{ id: string; phone?: string | null; email?: string | null }>(
-        `/api/v1/customers/${selectedConversation.customerId}`,
-        {
-          body: JSON.stringify({ phone: phone.trim(), email: email.trim() }),
-          headers: { "Content-Type": "application/json" },
-          method: "PATCH"
-        }
-      );
-      setCustomerPhone(updated.phone ?? null);
-      setCustomerEmail(updated.email ?? null);
-    } catch (saveError) {
-      setError(readMessage(saveError, "Could not update contact details."));
     }
   }
 
@@ -1420,23 +1152,6 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
     } catch (tagError) {
       setError(readMessage(tagError, "Could not create tag."));
     }
-  }
-
-  function insertComposerText(body: string): void {
-    setComposerInsertText(body);
-    setComposerInsertNonce((current) => current + 1);
-  }
-
-  function toggleQuickReplyAutoEnter(): void {
-    setIsQuickReplyAutoEnter((current) => {
-      const next = !current;
-      try {
-        window.localStorage.setItem("omni_quick_reply_auto_enter", String(next));
-      } catch {
-        // localStorage may be unavailable in restricted browsers.
-      }
-      return next;
-    });
   }
 
   async function useQuickReply(reply: SavedReply): Promise<void> {
@@ -2020,7 +1735,7 @@ function readClientCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-function telemetryAuthHeaders(): Record<string, string> {
+export function telemetryAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const legacyToken = window.localStorage.getItem("omnichat.accessToken");
   if (legacyToken) {
@@ -2033,7 +1748,7 @@ function readMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function customerLabel(conversation: InboxConversation): string {
+export function customerLabel(conversation: InboxConversation): string {
   return (
     conversation.customerDisplayName ??
     conversation.nickname ??
