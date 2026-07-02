@@ -39,9 +39,34 @@ export function useMessages({
           const page = Array.isArray(data)
             ? { messages: data, hasMore: false, oldestId: data[0]?.id ?? null }
             : data;
-          const messagesArray = Array.isArray(page.messages) ? page.messages : [];
-          console.log('[SSE] Fetched messages range: First (Oldest):', messagesArray[0]?.text, 'at', messagesArray[0]?.createdAt, '| Last (Newest):', messagesArray[messagesArray.length - 1]?.text, 'at', messagesArray[messagesArray.length - 1]?.createdAt);
-          setMessages(messagesArray);
+          const fetchedMessages = Array.isArray(page.messages) ? page.messages : [];
+          console.log('[SSE] Fetched messages range: First (Oldest):', fetchedMessages[0]?.text, 'at', fetchedMessages[0]?.createdAt, '| Last (Newest):', fetchedMessages[fetchedMessages.length - 1]?.text, 'at', fetchedMessages[fetchedMessages.length - 1]?.createdAt);
+          
+          if (options?.quiet) {
+            setMessages((prev) => {
+              const realPrev = prev.filter(m => !m.id.startsWith('optimistic-'));
+              const optimisticPrev = prev.filter(m => m.id.startsWith('optimistic-'));
+              
+              const existingIds = new Set(realPrev.map(m => m.id));
+              const newOnes = fetchedMessages.filter(m => !existingIds.has(m.id));
+              
+              const remainingOptimistic = [...optimisticPrev];
+              for (const newMsg of newOnes) {
+                if (newMsg.direction === 'OUTBOUND') {
+                  if (remainingOptimistic.length > 0) {
+                    remainingOptimistic.shift();
+                  }
+                }
+              }
+              
+              const merged = [...realPrev, ...newOnes, ...remainingOptimistic];
+              console.log('[SSE] Merged messages. Prev:', prev.length, '| Fetched:', fetchedMessages.length, '| Added:', newOnes.length, '| Remaining Optimistic:', remainingOptimistic.length, '| Total:', merged.length);
+              return merged.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            });
+          } else {
+            console.log('[SSE] Fresh load. Replacing messages state with fetched:', fetchedMessages.length);
+            setMessages(fetchedMessages);
+          }
           setHasMoreMessages(Boolean(page.hasMore));
         }
       } catch (loadError) {
