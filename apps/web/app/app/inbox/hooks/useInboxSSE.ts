@@ -90,6 +90,7 @@ export function useInboxSSE({
         abortController.signal,
         (event: any) => {
           try {
+            console.log('[SSE] RAW EVENT JSON:', JSON.stringify(event, null, 2));
             if (!isMountedRef.current) {
               console.log('[SSE] Event ignored - component not mounted | handler instance:', handlerInstanceId);
               return;
