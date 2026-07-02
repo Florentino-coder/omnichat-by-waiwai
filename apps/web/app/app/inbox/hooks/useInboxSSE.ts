@@ -45,25 +45,48 @@ export function useInboxSSE({
 }) {
   useEffect(() => {
     if (!tenantId) {
+      console.log('[SSE] useEffect skipped - no tenantId');
       return;
     }
+
+    console.log('[SSE] useEffect initiated. Deps snapshot:', {
+      tenantId,
+      hasLoadConversations: !!loadConversations,
+      hasRefreshThread: !!refreshThread,
+      browserReceivedPostedRef: browserReceivedPostedRef.current,
+      conversationsCount: conversationsRef.current?.length,
+      isMounted: isMountedRef.current,
+      pendingFlowId: pendingFlowIdRef.current,
+      pendingHybridDraft: Array.from(pendingHybridDraftRef.current || []),
+      selectedId: selectedIdRef.current,
+      hasSetHybridDraftFailedNonce: !!setHybridDraftFailedNonce,
+      hasSetMobileTab: !!setMobileTab,
+      hasSetRefreshSuggestionNonce: !!setRefreshSuggestionNonce,
+      hasSetSelectedId: !!setSelectedId,
+      sseConnected: sseConnectedRef.current,
+      sseReceivedMapSize: sseReceivedMapRef.current?.size,
+      hasTrace: !!trace
+    });
 
     const abortController = new AbortController();
     let reconnectTimeoutId: number | undefined;
 
     function startStream() {
       if (abortController.signal.aborted) {
+        console.log('[SSE] startStream skipped - aborted');
         return;
       }
 
       const connTime = Date.now();
       devTrace(`[TRACE] [SSE_CONNECT] ts=${connTime} time=${new Date(connTime).toISOString()}`);
+      console.log('[SSE] startStream calling streamTenantEvents...');
 
       void streamTenantEvents(
         tenantId as string,
         abortController.signal,
         (event: any) => {
           if (!isMountedRef.current) {
+            console.log('[SSE] Event ignored - component not mounted');
             return;
           }
 
@@ -91,6 +114,8 @@ export function useInboxSSE({
             pendingFlowIdRef.current = flowId;
             performance.mark(`render-start-${flowId}`);
           }
+
+          console.log('[SSE] event received:', event.type, 'data:', event.data);
 
           if (
             event.type === "message.created" ||
@@ -162,14 +187,17 @@ export function useInboxSSE({
         },
         {
           onOpen: () => {
+            console.log('[SSE] Connection opened successfully');
             sseConnectedRef.current = true;
           },
           onClose: () => {
+            console.log('[SSE] Connection closed/ended');
             sseConnectedRef.current = false;
           }
         }
       )
         .then((result: any) => {
+          console.log('[SSE] streamTenantEvents finished. Result:', result, 'Aborted:', abortController.signal.aborted);
           if (result === "auth_failed" || abortController.signal.aborted) {
             return;
           }
@@ -178,7 +206,8 @@ export function useInboxSSE({
           devTrace(`[TRACE] [SSE_RECONNECT] ts=${discTime + 1000} time=${new Date(discTime + 1000).toISOString()}`);
           reconnectTimeoutId = window.setTimeout(startStream, 1000);
         })
-        .catch(() => {
+        .catch((err: any) => {
+          console.log('[SSE] streamTenantEvents caught error:', err, 'Aborted:', abortController.signal.aborted);
           if (!abortController.signal.aborted) {
             const discTime = Date.now();
             devTrace(`[TRACE] [SSE_DISCONNECT] ts=${discTime} time=${new Date(discTime).toISOString()}`);
@@ -191,6 +220,24 @@ export function useInboxSSE({
     startStream();
 
     return () => {
+      console.log('[SSE] useEffect cleanup triggered. Deps snapshot:', {
+        tenantId,
+        hasLoadConversations: !!loadConversations,
+        hasRefreshThread: !!refreshThread,
+        browserReceivedPostedRef: browserReceivedPostedRef.current,
+        conversationsCount: conversationsRef.current?.length,
+        isMounted: isMountedRef.current,
+        pendingFlowId: pendingFlowIdRef.current,
+        pendingHybridDraft: Array.from(pendingHybridDraftRef.current || []),
+        selectedId: selectedIdRef.current,
+        hasSetHybridDraftFailedNonce: !!setHybridDraftFailedNonce,
+        hasSetMobileTab: !!setMobileTab,
+        hasSetRefreshSuggestionNonce: !!setRefreshSuggestionNonce,
+        hasSetSelectedId: !!setSelectedId,
+        sseConnected: sseConnectedRef.current,
+        sseReceivedMapSize: sseReceivedMapRef.current?.size,
+        hasTrace: !!trace
+      });
       abortController.abort();
       if (reconnectTimeoutId) {
         window.clearTimeout(reconnectTimeoutId);
