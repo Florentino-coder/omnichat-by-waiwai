@@ -32,7 +32,7 @@ export class UpdateInboxSettingsDto {
   @IsOptional()
   enableAiScenarios?: boolean;
 
-  @IsEnum(["gemini", "openai", "claude"])
+  @IsEnum(["gemini", "openai", "claude", "groq"])
   @IsOptional()
   aiProvider?: string;
 

@@ -278,7 +278,7 @@ export class AiMonitorService {
   }
 
   async getHealth(): Promise<{ providers: AiProviderHealth[] }> {
-    const providerIds = ["gemini", "openai", "claude"] as const;
+    const providerIds = ["gemini", "openai", "claude", "groq"] as const;
 
     const [latestSuccesses, latestFailures] = await Promise.all([
       this.prisma.aiSuggestion.findMany({
