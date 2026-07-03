@@ -339,11 +339,11 @@ describe("AiAutoReplyService", () => {
 
     const result = await service.tryAutoReply(baseInput);
 
-    expect(result).toEqual({ outcome: "skipped", reason: "low_confidence" });
+    expect(result).toEqual({ outcome: "skipped", reason: "knowledge_only" });
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: AuditAction.AI_AUTO_REPLY_SKIPPED,
-        metadata: expect.objectContaining({ reason: "low_confidence", mode: "knowledge_only" })
+        metadata: expect.objectContaining({ reason: "knowledge_only", mode: "knowledge_only" })
       })
     });
     expect(mocks.lineReplyService.replyText).not.toHaveBeenCalled();
@@ -494,7 +494,7 @@ describe("AiAutoReplyService", () => {
     const service = createService(mocks);
     const result = await service.tryAutoReply(baseInput);
 
-    expect(result).toEqual({ outcome: "skipped", reason: "low_confidence" });
+    expect(result).toEqual({ outcome: "skipped", reason: "knowledge_only" });
 
     // Assert suggestion draft created with null text, citations populated, confidence null
     expect(mocks.prisma.aiSuggestion.create).toHaveBeenCalledWith({

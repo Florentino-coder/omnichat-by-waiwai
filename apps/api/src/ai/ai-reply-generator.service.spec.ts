@@ -6,7 +6,7 @@ import { ClaudeClient } from "../common/llm/claude.client";
 import { GroqClient } from "../common/llm/groq.client";
 import { KnowledgeService } from "../knowledge/knowledge.service";
 import { ScenarioService } from "../scenario/scenario.service";
-import { AiReplyGeneratorService } from "./ai-reply-generator.service";
+import { AiReplyGeneratorService, parseConfidenceTag } from "./ai-reply-generator.service";
 
 function createMocks() {
   const prisma = {
@@ -154,6 +154,35 @@ describe("AiReplyGeneratorService", () => {
     if (resultLower.outcome === "success") {
       expect(resultLower.confidence).toBe(0.0);
     }
+  });
+
+  it("parses the confidence tag even when the LLM wraps it in markdown bold", () => {
+    const result = parseConfidenceTag("**[CONFIDENCE: 0.87]**\nสวัสดีค่ะ มีอะไรให้ช่วยไหมคะ");
+    expect(result.matched).toBe(true);
+    expect(result.confidence).toBe(0.87);
+    expect(result.textToNormalize).toBe("สวัสดีค่ะ มีอะไรให้ช่วยไหมคะ");
+  });
+
+  it("parses the confidence tag when there is a stray leading newline/space", () => {
+    const result = parseConfidenceTag("\n [CONFIDENCE: 0.72]\nขอบคุณค่ะ");
+    expect(result.matched).toBe(true);
+    expect(result.confidence).toBe(0.72);
+    expect(result.textToNormalize).toBe("ขอบคุณค่ะ");
+  });
+
+  it("parses the confidence tag without brackets around it", () => {
+    const result = parseConfidenceTag("CONFIDENCE: 0.6\nข้อความตอบกลับ");
+    expect(result.matched).toBe(true);
+    expect(result.confidence).toBe(0.6);
+    expect(result.textToNormalize).toBe("ข้อความตอบกลับ");
+  });
+
+  it("does not strip a legitimate [CONFIDENCE:] mention appearing later in the reply", () => {
+    const result = parseConfidenceTag(
+      "สวัสดีค่ะ ระบบของเราไม่มีการใช้คำว่า [CONFIDENCE: 99] ในคำตอบจริงค่ะ"
+    );
+    expect(result.matched).toBe(false);
+    expect(result.confidence).toBe(0.0);
   });
 
   it("defaults confidence to 0.0 when tag is missing", async () => {

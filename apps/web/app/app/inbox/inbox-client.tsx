@@ -231,8 +231,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
 
     devTrace(`[TRACE] [${stage}]`, flowId, timestamp);
 
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-    void fetch(`${apiBaseUrl}/api/v1/telemetry/client-trace`, {
+    void fetch(`/api/v1/telemetry/client-trace`, {
       method: "POST",
       credentials: "include",
       headers: telemetryAuthHeaders(),
@@ -624,8 +623,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         stateUpdateMapRef.current.delete(pendingFlowId);
         componentRenderMapRef.current.delete(pendingFlowId);
 
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") || "";
-        void fetch(`${apiBaseUrl}/api/v1/monitor/ui-rendered`, {
+        void fetch(`/api/v1/monitor/ui-rendered`, {
           method: "POST",
           credentials: "include",
           headers: telemetryAuthHeaders(),

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { PromptTemplate } from "@prisma/client";
 import { ClaudeClient } from "../common/llm/claude.client";
 import { GeminiClient } from "../common/llm/gemini.client";
@@ -51,8 +51,52 @@ const DEFAULT_SUGGESTED_REPLY_TEMPLATE = `คุณเป็นผู้ช่�
 
 ตอบเป็นข้อความเดียวที่พร้อมส่งจริง ไม่ต้องมีคำอธิบายเพิ่มเติม ไม่ต้องใส่ quote`;
 
+/**
+ * Extracts the "[CONFIDENCE: 0.xx]" tag the LLM is instructed to prepend to its reply.
+ *
+ * LLMs do not always obey "must be the very first characters" instructions literally —
+ * they sometimes wrap the tag in markdown emphasis (**[CONFIDENCE: 0.9]**), add a stray
+ * leading newline/space, or use smart quotes/backticks. A strict `^\[CONFIDENCE:` anchor
+ * on the raw, unmodified string fails in all of these cases and silently falls back to
+ * confidence = 0.0, which then always fails the auto-reply confidence threshold check
+ * regardless of what the tenant configures it to. To avoid that silent failure mode we
+ * strip common leading noise characters before anchoring the match, and only search
+ * within a short prefix window so we never accidentally match a "[CONFIDENCE: ...]"
+ * that legitimately appears deep inside the reply body.
+ */
+export function parseConfidenceTag(rawSuggestion: string): {
+  confidence: number;
+  textToNormalize: string;
+  matched: boolean;
+} {
+  const searchWindow = rawSuggestion.slice(0, 120);
+  const strippedPrefix = searchWindow.replace(/^[\s*_`"'#>-]+/, "");
+  const leadingNoiseLength = searchWindow.length - strippedPrefix.length;
+
+  const match = strippedPrefix.match(/^\[?\s*CONFIDENCE\s*:\s*([\d.]+)\]?/i);
+
+  if (!match) {
+    return { confidence: 0.0, textToNormalize: rawSuggestion, matched: false };
+  }
+
+  const parsedValue = parseFloat(match[1]);
+  const confidence = Number.isFinite(parsedValue) ? Math.min(1.0, Math.max(0.0, parsedValue)) : 0.0;
+
+  const matchEndInWindow = leadingNoiseLength + match[0].length;
+  const trailingNoise = rawSuggestion.slice(matchEndInWindow).match(/^[\s*_`"'\]]*\n?/);
+  const consumedLength = matchEndInWindow + (trailingNoise?.[0]?.length ?? 0);
+
+  return {
+    confidence,
+    textToNormalize: rawSuggestion.slice(consumedLength),
+    matched: true
+  };
+}
+
 @Injectable()
 export class AiReplyGeneratorService {
+  private readonly logger = new Logger(AiReplyGeneratorService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly geminiClient: GeminiClient,
@@ -297,13 +341,17 @@ export class AiReplyGeneratorService {
       let textToNormalize = rawSuggestion;
 
       if (includeConfidence) {
-        const match = rawSuggestion.match(/^\[CONFIDENCE:\s*([\d\.]+)\]/i);
-        if (match) {
-          const parsedValue = parseFloat(match[1]);
-          confidence = Math.min(1.0, Math.max(0.0, parsedValue));
-          textToNormalize = rawSuggestion.replace(/^\[CONFIDENCE:\s*([\d\.]+)\]\s*\n?/i, "");
-        } else {
-          confidence = 0.0;
+        const parsed = parseConfidenceTag(rawSuggestion);
+        confidence = parsed.confidence;
+        textToNormalize = parsed.textToNormalize;
+
+        if (!parsed.matched) {
+          this.logger.warn(
+            `LLM did not return a parseable [CONFIDENCE: x.xx] tag; defaulting to 0.0 ` +
+              `(conversation=${conversationId}, provider=${provider}). ` +
+              `This will always fail the auto-reply confidence threshold and force human escalation. ` +
+              `Raw output prefix: ${JSON.stringify(rawSuggestion.slice(0, 120))}`
+          );
         }
       }
 

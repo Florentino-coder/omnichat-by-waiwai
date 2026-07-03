@@ -190,7 +190,7 @@ export class AiAutoReplyService {
           confidence: null
         }
       });
-      return { outcome: "skipped", reason: "low_confidence" };
+      return { outcome: "skipped", reason: "knowledge_only" };
     }
 
     if (generateResult.outcome === "llm_failed") {
@@ -468,7 +468,9 @@ export class AiAutoReplyService {
           inboundMessageId: params.inboundMessageId,
           messageText: ""
         },
-        params.reason === "policy_blocked" ? "policy_blocked" : "low_confidence",
+        params.reason === "policy_blocked" || params.reason === "knowledge_only"
+          ? params.reason
+          : "low_confidence",
         {
           mode: params.reason,
           confidence: params.suggestion?.confidence,
