@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -12,6 +13,7 @@ import {
   Min
 } from "class-validator";
 import { AiAgentGender, AiAutoReplyMode } from "@prisma/client";
+import { SUPPORTED_LLM_PROVIDERS } from "../../common/llm/supported-providers";
 
 export class UpdateInboxSettingsDto {
   @IsInt()
@@ -32,7 +34,7 @@ export class UpdateInboxSettingsDto {
   @IsOptional()
   enableAiScenarios?: boolean;
 
-  @IsEnum(["gemini", "openai", "claude", "groq"])
+  @IsIn(SUPPORTED_LLM_PROVIDERS)
   @IsOptional()
   aiProvider?: string;
 

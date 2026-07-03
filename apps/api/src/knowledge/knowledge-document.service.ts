@@ -370,7 +370,7 @@ export class KnowledgeDocumentService {
       }
 
       const chunks = await this.loadReadyChunks(tenantId, lineChannelId);
-      const rankedChunks = rankChunksByEmbedding(chunks, queryEmbedding, chunkLimit);
+      const rankedChunks = rankChunksByEmbedding(chunks, queryEmbedding, chunkLimit, 0.5);
       const ragContext = formatRagContext(rankedChunks);
       const documentCitations: KnowledgeCitation[] = rankedChunks.map((chunk) => ({
         type: "document",

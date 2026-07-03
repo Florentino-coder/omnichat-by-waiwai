@@ -3,6 +3,7 @@ import { GeminiClient } from "./gemini.client";
 import { OpenAIClient } from "./openai.client";
 import { ClaudeClient } from "./claude.client";
 import { GroqClient } from "./groq.client";
+import { LlmProvider } from "./supported-providers";
 
 @Module({
   providers: [
@@ -18,7 +19,7 @@ import { GroqClient } from "./groq.client";
         claude: ClaudeClient,
         groq: GroqClient
       ) => {
-        const provider = (process.env.LLM_PROVIDER || "gemini").toLowerCase();
+        const provider = (process.env.LLM_PROVIDER || "gemini").toLowerCase() as LlmProvider;
         if (provider === "openai") return openai;
         if (provider === "claude") return claude;
         if (provider === "groq") return groq;

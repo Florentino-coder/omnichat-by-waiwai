@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AI_SUGGEST_USAGE_METRIC, getCurrentMonthUsagePeriod } from "../inbox/thai-speech.util";
+import { SUPPORTED_LLM_PROVIDERS } from "../common/llm/supported-providers";
 
 export type AiProviderHealth = {
   id: string;
@@ -83,7 +84,7 @@ const PROVIDER_MODELS: Record<string, string> = {
   gemini: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   openai: process.env.OPENAI_MODEL || "gpt-4o-mini",
   claude: process.env.CLAUDE_MODEL || "claude-3-5-sonnet-latest",
-  groq: process.env.GROQ_MODEL || "llama-3.3-70b-versatile"
+  groq: process.env.GROQ_MODEL || "openai/gpt-oss-120b"
 };
 
 @Injectable()
@@ -280,7 +281,7 @@ export class AiMonitorService {
   }
 
   async getHealth(): Promise<{ providers: AiProviderHealth[] }> {
-    const providerIds = ["gemini", "openai", "claude", "groq"] as const;
+    const providerIds = SUPPORTED_LLM_PROVIDERS;
 
     const [latestSuccesses, latestFailures] = await Promise.all([
       this.prisma.aiSuggestion.findMany({

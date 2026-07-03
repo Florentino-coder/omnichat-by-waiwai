@@ -4,6 +4,7 @@ import { GeminiClient } from "../common/llm/gemini.client";
 import { GroqClient } from "../common/llm/groq.client";
 import { LLMClient } from "../common/llm/llm.interface";
 import { OpenAIClient } from "../common/llm/openai.client";
+import { LlmProvider } from "../common/llm/supported-providers";
 
 const logger = new Logger("AiLlmUtil");
 
@@ -14,7 +15,7 @@ export type LlmClients = {
   groq: GroqClient;
 };
 
-export function resolveLlmClient(provider: string, clients: LlmClients): LLMClient {
+export function resolveLlmClient(provider: LlmProvider | string, clients: LlmClients): LLMClient {
   const normalized = provider.toLowerCase();
   if (normalized === "openai") {
     return clients.openai;
