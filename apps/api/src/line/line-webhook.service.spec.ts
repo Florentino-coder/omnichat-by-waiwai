@@ -320,6 +320,7 @@ describe("LineWebhookService", () => {
           })
         })
       })
+    );
     expect(prisma.customer.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({

@@ -217,4 +217,32 @@ describe("AiReplyGeneratorService", () => {
       expect(result.compiledPrompt).not.toContain("[CRITICAL REQUIREMENT]");
     }
   });
+
+  it("includes CRITICAL SAFETY RULES in the compiled prompt", async () => {
+    const mocks = createMocks();
+    mocks.prisma.conversation.findFirst.mockResolvedValue(mockConversation);
+    mocks.prisma.tenantSettings.findUnique.mockResolvedValue(mockSettings);
+    mocks.prisma.promptTemplate.findFirst.mockResolvedValue({
+      systemPrompt: "Default template with {{knowledge_context}}"
+    });
+    mocks.knowledgeService.buildKnowledgeContextWithCitations.mockResolvedValue({
+      context: "ไม่มี",
+      citations: []
+    });
+    mocks.scenarioService.buildScenarioInstructions.mockResolvedValue("scenarios");
+
+    mocks.geminiClient.generateReply.mockResolvedValue("ขออภัยด้วยค่ะ");
+
+    const service = createService(mocks);
+    const result = await service.generate({
+      ...mockBaseInput,
+      includeConfidence: false
+    });
+
+    expect(result.outcome).toBe("success");
+    if (result.outcome === "success") {
+      expect(result.compiledPrompt).toContain("CRITICAL SAFETY RULES");
+      expect(result.compiledPrompt).toContain("ขนมเค้ก, คุกกี้, ชา, น้ำผลไม้");
+    }
+  });
 });
