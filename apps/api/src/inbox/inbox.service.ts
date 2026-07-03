@@ -2271,7 +2271,7 @@ Summarize the conversation history between the merchant and the customer in Engl
       return process.env.CLAUDE_MODEL || "claude-3-5-haiku-20241022";
     }
     if (normalized === "groq") {
-      return process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+      return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
     }
     return process.env.GEMINI_MODEL || "gemini-2.5-flash";
   }

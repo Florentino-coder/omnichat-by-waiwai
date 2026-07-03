@@ -15,7 +15,7 @@ export class GroqClient implements LLMClient {
       throw new Error("GROQ_API_KEY is not defined");
     }
 
-    const model = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
     const url = "https://api.groq.com/openai/v1/chat/completions";
 
     const messages = [

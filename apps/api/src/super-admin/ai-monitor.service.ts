@@ -84,7 +84,7 @@ const PROVIDER_MODELS: Record<string, string> = {
   gemini: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   openai: process.env.OPENAI_MODEL || "gpt-4o-mini",
   claude: process.env.CLAUDE_MODEL || "claude-3-5-sonnet-latest",
-  groq: process.env.GROQ_MODEL || "openai/gpt-oss-120b"
+  groq: process.env.GROQ_MODEL || "llama-3.3-70b-versatile"
 };
 
 @Injectable()

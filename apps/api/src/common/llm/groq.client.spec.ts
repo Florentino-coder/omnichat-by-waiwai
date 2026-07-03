@@ -58,7 +58,7 @@ describe("GroqClient", () => {
     );
   });
 
-  it("uses openai/gpt-oss-120b as default model when GROQ_MODEL is not set", async () => {
+  it("uses llama-3.3-70b-versatile as default model when GROQ_MODEL is not set", async () => {
     const mockFetch = jest.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ choices: [{ message: { content: "ok" } }] })
@@ -74,7 +74,7 @@ describe("GroqClient", () => {
     const body = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string) as {
       model: string;
     };
-    expect(body.model).toBe("openai/gpt-oss-120b");
+    expect(body.model).toBe("llama-3.3-70b-versatile");
   });
 
   it("uses GROQ_MODEL env var when set", async () => {

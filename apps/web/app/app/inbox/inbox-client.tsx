@@ -1738,9 +1738,9 @@ function readClientCookie(name: string): string | null {
 
 export function telemetryAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  const legacyToken = window.localStorage.getItem("omnichat.accessToken");
-  if (legacyToken) {
-    headers.Authorization = `Bearer ${legacyToken}`;
+  const token = readClientCookie("omnichat.accessToken") || window.localStorage.getItem("omnichat.accessToken");
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
   return headers;
 }
