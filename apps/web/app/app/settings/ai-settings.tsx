@@ -428,6 +428,7 @@ export function AiSettings() {
               <option value="gemini">{t.aiProviderGemini}</option>
               <option value="openai">{t.aiProviderOpenai}</option>
               <option value="claude">{t.aiProviderClaude}</option>
+              <option value="groq">{t.aiProviderGroq}</option>
             </select>
           </div>
           <p className="text-xs text-[#767A8C] leading-relaxed">{t.aiLlmProviderHint}</p>

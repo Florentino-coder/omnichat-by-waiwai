@@ -408,6 +408,7 @@ export const messages = {
     aiProviderGemini: "Google Gemini (เสถียรที่สุด)",
     aiProviderOpenai: "OpenAI GPT",
     aiProviderClaude: "Anthropic Claude",
+    aiProviderGroq: "Groq (Llama — ฟรี tier สูงสุด)",
     aiLlmProviderHint:
       "โมเดลประมวลผลสำหรับสร้างคำตอบร่าง (ดึงค่าจาก API Key ของส่วนกลางหลังบ้าน)",
     aiAgentGender: "เพศของแอดมิน (คำลงท้าย)",
@@ -879,6 +880,7 @@ export const messages = {
     aiProviderGemini: "Google Gemini (most stable)",
     aiProviderOpenai: "OpenAI GPT",
     aiProviderClaude: "Anthropic Claude",
+    aiProviderGroq: "Groq (Llama — highest free tier)",
     aiLlmProviderHint:
       "Model used to generate draft replies (API keys are managed centrally on the backend).",
     aiAgentGender: "Agent gender (polite particles)",

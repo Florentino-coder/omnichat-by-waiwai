@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { ClaudeClient } from "../common/llm/claude.client";
 import { GeminiClient } from "../common/llm/gemini.client";
+import { GroqClient } from "../common/llm/groq.client";
 import { LLMClient } from "../common/llm/llm.interface";
 import { OpenAIClient } from "../common/llm/openai.client";
 
@@ -10,6 +11,7 @@ export type LlmClients = {
   gemini: GeminiClient;
   openai: OpenAIClient;
   claude: ClaudeClient;
+  groq: GroqClient;
 };
 
 export function resolveLlmClient(provider: string, clients: LlmClients): LLMClient {
@@ -20,13 +22,16 @@ export function resolveLlmClient(provider: string, clients: LlmClients): LLMClie
   if (normalized === "claude") {
     return clients.claude;
   }
+  if (normalized === "groq") {
+    return clients.groq;
+  }
   return clients.gemini;
 }
 
 export function extractLlmErrorCode(llmError: unknown): string {
   const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
 
-  if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY/i.test(errorMessage)) {
+  if (/API_KEY is not defined|OPENAI_API_KEY|ANTHROPIC_API_KEY|CLAUDE_API_KEY|GROQ_API_KEY/i.test(errorMessage)) {
     return "AI_PROVIDER_NOT_CONFIGURED";
   }
   if (/status 429|rate limit|quota/i.test(errorMessage)) {
