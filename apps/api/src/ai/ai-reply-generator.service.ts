@@ -260,6 +260,14 @@ export class AiReplyGeneratorService {
         ? `${promptWithGreeting}\n\nคำสั่งเพิ่มเติมจากร้าน:\n${extraInstructions.trim()}`
         : promptWithGreeting;
 
+    const antiHallucinationRules =
+      "\n\n[ข้อกำหนดเรื่องความถูกต้องและการปฏิเสธ (CRITICAL SAFETY RULES)]\n" +
+      "1. ให้ตอบลูกค้าโดยอ้างอิงข้อมูลจาก 'ข้อมูลจาก Knowledge Base' ด้านบนนี้เท่านั้น ห้ามคาดเดาหรือแต่งคำตอบเองเด็ดขาด\n" +
+      "2. หากข้อมูลจาก Knowledge Base เป็น 'ไม่มี' หรือไม่มีข้อมูลใดๆ ที่ระบุถึงสิ่งที่ลูกค้าถามถึงโดยตรง (เช่น ถามถึงโปรโมชั่น สมัครสมาชิก หรือปัญหาการฝากเงิน แต่ไม่มีระบุในระบบอ้างอิง) ห้ามเดา ห้ามตอบโดยใช้ความรู้ทั่วไป และห้ามนำข้อมูลเรื่องอื่น (เช่น ขนมเค้ก, คุกกี้, ชา, น้ำผลไม้ หรือบริการอื่นๆ ที่ไม่เกี่ยวข้อง) มาตอบแทนเด็ดขาด\n" +
+      "3. ในกรณีที่หาข้อมูลไม่พบหรือไม่มีข้อมูลใน Knowledge Base ให้ปฏิเสธอย่างสุภาพเป็นภาษาไทยว่า 'ขออภัยด้วยค่ะ/ครับ ปัจจุบันทางระบบยังไม่มีข้อมูลเกี่ยวกับเรื่องนี้ค่ะ/ครับ' หรือปฏิเสธในทำนองเดียวกันนี้เท่านั้น ห้ามตอบข้อมูลสมมติใดๆ ทั้งสิ้น";
+
+    compiledPromptWithInstructions += antiHallucinationRules;
+
     if (includeConfidence) {
       compiledPromptWithInstructions += "\n\n[CRITICAL REQUIREMENT]\n" +
         "You must evaluate your confidence score in the accuracy of your response based on the Knowledge Base and conversation history.\n" +

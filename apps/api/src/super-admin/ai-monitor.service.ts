@@ -75,13 +75,15 @@ export type AiTenantUsage = {
 const PROVIDER_LABELS: Record<string, string> = {
   gemini: "Google Gemini",
   openai: "OpenAI",
-  claude: "Anthropic Claude"
+  claude: "Anthropic Claude",
+  groq: "Groq (Llama)"
 };
 
 const PROVIDER_MODELS: Record<string, string> = {
   gemini: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   openai: process.env.OPENAI_MODEL || "gpt-4o-mini",
-  claude: process.env.CLAUDE_MODEL || "claude-3-5-sonnet-latest"
+  claude: process.env.CLAUDE_MODEL || "claude-3-5-sonnet-latest",
+  groq: process.env.GROQ_MODEL || "llama-3.3-70b-versatile"
 };
 
 @Injectable()
@@ -428,6 +430,8 @@ export class AiMonitorService {
         return Boolean(process.env.OPENAI_API_KEY);
       case "claude":
         return Boolean(process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY);
+      case "groq":
+        return Boolean(process.env.GROQ_API_KEY);
       default:
         return false;
     }

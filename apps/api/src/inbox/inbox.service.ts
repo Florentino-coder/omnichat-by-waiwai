@@ -2256,6 +2256,9 @@ Summarize the conversation history between the merchant and the customer in Engl
     if (normalized === "claude") {
       return "Anthropic Claude";
     }
+    if (normalized === "groq") {
+      return "Groq (Llama)";
+    }
     return "Google Gemini";
   }
 
@@ -2266,6 +2269,9 @@ Summarize the conversation history between the merchant and the customer in Engl
     }
     if (normalized === "claude") {
       return process.env.CLAUDE_MODEL || "claude-3-5-haiku-20241022";
+    }
+    if (normalized === "groq") {
+      return process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
     }
     return process.env.GEMINI_MODEL || "gemini-2.5-flash";
   }
