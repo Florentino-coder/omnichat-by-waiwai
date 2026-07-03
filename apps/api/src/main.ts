@@ -11,6 +11,16 @@ async function bootstrap(): Promise<void> {
   const logger = new Logger("Bootstrap");
   logger.log(`Bootstrapping API (NODE_ENV=${process.env.NODE_ENV ?? "unknown"})`);
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  // The API always runs behind a reverse proxy (Render, and any other host).
+  // Without this, Express's req.ip resolves to the proxy's internal connection
+  // address for every request, so all clients collapse into a single IP bucket.
+  // ThrottlerGuard (used by rate-limited endpoints such as /monitor and
+  // /telemetry) keys its counters off req.ip by default, so without trusting
+  // the proxy's X-Forwarded-For header, ALL users/tenants share one global
+  // rate-limit bucket and start getting 429s from each other's traffic.
+  app.getHttpAdapter().getInstance().set("trust proxy", 1);
+
   const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
     .split(",")
     .map((origin) => origin.trim())

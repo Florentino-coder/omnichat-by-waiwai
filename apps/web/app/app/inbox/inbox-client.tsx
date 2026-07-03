@@ -214,6 +214,7 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
   const componentRenderMapRef = useRef(new Map<string, number>());
   const sentTracesRef = useRef(new Map<string, Set<string>>());
   const browserReceivedPostedRef = useRef(new Set<string>());
+  const uiRenderedPostedRef = useRef(new Set<string>());
   const sseConnectedRef = useRef(false);
   const renderCount = useRef(0);
 
@@ -623,19 +624,22 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
         stateUpdateMapRef.current.delete(pendingFlowId);
         componentRenderMapRef.current.delete(pendingFlowId);
 
-        void fetch(`/api/v1/monitor/ui-rendered`, {
-          method: "POST",
-          credentials: "include",
-          headers: telemetryAuthHeaders(),
-          body: JSON.stringify({
-            flowId: pendingFlowId,
-            duration,
-            endTimestamp: now,
-            sseReceived,
-            stateUpdate,
-            componentRender
-          })
-        });
+        if (!uiRenderedPostedRef.current.has(pendingFlowId)) {
+          uiRenderedPostedRef.current.add(pendingFlowId);
+          void fetch(`/api/v1/monitor/ui-rendered`, {
+            method: "POST",
+            credentials: "include",
+            headers: telemetryAuthHeaders(),
+            body: JSON.stringify({
+              flowId: pendingFlowId,
+              duration,
+              endTimestamp: now,
+              sseReceived,
+              stateUpdate,
+              componentRender
+            })
+          }).catch(() => {});
+        }
       } catch (err) {
         // Ignore measure errors
       }

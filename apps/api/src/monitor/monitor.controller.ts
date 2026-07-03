@@ -13,7 +13,7 @@ export class MonitorController {
   // ============================================================
 
   @UseGuards(JwtAuthGuard, ThrottlerGuard)
-  @Throttle({ telemetry: { limit: 120, ttl: 60_000 } })
+  @Throttle({ telemetry: { limit: 600, ttl: 60_000 } })
   @Post("monitor/browser-received")
   async browserReceived(
     @Body() payload: { flowId: string; timestamp: number }
@@ -26,7 +26,7 @@ export class MonitorController {
   }
 
   @UseGuards(JwtAuthGuard, ThrottlerGuard)
-  @Throttle({ telemetry: { limit: 120, ttl: 60_000 } })
+  @Throttle({ telemetry: { limit: 600, ttl: 60_000 } })
   @Post("telemetry/client-trace")
   async clientTrace(
     @Body() payload: { flowId: string; stage: string; timestamp: number }
@@ -39,7 +39,7 @@ export class MonitorController {
   }
 
   @UseGuards(JwtAuthGuard, ThrottlerGuard)
-  @Throttle({ telemetry: { limit: 120, ttl: 60_000 } })
+  @Throttle({ telemetry: { limit: 600, ttl: 60_000 } })
   @Post("monitor/ui-rendered")
   async uiRendered(
     @Body() payload: {

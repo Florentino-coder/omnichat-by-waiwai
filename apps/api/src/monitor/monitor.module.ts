@@ -11,7 +11,7 @@ import { AuthModule } from "../auth/auth.module";
       {
         name: "telemetry",
         ttl: 60_000,
-        limit: 120
+        limit: 600
       }
     ]),
     RedisModule,
