@@ -210,6 +210,7 @@ const createService = (prisma: MockPrisma): InboxService => {
     mockLlmClient as any,
     mockLlmClient as any,
     mockLlmClient as any,
+    mockLlmClient as any,
     mockKnowledgeService as any,
     mockScenarioService as any
   );
@@ -218,6 +219,7 @@ const createService = (prisma: MockPrisma): InboxService => {
     prisma as unknown as PrismaService,
     mockCryptoSecretService,
     mockRedisService as any,
+    mockLlmClient as any,
     mockLlmClient as any,
     mockLlmClient as any,
     mockLlmClient as any,

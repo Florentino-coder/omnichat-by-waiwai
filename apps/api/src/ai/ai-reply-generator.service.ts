@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PromptTemplate } from "@prisma/client";
 import { ClaudeClient } from "../common/llm/claude.client";
 import { GeminiClient } from "../common/llm/gemini.client";
+import { GroqClient } from "../common/llm/groq.client";
 import { OpenAIClient } from "../common/llm/openai.client";
 import { KnowledgeService } from "../knowledge/knowledge.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -57,6 +58,7 @@ export class AiReplyGeneratorService {
     private readonly geminiClient: GeminiClient,
     private readonly openaiClient: OpenAIClient,
     private readonly claudeClient: ClaudeClient,
+    private readonly groqClient: GroqClient,
     private readonly knowledgeService: KnowledgeService,
     private readonly scenarioService: ScenarioService
   ) {}
@@ -272,7 +274,8 @@ export class AiReplyGeneratorService {
     const activeLlmClient = resolveLlmClient(provider, {
       gemini: this.geminiClient,
       openai: this.openaiClient,
-      claude: this.claudeClient
+      claude: this.claudeClient,
+      groq: this.groqClient
     });
 
     const llmStartedAt = Date.now();

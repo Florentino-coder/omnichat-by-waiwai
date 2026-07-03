@@ -42,6 +42,7 @@ import {
 import { GeminiClient } from "../common/llm/gemini.client";
 import { OpenAIClient } from "../common/llm/openai.client";
 import { ClaudeClient } from "../common/llm/claude.client";
+import { GroqClient } from "../common/llm/groq.client";
 import { KnowledgeService } from "../knowledge/knowledge.service";
 import { ScenarioService } from "../scenario/scenario.service";
 import { AutomationService } from "../automation/automation.service";
@@ -218,6 +219,7 @@ export class InboxService {
     private readonly geminiClient: GeminiClient,
     private readonly openaiClient: OpenAIClient,
     private readonly claudeClient: ClaudeClient,
+    private readonly groqClient: GroqClient,
     private readonly knowledgeService: KnowledgeService,
     private readonly scenarioService: ScenarioService,
     private readonly automationService: AutomationService,
@@ -1764,7 +1766,8 @@ export class InboxService {
     const activeLlmClient = resolveLlmClient(provider, {
       gemini: this.geminiClient,
       openai: this.openaiClient,
-      claude: this.claudeClient
+      claude: this.claudeClient,
+      groq: this.groqClient
     });
 
     const promptByLocale: Record<string, string> = {
@@ -2005,7 +2008,8 @@ Summarize the conversation history between the merchant and the customer in Engl
     const activeLlmClient = resolveLlmClient(provider, {
       gemini: this.geminiClient,
       openai: this.openaiClient,
-      claude: this.claudeClient
+      claude: this.claudeClient,
+      groq: this.groqClient
     });
     const sampleMessage = dto.sample_message?.trim() || "สวัสดีครับ มีสินค้าอะไรบ้างคะ";
     const agentGenderInstruction = buildAgentGenderInstruction(aiAgentGender);

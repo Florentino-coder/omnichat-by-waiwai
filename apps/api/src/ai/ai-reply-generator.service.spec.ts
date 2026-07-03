@@ -3,6 +3,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { GeminiClient } from "../common/llm/gemini.client";
 import { OpenAIClient } from "../common/llm/openai.client";
 import { ClaudeClient } from "../common/llm/claude.client";
+import { GroqClient } from "../common/llm/groq.client";
 import { KnowledgeService } from "../knowledge/knowledge.service";
 import { ScenarioService } from "../scenario/scenario.service";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
@@ -45,6 +46,7 @@ function createService(mocks: ReturnType<typeof createMocks>) {
     mocks.geminiClient as unknown as GeminiClient,
     mocks.openaiClient as unknown as OpenAIClient,
     mocks.claudeClient as unknown as ClaudeClient,
+    {} as unknown as GroqClient,
     mocks.knowledgeService as unknown as KnowledgeService,
     mocks.scenarioService as unknown as ScenarioService
   );
