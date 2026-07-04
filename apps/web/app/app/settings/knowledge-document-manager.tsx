@@ -66,7 +66,8 @@ function statusLabel(
 function formatLastIndexed(value: string, locale: string): string {
   return new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
+    timeZone: "Asia/Bangkok"
   }).format(new Date(value));
 }
 

@@ -88,7 +88,8 @@ function formatUsagePeriod(startIso: string, endIso: string, locale: Locale): st
   const formatter = new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
     day: "numeric",
     month: "short",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "Asia/Bangkok"
   });
   return `${formatter.format(start)} – ${formatter.format(end)}`;
 }

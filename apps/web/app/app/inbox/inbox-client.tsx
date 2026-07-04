@@ -1997,7 +1997,8 @@ function formatRelativeTime(value?: string | null): string {
   }
   return new Intl.DateTimeFormat("th-TH", {
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone: "Asia/Bangkok"
   }).format(new Date(value));
 }
 
@@ -2008,7 +2009,8 @@ function formatDateTime(value: string): string {
   }
   return new Intl.DateTimeFormat("th-TH", {
     dateStyle: "short",
-    timeStyle: "short"
+    timeStyle: "short",
+    timeZone: "Asia/Bangkok"
   }).format(date);
 }
 

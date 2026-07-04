@@ -723,7 +723,8 @@ function formatDateTime(value: string): string {
   }
   return new Intl.DateTimeFormat("th-TH", {
     dateStyle: "short",
-    timeStyle: "short"
+    timeStyle: "short",
+    timeZone: "Asia/Bangkok"
   }).format(date);
 }
 
