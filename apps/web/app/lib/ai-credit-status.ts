@@ -38,13 +38,41 @@ export function getAiCreditErrorMessage(message: string, locale?: Locale): strin
     message.includes("quota exceeded") ||
     message.includes("status 429")
   ) {
-    return getMessages(locale).aiProviderRateLimited;
+    let providerName = "Google Gemini";
+    let providerBilling = "Google AI";
+    if (message.includes("Groq")) {
+      providerName = "Groq (Llama)";
+      providerBilling = "Groq console";
+    } else if (message.includes("Claude")) {
+      providerName = "Anthropic Claude";
+      providerBilling = "Anthropic console";
+    } else if (message.includes("OpenAI")) {
+      providerName = "OpenAI GPT";
+      providerBilling = "OpenAI platform";
+    }
+
+    const baseMsg = getMessages(locale).aiProviderRateLimited;
+    return baseMsg
+      .replace("Google Gemini", providerName)
+      .replace("Google AI", providerBilling);
   }
   if (
     message.includes("AI_PROVIDER_NOT_CONFIGURED") ||
     message.includes("API key is not configured")
   ) {
-    return getMessages(locale).aiProviderNotConfigured;
+    let providerName = "AI";
+    if (message.includes("Groq")) {
+      providerName = "Groq (Llama)";
+    } else if (message.includes("Claude")) {
+      providerName = "Anthropic Claude";
+    } else if (message.includes("OpenAI")) {
+      providerName = "OpenAI GPT";
+    } else if (message.includes("Gemini")) {
+      providerName = "Google Gemini";
+    }
+
+    const baseMsg = getMessages(locale).aiProviderNotConfigured;
+    return baseMsg.replace("AI", providerName);
   }
   return null;
 }

@@ -1604,7 +1604,7 @@ export class InboxService {
         errorCode: generateResult.errorCode,
         mode: "suggest"
       });
-      throw buildLlmHttpException(generateResult.llmError);
+      throw buildLlmHttpException(generateResult.llmError, generateResult.provider);
     }
 
     const { suggestionText, compiledPrompt, knowledgeCitations, latencyMs, confidence } = generateResult;
@@ -1813,7 +1813,7 @@ Summarize the conversation history between the merchant and the customer in Engl
 
       return { summary };
     } catch (llmError) {
-      throw buildLlmHttpException(llmError);
+      throw buildLlmHttpException(llmError, provider);
     }
   }
 
@@ -2108,7 +2108,7 @@ Summarize the conversation history between the merchant and the customer in Engl
         errorCode,
         mode: "test"
       });
-      throw buildLlmHttpException(llmError);
+      throw buildLlmHttpException(llmError, provider);
     }
 
     const latencyMs = Date.now() - startedAt;

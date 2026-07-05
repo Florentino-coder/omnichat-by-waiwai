@@ -11,7 +11,8 @@ jest.mock("../app/lib/language-context", () => ({
 
 jest.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn() })
+  useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
+  usePathname: () => "/app/inbox"
 }));
 
 jest.mock("../app/lib/use-auth-session", () => ({

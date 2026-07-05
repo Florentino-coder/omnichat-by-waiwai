@@ -99,6 +99,85 @@ export class GeminiClient implements LLMClient {
     );
   }
 
+  async analyzeImage(params: {
+    systemPrompt: string;
+    imageBuffer: Buffer;
+    mimeType: string;
+  }): Promise<string> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      this.logger.error("GEMINI_API_KEY is not defined");
+      throw new Error("GEMINI_API_KEY is not defined");
+    }
+
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+    const base64Data = params.imageBuffer.toString("base64");
+
+    const body = {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: params.mimeType,
+                data: base64Data
+              }
+            },
+            {
+              text: params.systemPrompt
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 2048,
+        responseMimeType: "application/json"
+      }
+    };
+
+    let lastFinishReason: string | undefined;
+
+    for (let contentAttempt = 0; contentAttempt < EMPTY_CONTENT_MAX_ATTEMPTS; contentAttempt++) {
+      const response = await this.fetchWithRetry(url, body);
+
+      const data = (await response.json()) as {
+        candidates?: Array<{
+          finishReason?: string;
+          content?: { parts?: Array<{ text?: string }> };
+        }>;
+        usageMetadata?: unknown;
+      };
+
+      const candidate = data.candidates?.[0];
+      lastFinishReason = candidate?.finishReason;
+      const parts = candidate?.content?.parts ?? [];
+      const text = parts
+        .map((part) => part.text ?? "")
+        .join("")
+        .trim();
+
+      if (text) {
+        return text;
+      }
+
+      this.logger.error(
+        `Gemini vision returned empty content (finishReason=${lastFinishReason ?? "unknown"}, attempt=${contentAttempt + 1})`
+      );
+
+      if (contentAttempt < EMPTY_CONTENT_MAX_ATTEMPTS - 1) {
+        continue;
+      }
+    }
+
+    throw new Error(
+      `Gemini vision returned empty content (finishReason=${lastFinishReason ?? "unknown"})`
+    );
+  }
+
   private async fetchWithRetry(
     url: string,
     body: Record<string, unknown>

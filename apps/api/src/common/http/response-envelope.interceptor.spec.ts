@@ -5,8 +5,15 @@ import { ResponseEnvelopeInterceptor } from "./response-envelope.interceptor";
 
 const context = {
   getHandler: () => ({}),
-  getClass: () => ({})
-} as ExecutionContext;
+  getClass: () => ({}),
+  getType: () => "http",
+  switchToHttp: () => ({
+    getRequest: () => ({
+      headers: {},
+      path: ""
+    })
+  })
+} as unknown as ExecutionContext;
 
 describe("ResponseEnvelopeInterceptor", () => {
   it("wraps controller data in a success envelope", async () => {
@@ -43,8 +50,15 @@ describe("ResponseEnvelopeInterceptor", () => {
     };
     const noContentContext = {
       getHandler: () => ({}),
-      getClass: () => ({})
-    } as ExecutionContext;
+      getClass: () => ({}),
+      getType: () => "http",
+      switchToHttp: () => ({
+        getRequest: () => ({
+          headers: {},
+          path: ""
+        })
+      })
+    } as unknown as ExecutionContext;
 
     await expect(firstValueFrom(interceptor.intercept(noContentContext, handler))).resolves.toBeUndefined();
   });

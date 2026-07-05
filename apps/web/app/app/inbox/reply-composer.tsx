@@ -332,12 +332,36 @@ export function ReplyComposer({
         setError("ฟีเจอร์ AI ถูกปิดในการตั้งค่า");
       } else if (message.includes("Customer not found")) {
         setError("ไม่พบข้อมูลลูกค้า ต้องเชื่อม CRM ก่อนใช้ AI");
-      } else if (message.includes("AI generation failed") || message.includes("AI_GENERATION_FAILED")) {
-        setError("สร้างคำตอบไม่สำเร็จ ตรวจสอบ API key แล้วลองใหม่");
+      } else if (message.includes("AI_GENERATION_FAILED") || message.includes("generation failed")) {
+        let providerName = "AI";
+        if (message.includes("Groq")) providerName = "Groq (Llama)";
+        else if (message.includes("Claude")) providerName = "Anthropic Claude";
+        else if (message.includes("OpenAI")) providerName = "OpenAI GPT";
+        else if (message.includes("Gemini")) providerName = "Google Gemini";
+        setError(locale === "th"
+          ? `สร้างคำตอบจาก ${providerName} ไม่สำเร็จ ตรวจสอบ API key หรือตั้งค่าระบบแล้วลองใหม่`
+          : `Generation from ${providerName} failed. Check API configuration.`);
       } else if (message.includes("AI_PROVIDER_RATE_LIMITED") || message.includes("quota exceeded")) {
-        setError(t.aiProviderRateLimited);
+        let providerName = "Google Gemini";
+        let providerBilling = "Google AI";
+        if (message.includes("Groq")) {
+          providerName = "Groq (Llama)";
+          providerBilling = "Groq console";
+        } else if (message.includes("Claude")) {
+          providerName = "Anthropic Claude";
+          providerBilling = "Anthropic console";
+        } else if (message.includes("OpenAI")) {
+          providerName = "OpenAI GPT";
+          providerBilling = "OpenAI platform";
+        }
+        setError(t.aiProviderRateLimited.replace("Google Gemini", providerName).replace("Google AI", providerBilling));
       } else if (message.includes("AI_PROVIDER_NOT_CONFIGURED")) {
-        setError(t.aiProviderNotConfigured);
+        let providerName = "AI";
+        if (message.includes("Groq")) providerName = "Groq (Llama)";
+        else if (message.includes("Claude")) providerName = "Anthropic Claude";
+        else if (message.includes("OpenAI")) providerName = "OpenAI GPT";
+        else if (message.includes("Gemini")) providerName = "Google Gemini";
+        setError(t.aiProviderNotConfigured.replace("AI", providerName));
       } else {
         setError(message || "เกิดข้อผิดพลาดในการเรียก AI");
       }

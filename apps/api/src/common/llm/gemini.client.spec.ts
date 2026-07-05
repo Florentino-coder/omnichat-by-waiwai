@@ -144,4 +144,58 @@ describe("GeminiClient", () => {
       })
     ).resolves.toBe("retry ok");
   });
+
+  describe("analyzeImage", () => {
+    it("returns parsed vision response from Gemini", async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            {
+              finishReason: "STOP",
+              content: { parts: [{ text: '{"bankName": "KBANK", "amount": 1000}' }] }
+            }
+          ]
+        })
+      }) as unknown as typeof fetch;
+
+      const client = new GeminiClient();
+      const result = await client.analyzeImage({
+        systemPrompt: "Analyze this slip",
+        imageBuffer: Buffer.from("image"),
+        mimeType: "image/jpeg"
+      });
+
+      expect(result).toBe('{"bankName": "KBANK", "amount": 1000}');
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("generateContent"),
+        expect.objectContaining({
+          body: expect.stringContaining("inlineData")
+        })
+      );
+    });
+
+    it("throws on empty vision response", async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          candidates: [
+            {
+              finishReason: "SAFETY",
+              content: { parts: [] }
+            }
+          ]
+        })
+      }) as unknown as typeof fetch;
+
+      const client = new GeminiClient();
+      await expect(
+        client.analyzeImage({
+          systemPrompt: "Analyze this slip",
+          imageBuffer: Buffer.from("image"),
+          mimeType: "image/jpeg"
+        })
+      ).rejects.toThrow("Gemini vision returned empty content (finishReason=SAFETY)");
+    });
+  });
 });

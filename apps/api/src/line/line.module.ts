@@ -25,6 +25,7 @@ import { MonitorModule } from "../monitor/monitor.module";
 import { ScenarioModule } from "../scenario/scenario.module";
 import { AutomationModule } from "../automation/automation.module";
 import { AiModule } from "../ai/ai.module";
+import { SlipModule } from "../slip/slip.module";
 
 @Module({
   imports: [
@@ -35,7 +36,8 @@ import { AiModule } from "../ai/ai.module";
     MonitorModule,
     ScenarioModule,
     forwardRef(() => AutomationModule),
-    forwardRef(() => AiModule)
+    forwardRef(() => AiModule),
+    SlipModule
   ],
   controllers: [LineChannelsController, LineWebhookController],
   providers: [

@@ -25,6 +25,7 @@ import { AutomationModule } from "./automation/automation.module";
 import { LlmModule } from "./common/llm/llm.module";
 import { ReportingModule } from "./reporting/reporting.module";
 import { QaModule } from "./qa/qa.module";
+import { SlipModule } from "./slip/slip.module";
 
 @Module({
   imports: [
@@ -55,7 +56,8 @@ import { QaModule } from "./qa/qa.module";
     AutomationModule,
     LlmModule,
     ReportingModule,
-    QaModule
+    QaModule,
+    SlipModule
   ]
 })
 export class AppModule {}

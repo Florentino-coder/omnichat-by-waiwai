@@ -48,17 +48,27 @@ export function shouldOfferKnowledgeOnlyFallback(errorCode: string): boolean {
   return errorCode === "AI_PROVIDER_RATE_LIMITED" || errorCode === "AI_PROVIDER_NOT_CONFIGURED";
 }
 
-export function buildLlmHttpException(llmError: unknown): HttpException {
+export function buildLlmHttpException(llmError: unknown, provider?: string): HttpException {
   const errorMessage = llmError instanceof Error ? llmError.message : String(llmError);
   logger.error(`LLM Generation failed: ${errorMessage}`);
 
   const code = extractLlmErrorCode(llmError);
+  
+  let providerLabel = "AI provider";
+  if (provider) {
+    const norm = provider.toLowerCase();
+    if (norm === "groq") providerLabel = "Groq";
+    else if (norm === "claude" || norm === "anthropic") providerLabel = "Claude";
+    else if (norm === "openai") providerLabel = "OpenAI";
+    else if (norm === "gemini") providerLabel = "Gemini";
+  }
+
   const messageByCode: Record<string, string> = {
-    AI_PROVIDER_NOT_CONFIGURED: "AI provider API key is not configured on the server.",
+    AI_PROVIDER_NOT_CONFIGURED: `${providerLabel} API key is not configured on the server.`,
     AI_PROVIDER_RATE_LIMITED:
-      "AI provider daily quota exceeded. Try again tomorrow or upgrade your API plan.",
-    AI_PROVIDER_TIMEOUT: "AI provider took too long to respond. Please try again.",
-    AI_GENERATION_FAILED: "AI generation failed. Please try again."
+      `${providerLabel} daily quota exceeded. Try again tomorrow or upgrade your API plan.`,
+    AI_PROVIDER_TIMEOUT: `${providerLabel} took too long to respond. Please try again.`,
+    AI_GENERATION_FAILED: `${providerLabel} generation failed. Please try again.`
   };
 
   const statusByCode: Record<string, HttpStatus> = {

@@ -254,6 +254,7 @@ model Tenant {
   automationRuns            AutomationRun[]
   aiTrainingPairs           AiTrainingPair[]
   aiQaScores                AiQaScore[]
+  slipVerifications         SlipVerification[]
 
   @@index([slug])
   @@index([planId])
@@ -572,6 +573,7 @@ model Conversation {
   automationRuns AutomationRun[]
   aiTrainingPairs AiTrainingPair[]
   aiQaScores      AiQaScore[]
+  slipVerifications SlipVerification[]
 
   @@unique([tenantId, source, lineChannelId, externalThreadId])
   @@index([tenantId])
@@ -1054,5 +1056,38 @@ model AiTrainingPair {
   @@index([tenantId])
   @@index([status])
   @@map("ai_training_pairs")
+}
+
+model SlipVerification {
+  id             String    @id @default(uuid())
+  tenantId       String    @map("tenant_id")
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  conversationId String    @map("conversation_id")
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  messageId      String?   @map("message_id")
+  r2ImageKey     String    @map("r2_image_key")
+  ocrText        String?   @map("ocr_text")
+  bankName       String?   @map("bank_name")
+  amount         Decimal?  @map("amount") @db.Decimal(12, 2)
+  transactionRef String?   @map("transaction_ref")
+  transferDate   DateTime? @map("transfer_date")
+  slipScore      Int       @map("slip_score")
+  detectStatus   String    @default("DETECTED") @map("detect_status")
+  verifyStatus   String    @default("PENDING") @map("verify_status")
+  intent         String?   @map("intent")
+  adminAction    String?   @map("admin_action")
+  adminNote      String?   @map("admin_note")
+  adminMemberId  String?   @map("admin_member_id")
+  actedAt        DateTime? @map("acted_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  qrDecodedRaw   String?   @map("qr_decoded_raw")
+  qrDecodeStatus String    @default("NOT_ATTEMPTED") @map("qr_decode_status")
+  verifyProvider String?   @map("verify_provider")
+  verifyPayload  Json?     @map("verify_payload")
+  slipokCostCharged Boolean @default(false) @map("slipok_cost_charged")
+
+  @@index([tenantId])
+  @@index([conversationId])
+  @@map("slip_verifications")
 }
 

@@ -271,7 +271,71 @@ describe("AiReplyGeneratorService", () => {
     expect(result.outcome).toBe("success");
     if (result.outcome === "success") {
       expect(result.compiledPrompt).toContain("CRITICAL SAFETY RULES");
-      expect(result.compiledPrompt).toContain("ขนมเค้ก, คุกกี้, ชา, น้ำผลไม้");
+      expect(result.compiledPrompt).toContain("ห้ามนำหัวข้ออื่นที่ไม่เกี่ยวข้องกับคำถามลูกค้ามาตอบแทนเด็ดขาด");
+      expect(result.compiledPrompt).not.toContain("ขนมเค้ก, คุกกี้, ชา, น้ำผลไม้");
+    }
+  });
+
+  it("binds the customer name into the prompt template", async () => {
+    const mocks = createMocks();
+    mocks.prisma.conversation.findFirst.mockResolvedValue({
+      ...mockConversation,
+      customer: {
+        id: "cust-1",
+        displayName: "Somsak",
+        deletedAt: null
+      }
+    });
+    mocks.prisma.tenantSettings.findUnique.mockResolvedValue(mockSettings);
+    mocks.prisma.promptTemplate.findFirst.mockResolvedValue({
+      systemPrompt: "Hello {{customer_name}}"
+    });
+    mocks.knowledgeService.buildKnowledgeContextWithCitations.mockResolvedValue({
+      context: "ไม่มี",
+      citations: []
+    });
+    mocks.scenarioService.buildScenarioInstructions.mockResolvedValue("scenarios");
+    mocks.geminiClient.generateReply.mockResolvedValue("สวัสดี");
+
+    const service = createService(mocks);
+    const result = await service.generate({
+      ...mockBaseInput,
+      includeConfidence: false
+    });
+
+    expect(result.outcome).toBe("success");
+    if (result.outcome === "success") {
+      expect(result.compiledPrompt).toContain("Hello Somsak");
+    }
+  });
+
+  it("enforces hallucination fallback instructions when RAG context is empty", async () => {
+    const mocks = createMocks();
+    mocks.prisma.conversation.findFirst.mockResolvedValue(mockConversation);
+    mocks.prisma.tenantSettings.findUnique.mockResolvedValue(mockSettings);
+    mocks.prisma.promptTemplate.findFirst.mockResolvedValue({
+      systemPrompt: "System template: {{knowledge_context}}"
+    });
+    mocks.knowledgeService.buildKnowledgeContextWithCitations.mockResolvedValue({
+      context: "ไม่มี",
+      citations: []
+    });
+    mocks.scenarioService.buildScenarioInstructions.mockResolvedValue("scenarios");
+    mocks.geminiClient.generateReply.mockResolvedValue("[CONFIDENCE: 0.99]\nขออภัยด้วยค่ะ ปัจจุบันทางระบบยังไม่มีข้อมูลเกี่ยวกับเรื่องนี้ค่ะ");
+
+    const service = createService(mocks);
+    const result = await service.generate({
+      ...mockBaseInput,
+      includeConfidence: true
+    });
+
+    expect(result.outcome).toBe("success");
+    if (result.outcome === "success") {
+      expect(result.compiledPrompt).toContain("ในกรณีที่หาข้อมูลไม่พบหรือไม่มีข้อมูลใน Knowledge Base ให้ปฏิเสธอย่างสุภาพเป็นภาษาไทย");
+      expect(result.compiledPrompt).toContain("ห้ามนำหัวข้ออื่นที่ไม่เกี่ยวข้องกับคำถามลูกค้ามาตอบแทนเด็ดขาด");
+      expect(result.compiledPrompt).not.toContain("ขนมเค้ก, คุกกี้, ชา, น้ำผลไม้");
+      expect(result.suggestionText).toBe("ขออภัยด้วยค่ะ ปัจจุบันทางระบบยังไม่มีข้อมูลเกี่ยวกับเรื่องนี้ค่ะ");
+      expect(result.confidence).toBe(0.99);
     }
   });
 });

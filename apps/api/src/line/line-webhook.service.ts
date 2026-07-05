@@ -14,6 +14,7 @@ import { AutomationService } from "../automation/automation.service";
 import { AutomationTriggerType } from "@prisma/client";
 import { AiAutoReplyService } from "../ai/ai-auto-reply.service";
 import { AiHybridDraftService } from "../ai/ai-hybrid-draft.service";
+import { SlipService } from "../slip/slip.service";
 
 type LineWebhookPayload = {
   events?: LineWebhookEvent[];
@@ -59,7 +60,8 @@ export class LineWebhookService {
     @Inject(forwardRef(() => AutomationService))
     private readonly automationService?: AutomationService,
     private readonly aiAutoReplyService?: AiAutoReplyService,
-    private readonly aiHybridDraftService?: AiHybridDraftService
+    private readonly aiHybridDraftService?: AiHybridDraftService,
+    private readonly slipService?: SlipService
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
@@ -215,6 +217,19 @@ export class LineWebhookService {
           rawPayload: lineProfile ? { ...event, lineProfile } : event
         }
       });
+
+      if (messageType === MessageType.IMAGE && this.slipService) {
+        this.slipService
+          .processImageAsync(
+            channel.tenantId,
+            conversation.id,
+            lineMessage.id,
+            (event.message as any)?.originalContentUrl
+          )
+          .catch((err) =>
+            this.logger.error("Slip detection failed (non-blocking)", err)
+          );
+      }
 
       await this.prisma.auditLog.create({
         data: {
