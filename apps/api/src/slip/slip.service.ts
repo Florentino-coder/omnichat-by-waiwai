@@ -314,59 +314,11 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
           await this.ensureTagExistsAndLink(tenantId, conversationId, "สลิป-น่าสงสัย-QR", "#FF3333");
         }
 
-        // Prepare Internal Note text
-        const finalAmount = amount || scoreResult.amount;
-        const amountStr = finalAmount !== undefined ? finalAmount.toFixed(2) : "ไม่ระบุ";
-
-        let qrDetailStr = "ไม่ได้เรียกตรวจสอบ (ข้ามการแสกน)";
-        if (qrResult.status === "FAILED") {
-          qrDetailStr = "ระบบตรวจพบสลิปต้องสงสัย (QR Code เสียหายหรือถอดรหัสไม่ได้)";
-        } else if (qrResult.status === "NOT_FOUND") {
-          qrDetailStr = "ไม่พบ QR Code บนภาพสลิป";
-        } else if (verifyStatus === "VERIFIED") {
-          qrDetailStr = "การทวนสอบสำเร็จ ยอดเงินถูกต้อง";
-        } else if (verifyStatus === "DUPLICATE") {
-          qrDetailStr = "สลิปซ้ำซ้อน (สลิปนี้เคยใช้ยืนยันไปแล้ว)";
-        } else if (verifyStatus === "INVALID") {
-          qrDetailStr = "สลิปไม่ถูกต้อง (ข้อมูลไม่ตรงกับธนาคารหรือสลิปปลอม)";
-        } else if (verifyStatus === "MANUAL_REVIEW") {
-          qrDetailStr = "ระบบขัดข้องหรือโควตาหมด กรุณาตรวจสอบด้วยตนเอง";
-        }
-
-        const noteBody = `[System: Slip Verification]
-ตรวจพบรูปภาพสลิปการโอนเงิน (คะแนนความมั่นใจ: ${slipScore}%)
-• ธนาคาร: ${bankName || scoreResult.bankName || "ไม่ระบุ"}
-• ยอดโอน: ${amountStr} บาท
-• เลขที่อ้างอิง: ${transactionRef || scoreResult.transactionRef || "ไม่ระบุ"}
-• วันที่โอน: ${transferDate || scoreResult.transferDate || "ไม่ระบุ"}
-
-[ผลการทวนสอบสลิป (QR & SlipOK)]
-• สถานะ QR: ${qrResult.status}
-• ผู้ให้บริการ: ${verifyProvider || "-"}
-• สถานะการทวนสอบ: ${verifyStatus}
-• รายละเอียด: ${qrDetailStr}`;
-
-        const firstMember = await this.prisma.workspaceMember.findFirst({
-          where: { tenantId },
-        });
-        if (!firstMember) {
-          throw new Error(`No workspace member found for tenant ${tenantId}`);
-        }
-
-        await this.prisma.conversationInternalNote.create({
-          data: {
-            tenantId,
-            conversationId,
-            authorMemberId: firstMember.id,
-            body: noteBody.trim(),
-          },
-        });
-
         // Publish realtime event to trigger frontend updates
         await this.realtimeService.publishTenantEvent(tenantId, "conversation.updated", {
           conversationId,
         });
-        this.logger.log(`Successfully auto-tagged and auto-noted conversation ${conversationId}`);
+        this.logger.log(`Successfully auto-tagged conversation ${conversationId}`);
       }
     } catch (err) {
       this.logger.error(

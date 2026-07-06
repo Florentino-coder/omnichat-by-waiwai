@@ -150,11 +150,7 @@ describe("SlipService", () => {
       data: { tenantId: "tenant-1", name: "สลิป-น่าสงสัย-QR", color: "#FF3333" },
     });
 
-    expect(prisma.conversationInternalNote.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        body: expect.stringContaining("สถานะ QR: NOT_FOUND"),
-      }),
-    });
+    expect(prisma.conversationInternalNote.create).not.toHaveBeenCalled();
   });
 
   it("Scenario 2: QR decode failed - should NOT deduct score, mark as suspicious and auto-tag both tags", async () => {

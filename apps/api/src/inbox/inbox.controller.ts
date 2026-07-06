@@ -7,7 +7,8 @@ import {
   ConversationTag,
   ConversationTagLink,
   Role,
-  SavedReply
+  SavedReply,
+  SlipVerification
 } from "@prisma/client";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { TenantCtx } from "../auth/decorators/tenant-context.decorator";
@@ -261,6 +262,15 @@ export class InboxController {
     @Param("id") id: string
   ): Promise<ConversationInternalNote[]> {
     return this.inboxService.listNotes(ctx.tenantId, id);
+  }
+
+  @Get("conversations/:id/slip-verifications")
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
+  listSlipVerifications(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string
+  ): Promise<SlipVerification[]> {
+    return this.inboxService.listSlipVerifications(ctx.tenantId, id);
   }
 
   @Post("conversations/:id/notes")

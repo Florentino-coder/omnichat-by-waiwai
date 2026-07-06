@@ -18,7 +18,8 @@ import {
   LineChannel,
   WorkspaceMember,
   PromptTemplate,
-  AutomationTriggerType
+  AutomationTriggerType,
+  SlipVerification
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
@@ -903,6 +904,21 @@ export class InboxService {
       },
       orderBy: { createdAt: "desc" },
       take: 100
+    });
+  }
+
+  async listSlipVerifications(
+    tenantId: string,
+    conversationId: string
+  ): Promise<SlipVerification[]> {
+    const conversation = await this.findTenantConversation(tenantId, conversationId);
+
+    return this.prisma.slipVerification.findMany({
+      where: {
+        tenantId,
+        conversationId: conversation.id,
+      },
+      orderBy: { createdAt: "desc" },
     });
   }
 
