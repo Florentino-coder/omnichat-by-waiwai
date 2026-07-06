@@ -14,6 +14,14 @@ jest.mock("../app/lib/language-context", () => {
   };
 });
 
+jest.mock("../app/app/inbox/hooks/useSlipVerifications", () => ({
+  useSlipVerifications: () => ({
+    slips: [],
+    isLoading: false,
+    refetch: jest.fn()
+  })
+}));
+
 describe("Inbox components", () => {
   it("exposes the Stage 2 status helper values", () => {
     expect(STATUS_CONFIG.OPEN.text).toBe("เปิดอยู่");

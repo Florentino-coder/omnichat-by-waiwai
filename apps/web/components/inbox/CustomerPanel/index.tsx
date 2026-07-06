@@ -7,6 +7,8 @@ import { getMessages, type Messages } from "../../../app/lib/i18n";
 import { AssignDropdown } from "./AssignDropdown";
 import { QuickReplyList } from "./QuickReplyList";
 import { TagList } from "./TagList";
+import { useSlipVerifications } from "../../../app/app/inbox/hooks/useSlipVerifications";
+import { SlipVerificationPanel } from "../SlipVerificationPanel";
 
 interface CustomerPanelProps {
   customerName: string;
@@ -119,6 +121,7 @@ export function CustomerPanel({
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [rateLimitLock, setRateLimitLock] = useState(false);
   const [rateLimitCountdown, setRateLimitCountdown] = useState(0);
+  const { slips, isLoading: isLoadingSlips } = useSlipVerifications(conversationId);
 
   useEffect(() => {
     let timer: number;
@@ -180,7 +183,8 @@ export function CustomerPanel({
     contact: false,
     channel: false,
     latestMessage: false,
-    summary: true
+    summary: true,
+    slipVerification: false
   });
 
   const toggleSection = (section: string) => {
@@ -309,6 +313,14 @@ export function CustomerPanel({
             {statusLabel(status)}
           </p>
         </section>
+
+        {/* ยืนยันสลิป */}
+        <SlipVerificationPanel
+          slips={slips}
+          isLoading={isLoadingSlips}
+          isExpanded={expanded.slipVerification}
+          onToggle={() => toggleSection("slipVerification")}
+        />
 
         {/* สรุปบทสนทนา (AI) */}
         {enableAiSuggest && (
