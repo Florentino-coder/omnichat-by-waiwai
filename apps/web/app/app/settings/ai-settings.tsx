@@ -57,6 +57,7 @@ type AiSettingsData = {
   enableSlipResultAutoReply: boolean;
   slipResultSuccessMessage: string;
   slipResultFailedMessage: string;
+  slipResultManualReviewMessage: string;
 };
 
 type PromptTemplateData = {
@@ -135,7 +136,8 @@ export function AiSettings() {
     slipAutoAcknowledgeMessage: "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
     enableSlipResultAutoReply: false,
     slipResultSuccessMessage: "สลิปข้อมูลถูกต้อง",
-    slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
+    slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
+    slipResultManualReviewMessage: "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
   });
   const [escalationKeywordsText, setEscalationKeywordsText] = useState("");
   const [policyTopicsText, setPolicyTopicsText] = useState("");
@@ -252,7 +254,8 @@ export function AiSettings() {
           slipAutoAcknowledgeMessage: settings.slipAutoAcknowledgeMessage,
           enableSlipResultAutoReply: settings.enableSlipResultAutoReply,
           slipResultSuccessMessage: settings.slipResultSuccessMessage,
-          slipResultFailedMessage: settings.slipResultFailedMessage
+          slipResultFailedMessage: settings.slipResultFailedMessage,
+          slipResultManualReviewMessage: settings.slipResultManualReviewMessage
         })
       });
 
@@ -762,7 +765,7 @@ export function AiSettings() {
         </div>
 
         {settings.enableSlipResultAutoReply && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <div>
               <label htmlFor="slip-success-msg" className="text-sm font-semibold text-emerald-700 font-medium">
                 {locale === "th" ? "ข้อความเมื่อสลิปถูกต้อง" : "Verification Success Message"}
@@ -790,8 +793,26 @@ export function AiSettings() {
               />
               <p className="mt-1 text-xs text-[#767A8C]">
                 {locale === "th"
-                  ? "*รหัส Error (error1/error2) จะถูกบันทึกให้แอดมินเห็นหลังบ้านเท่านั้น ไม่แสดงให้ลูกค้าเห็น"
-                  : "*Diagnostic error codes (error1/error2) are saved for admins only and hidden from customers."}
+                  ? "*ใช้เมื่อสลิปมีข้อมูลไม่ถูกต้อง/สลิปปลอม/เลขบัญชีไม่ตรง (รหัส error1)"
+                  : "*Used when the slip is invalid, fake, or has mismatched account info (error1)."}
+              </p>
+            </div>
+            <div>
+              <label htmlFor="slip-manual-review-msg" className="text-sm font-semibold text-amber-700 font-medium">
+                {locale === "th" ? "ข้อความเมื่อต้องตรวจสอบเพิ่มเติม (Manual Review)" : "Manual Review Message"}
+              </label>
+              <textarea
+                id="slip-manual-review-msg"
+                rows={3}
+                value={settings.slipResultManualReviewMessage}
+                onChange={(e) => setSettings({ ...settings, slipResultManualReviewMessage: e.target.value })}
+                className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+                placeholder="ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
+              />
+              <p className="mt-1 text-xs text-[#767A8C]">
+                {locale === "th"
+                  ? "*ใช้เมื่อระบบขัดข้อง/โควตาหมด/ไม่สามารถดึงข้อมูลได้ทันที (รหัส error2) — ควรใช้ข้อความที่เป็นกลาง"
+                  : "*Used when the system is offline, out of quota, or cannot verify immediately (error2) — prefer neutral wording."}
               </p>
             </div>
           </div>

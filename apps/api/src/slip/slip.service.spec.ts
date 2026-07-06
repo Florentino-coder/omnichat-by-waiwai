@@ -462,5 +462,33 @@ describe("SlipService", () => {
         })
       );
     });
+
+    it("should send manual review auto-reply and save error2 when verifyStatus is MANUAL_REVIEW", async () => {
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableSlipAutoAcknowledge: false,
+        enableSlipResultAutoReply: true,
+        slipResultSuccessMessage: "สลิปข้อมูลถูกต้องจ้า",
+        slipResultFailedMessage: "ข้อมูลไม่ถูกต้องนะ",
+        slipResultManualReviewMessage: "รอแอดมินตรวจเพิ่มเติมนะ",
+      });
+      slipOkClient.verifyQr.mockRejectedValue(new Error("SlipOK service down"));
+
+      await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
+
+      expect(lineReplyService.replyText).toHaveBeenCalledWith(
+        "tenant-1",
+        "system",
+        "conv-1",
+        { text: "รอแอดมินตรวจเพิ่มเติมนะ" }
+      );
+      expect(prisma.slipVerification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            verifyStatus: "MANUAL_REVIEW",
+            verifyErrorCode: "error2",
+          }),
+        })
+      );
+    });
   });
 });

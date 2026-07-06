@@ -114,6 +114,7 @@ export type InboxSettings = {
   enableSlipResultAutoReply: boolean;
   slipResultSuccessMessage: string;
   slipResultFailedMessage: string;
+  slipResultManualReviewMessage: string;
 };
 
 export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
@@ -1177,7 +1178,8 @@ export class InboxService {
         slipAutoAcknowledgeMessage: true,
         enableSlipResultAutoReply: true,
         slipResultSuccessMessage: true,
-        slipResultFailedMessage: true
+        slipResultFailedMessage: true,
+        slipResultManualReviewMessage: true
       }
     });
 
@@ -1203,7 +1205,8 @@ export class InboxService {
       slipAutoAcknowledgeMessage: settings?.slipAutoAcknowledgeMessage ?? "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
       enableSlipResultAutoReply: settings?.enableSlipResultAutoReply ?? false,
       slipResultSuccessMessage: settings?.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
-      slipResultFailedMessage: settings?.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
+      slipResultFailedMessage: settings?.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
+      slipResultManualReviewMessage: settings?.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
     };
   }
 
@@ -1246,7 +1249,8 @@ export class InboxService {
         slipAutoAcknowledgeMessage: dto.slipAutoAcknowledgeMessage ?? "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
         enableSlipResultAutoReply: dto.enableSlipResultAutoReply ?? false,
         slipResultSuccessMessage: dto.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
-        slipResultFailedMessage: dto.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
+        slipResultFailedMessage: dto.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
+        slipResultManualReviewMessage: dto.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
@@ -1268,6 +1272,7 @@ export class InboxService {
         enableSlipResultAutoReply: dto.enableSlipResultAutoReply,
         slipResultSuccessMessage: dto.slipResultSuccessMessage,
         slipResultFailedMessage: dto.slipResultFailedMessage,
+        slipResultManualReviewMessage: dto.slipResultManualReviewMessage,
         ...(dto.enableAiAutoReply === true ? { aiGuardrailNoticeAt: null } : {})
       },
       select: {
@@ -1290,7 +1295,8 @@ export class InboxService {
         slipAutoAcknowledgeMessage: true,
         enableSlipResultAutoReply: true,
         slipResultSuccessMessage: true,
-        slipResultFailedMessage: true
+        slipResultFailedMessage: true,
+        slipResultManualReviewMessage: true
       }
     });
 
@@ -1352,7 +1358,8 @@ export class InboxService {
       slipAutoAcknowledgeMessage: settings.slipAutoAcknowledgeMessage,
       enableSlipResultAutoReply: settings.enableSlipResultAutoReply,
       slipResultSuccessMessage: settings.slipResultSuccessMessage,
-      slipResultFailedMessage: settings.slipResultFailedMessage
+      slipResultFailedMessage: settings.slipResultFailedMessage,
+      slipResultManualReviewMessage: settings.slipResultManualReviewMessage
     };
   }
 

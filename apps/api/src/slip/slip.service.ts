@@ -400,6 +400,7 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
           enableSlipResultAutoReply: true,
           slipResultSuccessMessage: true,
           slipResultFailedMessage: true,
+          slipResultManualReviewMessage: true,
         },
       });
 
@@ -410,8 +411,10 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
       let messageText = "";
       if (verifyStatus === "VERIFIED") {
         messageText = settings.slipResultSuccessMessage;
-      } else {
+      } else if (verifyStatus === "INVALID") {
         messageText = settings.slipResultFailedMessage;
+      } else if (verifyStatus === "MANUAL_REVIEW") {
+        messageText = settings.slipResultManualReviewMessage;
       }
 
       if (!messageText) {

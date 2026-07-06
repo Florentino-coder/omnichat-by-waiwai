@@ -109,4 +109,9 @@ export class UpdateInboxSettingsDto {
   @IsString()
   @MaxLength(1000)
   slipResultFailedMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  slipResultManualReviewMessage?: string;
 }

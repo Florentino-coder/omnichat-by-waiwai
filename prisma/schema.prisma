@@ -303,6 +303,7 @@ model TenantSettings {
   enableSlipResultAutoReply   Boolean @default(false) @map("enable_slip_result_auto_reply")
   slipResultSuccessMessage    String  @default("สลิปข้อมูลถูกต้อง") @map("slip_result_success_message")
   slipResultFailedMessage     String  @default("ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง") @map("slip_result_failed_message")
+  slipResultManualReviewMessage String @default("ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏") @map("slip_result_manual_review_message")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
