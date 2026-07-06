@@ -176,14 +176,14 @@ export function CustomerPanel({
   };
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
-    assign: true,
-    tags: true,
-    quickReply: true,
-    notes: true,
+    assign: false,
+    tags: false,
+    quickReply: false,
+    notes: false,
     contact: false,
     channel: false,
     latestMessage: false,
-    summary: true,
+    summary: false,
     slipVerification: false
   });
 
@@ -496,15 +496,22 @@ export function CustomerPanel({
               บันทึก
             </button>
             <div className="mt-3 grid gap-2">
-              {notes.length === 0 && !isLoadingOperations ? (
-                <p className="text-sm text-muted-foreground">ยังไม่มีโน้ต</p>
-              ) : null}
-              {notes.map((note) => (
-                <div key={note.id} className="rounded-xl border border-[#F2C94C] bg-[#FFF9E8] px-3 py-3 text-sm">
-                  <p className="whitespace-pre-wrap text-[#7A470F]">{note.body}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(note.createdAt)}</p>
-                </div>
-              ))}
+              {(() => {
+                const displayNotes = notes.filter((note) => !note.body.includes("[System: Slip Verification]"));
+                return (
+                  <>
+                    {displayNotes.length === 0 && !isLoadingOperations ? (
+                      <p className="text-sm text-muted-foreground">ยังไม่มีโน้ต</p>
+                    ) : null}
+                    {displayNotes.map((note) => (
+                      <div key={note.id} className="rounded-xl border border-[#F2C94C] bg-[#FFF9E8] px-3 py-3 text-sm">
+                        <p className="whitespace-pre-wrap text-[#7A470F]">{note.body}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(note.createdAt)}</p>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </section>
