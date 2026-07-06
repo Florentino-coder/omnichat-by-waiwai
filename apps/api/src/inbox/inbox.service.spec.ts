@@ -646,7 +646,9 @@ describe("InboxService", () => {
       enableSlipResultAutoReply: false,
       slipResultSuccessMessage: "สลิปข้อมูลถูกต้อง",
       slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
-      slipResultManualReviewMessage: "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
+      slipResultManualReviewMessage: "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏",
+      slipResultDuplicateMessage: "สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏",
+      enableDuplicateSlipCheck: true
     });
 
     await createService(prisma).updateSettings("tenant-1", "user-1", {

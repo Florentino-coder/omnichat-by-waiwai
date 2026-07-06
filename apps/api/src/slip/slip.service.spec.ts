@@ -43,6 +43,7 @@ describe("SlipService", () => {
       },
       slipVerification: {
         create: jest.fn(),
+        findFirst: jest.fn(),
       },
       conversationTag: {
         findUnique: jest.fn(),
@@ -486,6 +487,42 @@ describe("SlipService", () => {
           data: expect.objectContaining({
             verifyStatus: "MANUAL_REVIEW",
             verifyErrorCode: "error2",
+          }),
+        })
+      );
+    });
+
+    it("should trigger duplicate auto-reply message and save error3 when DUPLICATE status is detected via pre-filter", async () => {
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableSlipResultAutoReply: true,
+        slipResultSuccessMessage: "สลิปข้อมูลถูกต้องจ้า",
+        slipResultFailedMessage: "ข้อมูลไม่ถูกต้องนะ",
+        slipResultManualReviewMessage: "รอแอดมินตรวจเพิ่มเติมนะ",
+        slipResultDuplicateMessage: "สลิปซ้ำนะจ๊ะ",
+        enableDuplicateSlipCheck: true,
+      });
+
+      prisma.slipVerification.findFirst.mockResolvedValue({
+        id: "existing-1",
+        verifyStatus: "VERIFIED",
+      });
+
+      await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
+
+      expect(slipOkClient.verifyQr).not.toHaveBeenCalled();
+
+      expect(lineReplyService.replyText).toHaveBeenCalledWith(
+        "tenant-1",
+        "system",
+        "conv-1",
+        { text: "สลิปซ้ำนะจ๊ะ" }
+      );
+
+      expect(prisma.slipVerification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            verifyStatus: "DUPLICATE",
+            verifyErrorCode: "error3",
           }),
         })
       );

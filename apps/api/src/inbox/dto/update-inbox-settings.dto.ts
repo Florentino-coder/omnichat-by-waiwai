@@ -101,6 +101,10 @@ export class UpdateInboxSettingsDto {
   enableSlipResultAutoReply?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  enableDuplicateSlipCheck?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(1000)
   slipResultSuccessMessage?: string;
@@ -114,4 +118,9 @@ export class UpdateInboxSettingsDto {
   @IsString()
   @MaxLength(1000)
   slipResultManualReviewMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  slipResultDuplicateMessage?: string;
 }

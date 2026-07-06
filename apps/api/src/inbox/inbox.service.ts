@@ -115,6 +115,8 @@ export type InboxSettings = {
   slipResultSuccessMessage: string;
   slipResultFailedMessage: string;
   slipResultManualReviewMessage: string;
+  slipResultDuplicateMessage: string;
+  enableDuplicateSlipCheck: boolean;
 };
 
 export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
@@ -1179,7 +1181,9 @@ export class InboxService {
         enableSlipResultAutoReply: true,
         slipResultSuccessMessage: true,
         slipResultFailedMessage: true,
-        slipResultManualReviewMessage: true
+        slipResultManualReviewMessage: true,
+        slipResultDuplicateMessage: true,
+        enableDuplicateSlipCheck: true
       }
     });
 
@@ -1206,7 +1210,9 @@ export class InboxService {
       enableSlipResultAutoReply: settings?.enableSlipResultAutoReply ?? false,
       slipResultSuccessMessage: settings?.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
       slipResultFailedMessage: settings?.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
-      slipResultManualReviewMessage: settings?.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
+      slipResultManualReviewMessage: settings?.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏",
+      slipResultDuplicateMessage: settings?.slipResultDuplicateMessage ?? "สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏",
+      enableDuplicateSlipCheck: settings?.enableDuplicateSlipCheck ?? true
     };
   }
 
@@ -1250,7 +1256,9 @@ export class InboxService {
         enableSlipResultAutoReply: dto.enableSlipResultAutoReply ?? false,
         slipResultSuccessMessage: dto.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
         slipResultFailedMessage: dto.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
-        slipResultManualReviewMessage: dto.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
+        slipResultManualReviewMessage: dto.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏",
+        slipResultDuplicateMessage: dto.slipResultDuplicateMessage ?? "สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏",
+        enableDuplicateSlipCheck: dto.enableDuplicateSlipCheck ?? true
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
@@ -1273,6 +1281,8 @@ export class InboxService {
         slipResultSuccessMessage: dto.slipResultSuccessMessage,
         slipResultFailedMessage: dto.slipResultFailedMessage,
         slipResultManualReviewMessage: dto.slipResultManualReviewMessage,
+        slipResultDuplicateMessage: dto.slipResultDuplicateMessage,
+        enableDuplicateSlipCheck: dto.enableDuplicateSlipCheck,
         ...(dto.enableAiAutoReply === true ? { aiGuardrailNoticeAt: null } : {})
       },
       select: {
@@ -1296,7 +1306,9 @@ export class InboxService {
         enableSlipResultAutoReply: true,
         slipResultSuccessMessage: true,
         slipResultFailedMessage: true,
-        slipResultManualReviewMessage: true
+        slipResultManualReviewMessage: true,
+        slipResultDuplicateMessage: true,
+        enableDuplicateSlipCheck: true
       }
     });
 
@@ -1359,7 +1371,9 @@ export class InboxService {
       enableSlipResultAutoReply: settings.enableSlipResultAutoReply,
       slipResultSuccessMessage: settings.slipResultSuccessMessage,
       slipResultFailedMessage: settings.slipResultFailedMessage,
-      slipResultManualReviewMessage: settings.slipResultManualReviewMessage
+      slipResultManualReviewMessage: settings.slipResultManualReviewMessage,
+      slipResultDuplicateMessage: settings.slipResultDuplicateMessage,
+      enableDuplicateSlipCheck: settings.enableDuplicateSlipCheck
     };
   }
 

@@ -6,7 +6,7 @@ import { Button } from "@omnichat/ui";
 import { getAiCreditStatusMessage, type AiCreditBlockReason } from "../../lib/ai-credit-status";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages, type Locale } from "../../lib/i18n";
-import { Sparkles, GitBranch, Cpu, User, Clock, MessageCircle, MessageSquare } from "lucide-react";
+import { Sparkles, GitBranch, Cpu, User, Clock, MessageCircle, MessageSquare, Copy } from "lucide-react";
 
 
 interface ToggleSwitchProps {
@@ -58,6 +58,8 @@ type AiSettingsData = {
   slipResultSuccessMessage: string;
   slipResultFailedMessage: string;
   slipResultManualReviewMessage: string;
+  slipResultDuplicateMessage: string;
+  enableDuplicateSlipCheck: boolean;
 };
 
 type PromptTemplateData = {
@@ -137,7 +139,9 @@ export function AiSettings() {
     enableSlipResultAutoReply: false,
     slipResultSuccessMessage: "สลิปข้อมูลถูกต้อง",
     slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
-    slipResultManualReviewMessage: "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏"
+    slipResultManualReviewMessage: "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏",
+    slipResultDuplicateMessage: "สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏",
+    enableDuplicateSlipCheck: true
   });
   const [escalationKeywordsText, setEscalationKeywordsText] = useState("");
   const [policyTopicsText, setPolicyTopicsText] = useState("");
@@ -253,9 +257,11 @@ export function AiSettings() {
           enableSlipAutoAcknowledge: settings.enableSlipAutoAcknowledge,
           slipAutoAcknowledgeMessage: settings.slipAutoAcknowledgeMessage,
           enableSlipResultAutoReply: settings.enableSlipResultAutoReply,
+          enableDuplicateSlipCheck: settings.enableDuplicateSlipCheck,
           slipResultSuccessMessage: settings.slipResultSuccessMessage,
           slipResultFailedMessage: settings.slipResultFailedMessage,
-          slipResultManualReviewMessage: settings.slipResultManualReviewMessage
+          slipResultManualReviewMessage: settings.slipResultManualReviewMessage,
+          slipResultDuplicateMessage: settings.slipResultDuplicateMessage
         })
       });
 
@@ -740,6 +746,31 @@ export function AiSettings() {
         )}
       </div>
 
+      {/* ระบบตรวจจับสลิปซ้ำ (Duplicate Slip Prevention) */}
+      <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <Copy size={16} />
+              </div>
+              <h3 className="text-sm font-bold text-[#16182B]">
+                {locale === "th" ? "ระบบตรวจจับสลิปซ้ำ (Duplicate Slip Prevention)" : "Duplicate Slip Prevention"}
+              </h3>
+            </div>
+            <p className="mt-2 text-xs text-[#767A8C] leading-relaxed">
+              {locale === "th"
+                ? "เปิดใช้งานการตรวจสอบสลิปซ้ำในระบบ เพื่อป้องกันไม่ให้ลูกค้าส่งสลิปเดิมเข้ามาใช้ซ้ำอีก"
+                : "Enable duplicate slip detection in the system to prevent customers from re-sending the same slip."}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={settings.enableDuplicateSlipCheck}
+            onChange={(val) => setSettings({ ...settings, enableDuplicateSlipCheck: val })}
+          />
+        </div>
+      </div>
+
       {/* ระบบตอบกลับผลการทวนสอบสลิปอัตโนมัติ (Slip Result Auto-Reply) */}
       <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm space-y-5">
         <div className="flex items-start justify-between gap-4 border-b border-[#F5F4F7] pb-4">
@@ -765,7 +796,7 @@ export function AiSettings() {
         </div>
 
         {settings.enableSlipResultAutoReply && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label htmlFor="slip-success-msg" className="text-sm font-semibold text-emerald-700 font-medium">
                 {locale === "th" ? "ข้อความเมื่อสลิปถูกต้อง" : "Verification Success Message"}
@@ -813,6 +844,24 @@ export function AiSettings() {
                 {locale === "th"
                   ? "*ใช้เมื่อระบบขัดข้อง/โควตาหมด/ไม่สามารถดึงข้อมูลได้ทันที (รหัส error2) — ควรใช้ข้อความที่เป็นกลาง"
                   : "*Used when the system is offline, out of quota, or cannot verify immediately (error2) — prefer neutral wording."}
+              </p>
+            </div>
+            <div>
+              <label htmlFor="slip-duplicate-msg" className="text-sm font-semibold text-purple-700 font-medium">
+                {locale === "th" ? "ข้อความเมื่อตรวจพบสลิปซ้ำ" : "Duplicate Slip Message"}
+              </label>
+              <textarea
+                id="slip-duplicate-msg"
+                rows={3}
+                value={settings.slipResultDuplicateMessage}
+                onChange={(e) => setSettings({ ...settings, slipResultDuplicateMessage: e.target.value })}
+                className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+                placeholder="สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏"
+              />
+              <p className="mt-1 text-xs text-[#767A8C]">
+                {locale === "th"
+                  ? "*ใช้เมื่อตรวจพบว่าเป็นสลิปเดิมที่เคยส่งมาตรวจแล้วในระบบ (รหัส error3)"
+                  : "*Used when the slip has already been uploaded and verified in the system (error3)."}
               </p>
             </div>
           </div>

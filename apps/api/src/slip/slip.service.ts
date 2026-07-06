@@ -153,54 +153,83 @@ export class SlipService {
       let verifyStatus = "PENDING";
 
       if (qrResult.status === "SUCCESS" && qrResult.rawData) {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, "0");
-        const quotaKey = `slipok:quota:${tenantId}:${year}-${month}`;
-        const limit = this.configService.get<number>("SLIPOK_MONTHLY_LIMIT") || 100;
-
-        let count = 0;
+        let isDuplicate = false;
         try {
-          const countStr = await this.redisService.client.get(quotaKey);
-          count = countStr ? parseInt(countStr, 10) : 0;
-        } catch (redisErr) {
-          this.logger.error(`Failed to retrieve quota count from Redis: ${redisErr}`);
-        }
-        if (count >= limit) {
-          this.logger.warn(
-            `Tenant ${tenantId} exceeded SlipOK monthly limit of ${limit}. Falling back to MANUAL_REVIEW.`
-          );
-          verifyStatus = "MANUAL_REVIEW";
-        } else {
-          try {
-            verifyProvider = "SLIPOK";
-            const response = await this.slipOkClient.verifyQr(qrResult.rawData);
-            verifyPayload = response;
+          const settings = await this.prisma.tenantSettings.findUnique({
+            where: { tenantId },
+            select: { enableDuplicateSlipCheck: true },
+          });
 
-            if (response && response.status === "valid") {
-              verifyStatus = "VERIFIED";
-              slipokCostCharged = true;
-            } else if (response && response.status === "duplicate") {
-              verifyStatus = "DUPLICATE";
-              slipokCostCharged = true;
-            } else if (response && response.status === "invalid") {
-              verifyStatus = "INVALID";
-              slipokCostCharged = true;
-            } else {
+          if (settings?.enableDuplicateSlipCheck !== false) {
+            const existingVerification = await this.prisma.slipVerification.findFirst({
+              where: {
+                tenantId,
+                qrDecodedRaw: qrResult.rawData,
+                verifyStatus: "VERIFIED",
+              },
+            });
+            if (existingVerification) {
+              isDuplicate = true;
+            }
+          }
+        } catch (dbErr) {
+          this.logger.error(`Error checking duplicate slip in database pre-filter: ${dbErr}`);
+        }
+
+        if (isDuplicate) {
+          this.logger.log(`Duplicate slip detected via DB pre-filter: ${qrResult.rawData}`);
+          verifyStatus = "DUPLICATE";
+          verifyProvider = "DB_PRE_FILTER";
+        } else {
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, "0");
+          const quotaKey = `slipok:quota:${tenantId}:${year}-${month}`;
+          const limit = this.configService.get<number>("SLIPOK_MONTHLY_LIMIT") || 100;
+
+          let count = 0;
+          try {
+            const countStr = await this.redisService.client.get(quotaKey);
+            count = countStr ? parseInt(countStr, 10) : 0;
+          } catch (redisErr) {
+            this.logger.error(`Failed to retrieve quota count from Redis: ${redisErr}`);
+          }
+          if (count >= limit) {
+            this.logger.warn(
+              `Tenant ${tenantId} exceeded SlipOK monthly limit of ${limit}. Falling back to MANUAL_REVIEW.`
+            );
+            verifyStatus = "MANUAL_REVIEW";
+          } else {
+            try {
+              verifyProvider = "SLIPOK";
+              const response = await this.slipOkClient.verifyQr(qrResult.rawData);
+              verifyPayload = response;
+
+              if (response && response.status === "valid") {
+                verifyStatus = "VERIFIED";
+                slipokCostCharged = true;
+              } else if (response && response.status === "duplicate") {
+                verifyStatus = "DUPLICATE";
+                slipokCostCharged = true;
+              } else if (response && response.status === "invalid") {
+                verifyStatus = "INVALID";
+                slipokCostCharged = true;
+              } else {
+                verifyStatus = "MANUAL_REVIEW";
+              }
+
+              if (slipokCostCharged) {
+                try {
+                  await this.redisService.client.incr(quotaKey);
+                  await this.redisService.client.expire(quotaKey, 35 * 24 * 60 * 60);
+                } catch (redisErr) {
+                  this.logger.error(`Failed to increment Redis quota: ${redisErr}`);
+                }
+              }
+            } catch (verifyErr) {
+              this.logger.error(`SlipOK API error: ${verifyErr instanceof Error ? verifyErr.stack : verifyErr}`);
               verifyStatus = "MANUAL_REVIEW";
             }
-
-            if (slipokCostCharged) {
-              try {
-                await this.redisService.client.incr(quotaKey);
-                await this.redisService.client.expire(quotaKey, 35 * 24 * 60 * 60);
-              } catch (redisErr) {
-                this.logger.error(`Failed to increment Redis quota: ${redisErr}`);
-              }
-            }
-          } catch (verifyErr) {
-            this.logger.error(`SlipOK API error: ${verifyErr instanceof Error ? verifyErr.stack : verifyErr}`);
-            verifyStatus = "MANUAL_REVIEW";
           }
         }
       }
@@ -278,10 +307,12 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
 
       // Map verifyErrorCode
       let verifyErrorCode: string | null = null;
-      if (verifyStatus === "INVALID" || verifyStatus === "DUPLICATE") {
+      if (verifyStatus === "INVALID") {
         verifyErrorCode = "error1";
       } else if (verifyStatus === "MANUAL_REVIEW" || verifyStatus === "PENDING") {
         verifyErrorCode = "error2";
+      } else if (verifyStatus === "DUPLICATE") {
+        verifyErrorCode = "error3";
       }
 
       // 7. Save SlipVerification record to database
@@ -401,6 +432,7 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
           slipResultSuccessMessage: true,
           slipResultFailedMessage: true,
           slipResultManualReviewMessage: true,
+          slipResultDuplicateMessage: true,
         },
       });
 
@@ -415,6 +447,8 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
         messageText = settings.slipResultFailedMessage;
       } else if (verifyStatus === "MANUAL_REVIEW") {
         messageText = settings.slipResultManualReviewMessage;
+      } else if (verifyStatus === "DUPLICATE") {
+        messageText = settings.slipResultDuplicateMessage;
       }
 
       if (!messageText) {
