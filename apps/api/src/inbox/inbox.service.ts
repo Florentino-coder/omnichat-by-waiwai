@@ -2451,6 +2451,65 @@ Summarize the conversation history between the merchant and the customer in Engl
       }
     });
   }
+
+  async getConversationDetails(tenantId: string, id: string): Promise<InboxConversation | null> {
+    const conversation = await this.prisma.conversation.findFirst({
+      where: { id, tenantId, deletedAt: null },
+      include: {
+        lineChannel: {
+          select: {
+            id: true,
+            name: true,
+            lineChannelId: true,
+            badgeColor: true
+          }
+        },
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            direction: true,
+            type: true,
+            text: true,
+            rawPayload: true,
+            createdAt: true,
+            sentAt: true
+          }
+        },
+        _count: {
+          select: {
+            messages: {
+              where: {
+                direction: "INBOUND",
+                markAsReadToken: { not: null },
+                deletedAt: null
+              }
+            }
+          }
+        },
+        tagLinks: {
+          where: { deletedAt: null },
+          include: {
+            tag: true
+          }
+        },
+        customer: {
+          select: {
+            displayName: true
+          }
+        }
+      }
+    });
+
+    if (!conversation) return null;
+    const { _count, customer, ...rest } = conversation as any;
+    return {
+      ...rest,
+      unreadInboundMessageCount: _count?.messages ?? 0,
+      customerDisplayName: customer?.displayName ?? null
+    } as InboxConversation;
+  }
 }
 
 function clampInteger(value: number, min: number, max: number): number {

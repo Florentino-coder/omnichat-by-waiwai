@@ -432,4 +432,147 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
       this.logger.error(`Error sending slip result auto-reply: ${err instanceof Error ? err.message : err}`);
     }
   }
+
+  async getVerifications(
+    tenantId: string,
+    options: {
+      lineChannelId?: string;
+      verifyStatus?: string;
+      dateFrom?: string;
+      dateTo?: string;
+      search?: string;
+      offset: number;
+      limit: number;
+    }
+  ) {
+    const where: any = {
+      tenantId,
+    };
+
+    if (options.lineChannelId) {
+      where.conversation = {
+        lineChannelId: options.lineChannelId,
+      };
+    }
+
+    if (options.verifyStatus) {
+      where.verifyStatus = options.verifyStatus;
+    }
+
+    if (options.dateFrom || options.dateTo) {
+      where.createdAt = {};
+      if (options.dateFrom) {
+        where.createdAt.gte = new Date(options.dateFrom);
+      }
+      if (options.dateTo) {
+        where.createdAt.lte = new Date(options.dateTo);
+      }
+    }
+
+    if (options.search) {
+      const searchPattern = options.search.trim();
+      where.OR = [
+        {
+          transactionRef: {
+            contains: searchPattern,
+            mode: "insensitive",
+          },
+        },
+        {
+          conversation: {
+            OR: [
+              {
+                displayName: {
+                  contains: searchPattern,
+                  mode: "insensitive",
+                },
+              },
+              {
+                customer: {
+                  displayName: {
+                    contains: searchPattern,
+                    mode: "insensitive",
+                  },
+                },
+              },
+            ],
+          },
+        },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.slipVerification.findMany({
+        where,
+        include: {
+          conversation: {
+            select: {
+              id: true,
+              displayName: true,
+              lineChannelId: true,
+              lineChannel: {
+                select: {
+                  name: true,
+                },
+              },
+              customer: {
+                select: {
+                  displayName: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip: options.offset,
+        take: options.limit,
+      }),
+      this.prisma.slipVerification.count({
+        where,
+      }),
+    ]);
+
+    // Calculate today's summaries
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const summaryWhere = (status: string | string[]) => {
+      const condition: any = {
+        tenantId,
+        createdAt: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      };
+      if (Array.isArray(status)) {
+        condition.verifyStatus = { in: status };
+      } else {
+        condition.verifyStatus = status;
+      }
+      return condition;
+    };
+
+    const [verifiedCount, invalidCount, duplicateCount, pendingCount] = await Promise.all([
+      this.prisma.slipVerification.count({ where: summaryWhere("VERIFIED") }),
+      this.prisma.slipVerification.count({ where: summaryWhere("INVALID") }),
+      this.prisma.slipVerification.count({ where: summaryWhere("DUPLICATE") }),
+      this.prisma.slipVerification.count({ where: summaryWhere(["PENDING", "MANUAL_REVIEW"]) }),
+    ]);
+
+    return {
+      items,
+      total,
+      summary: {
+        verifiedCount,
+        invalidCount,
+        duplicateCount,
+        pendingCount,
+      },
+    };
+  }
 }

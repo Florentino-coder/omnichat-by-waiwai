@@ -8,6 +8,7 @@ import { RedisModule } from "../redis/redis.module";
 import { LineModule } from "../line/line.module";
 import { SlipService } from "./slip.service";
 import { SlipOkClient } from "./slipok.client";
+import { SlipController } from "./slip.controller";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SlipOkClient } from "./slipok.client";
     RedisModule,
     forwardRef(() => LineModule)
   ],
+  controllers: [SlipController],
   providers: [SlipService, SlipOkClient],
   exports: [SlipService, SlipOkClient],
 })

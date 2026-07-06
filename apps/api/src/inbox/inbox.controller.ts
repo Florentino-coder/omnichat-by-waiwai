@@ -58,6 +58,19 @@ export class InboxController {
     });
   }
 
+  @Get("conversations/:id")
+  @Roles(Role.ADMIN, Role.AGENT, Role.QC)
+  async getConversation(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string
+  ): Promise<InboxConversation> {
+    const conversation = await this.inboxService.getConversationDetails(ctx.tenantId, id);
+    if (!conversation) {
+      throw new ForbiddenException("Conversation not found");
+    }
+    return conversation;
+  }
+
   @Get("escalations/count")
   @Roles(Role.ADMIN, Role.AGENT, Role.QC)
   countEscalatedConversations(@TenantCtx() ctx: JwtTenantPayload): Promise<{ count: number }> {

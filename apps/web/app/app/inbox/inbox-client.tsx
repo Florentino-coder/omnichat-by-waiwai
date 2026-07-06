@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@omnichat/ui";
 import { devTrace } from "../../lib/dev-trace";
@@ -171,6 +172,8 @@ type ConvReadState = "unread" | "read-not-replied" | "normal";
 
 export default function InboxClient({ initialConversations = [] }: InboxClientProps) {
   const { locale } = useLanguage();
+  const searchParams = useSearchParams();
+  const queryConversationId = searchParams ? searchParams.get("conversationId") : null;
   const t = getMessages(locale);
   const {
     enabled: desktopNotificationsEnabled,
@@ -291,6 +294,28 @@ export default function InboxClient({ initialConversations = [] }: InboxClientPr
       }
     }, [trace]),
   });
+
+  useEffect(() => {
+    if (queryConversationId) {
+      const exists = conversations.some((c) => c.id === queryConversationId);
+      if (exists) {
+        setSelectedId(queryConversationId);
+        selectedIdRef.current = queryConversationId;
+      } else {
+        apiFetch<InboxConversation>(`/api/v1/inbox/conversations/${queryConversationId}`)
+          .then((conv) => {
+            if (conv) {
+              setConversations((prev) => [conv, ...prev.filter((c) => c.id !== conv.id)]);
+              setSelectedId(queryConversationId);
+              selectedIdRef.current = queryConversationId;
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to pre-select conversation from query param", err);
+          });
+      }
+    }
+  }, [queryConversationId, conversations, setConversations]);
 
   const {
     messages,

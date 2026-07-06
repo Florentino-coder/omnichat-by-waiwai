@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, ChartNoAxesColumn, ClipboardCheck, Inbox, Settings, Megaphone } from "lucide-react";
+import { BookOpen, ChartNoAxesColumn, ClipboardCheck, Inbox, Settings, Megaphone, Receipt } from "lucide-react";
 import Link from "next/link";
 import { UserMenu } from "./user-menu";
 import { LanguageProvider, useLanguage } from "../lib/language-context";
@@ -25,6 +25,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const navItems = [
     { label: locale === "th" ? "กล่องข้อความ" : "Inbox", icon: Inbox, disabled: false, href: "/app/inbox", roles: ["OWNER", "ADMIN", "AGENT", "QC"] },
     { label: locale === "th" ? "บรอดแคสต์" : "Broadcast", icon: Megaphone, disabled: false, href: "/app/broadcast", roles: ["OWNER", "ADMIN"] },
+    { label: locale === "th" ? "ทวนสอบสลิป" : "Slips", icon: Receipt, disabled: false, href: "/app/slip-verification", roles: ["OWNER", "ADMIN"] },
     { label: locale === "th" ? "รายงาน" : "Reports", icon: ChartNoAxesColumn, disabled: false, href: "/app/reports", roles: ["OWNER", "ADMIN", "QC", "VIEWER"] },
     { label: locale === "th" ? "QA" : "QA", icon: ClipboardCheck, disabled: false, href: "/app/qa", roles: ["OWNER", "ADMIN", "QC"] },
     { label: locale === "th" ? "คลังความรู้" : "Knowledge", icon: BookOpen, disabled: false, href: "/app/settings?tab=knowledge&sub=documents", roles: ["OWNER", "ADMIN", "AGENT", "QC"] },
