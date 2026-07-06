@@ -203,9 +203,15 @@ export class SlipService {
         }
       }
 
-      // 5. OCR & Vision analysis using Gemini
       const systemPrompt = `
-You are an expert OCR engine. Analyze this bank transfer slip image and extract the following details.
+You are an expert OCR engine specializing in Thai bank transfer slips.
+Analyze the provided slip image and extract the transaction details with absolute precision.
+Pay extreme attention to distinguishing similar Thai characters:
+- 'พ' (Ph) vs 'ภ' (Bh/Ph) - e.g., 'พุฒิเมธ' vs 'ภูมิเมธ'
+- 'น' (N) vs 'ม' (M)
+- 'ต' (T) vs 'ด' (D)
+- 'บ' (B) vs 'ป' (P)
+
 Return ONLY a valid JSON object matching this structure, with no markdown formatting and no extra text:
 {
   "bankName": "Bank name or abbreviation (e.g. KBANK, SCB, KTB, BBL, TTB, BAY, GSB)",
@@ -213,7 +219,7 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
   "transactionRef": "Transaction reference code/number",
   "transferDate": "Date and time of transfer (e.g. YYYY-MM-DD HH:mm or DD/MM/YYYY HH:mm)",
   "promptpay": true,
-  "rawText": "ALL recognized text lines from the image concatenated here"
+  "rawText": "ALL recognized text lines from the image concatenated here, verbatim"
 }
 `;
 
