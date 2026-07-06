@@ -157,7 +157,7 @@ describe("SlipService", () => {
     });
   });
 
-  it("Scenario 2: QR decode failed - should score 0, mark as suspicious and auto-tag both tags", async () => {
+  it("Scenario 2: QR decode failed - should NOT deduct score, mark as suspicious and auto-tag both tags", async () => {
     (decodeSlipQr as jest.Mock).mockResolvedValue({ status: "FAILED" });
     const mockBuffer = Buffer.from("mock-image-data");
     global.fetch = jest.fn().mockResolvedValue({
@@ -193,11 +193,11 @@ describe("SlipService", () => {
       "https://example.com/slip.jpg"
     );
 
-    // Check that score was reduced to 0 in database create call
+    // Check that score was NOT reduced in database create call
     expect(prisma.slipVerification.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          slipScore: 0,
+          slipScore: 80,
           qrDecodeStatus: "FAILED",
         }),
       })

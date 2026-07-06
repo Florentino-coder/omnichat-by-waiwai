@@ -131,19 +131,19 @@ describe("calculateSlipScore", () => {
     expect(result.matchedFields).toContain("promptpay");
   });
 
-  it("Case 11: Valid OCR + successful QR decode -> score remains unchanged", () => {
+  it("Case 11: Valid OCR + successful QR decode -> receives +40 bonus", () => {
     const ocrText = "โอนเข้าบัญชีธนาคารกรุงไทย KTB";
     const result = calculateSlipScore(ocrText, { status: "SUCCESS", rawData: "https://example.com" });
+    expect(result.score).toBe(60); // 20 (OCR) + 40 (QR Bonus)
+  });
+
+  it("Case 12: Valid OCR + failed/damaged QR decode -> score remains unchanged (no deduction)", () => {
+    const ocrText = "โอนเข้าบัญชีธนาคารกรุงไทย KTB";
+    const result = calculateSlipScore(ocrText, { status: "FAILED" });
     expect(result.score).toBe(20);
   });
 
-  it("Case 12: Valid OCR + failed/damaged QR decode -> score becomes 0", () => {
-    const ocrText = "โอนเข้าบัญชีธนาคารกรุงไทย KTB";
-    const result = calculateSlipScore(ocrText, { status: "FAILED" });
-    expect(result.score).toBe(0);
-  });
-
-  it("Case 13: Valid OCR + QR not found -> score remains unchanged", () => {
+  it("Case 13: Valid OCR + QR not found -> score remains unchanged (no deduction)", () => {
     const ocrText = "โอนเข้าบัญชีธนาคารกรุงไทย KTB";
     const result = calculateSlipScore(ocrText, { status: "NOT_FOUND" });
     expect(result.score).toBe(20);

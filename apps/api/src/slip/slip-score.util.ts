@@ -73,9 +73,9 @@ export function calculateSlipScore(
     }
   }
 
-  // Adjust score to 0 if QR code decode failed
-  if (qrResult && qrResult.status === "FAILED") {
-    score = 0;
+  // Adjust score based on QR result according to spec
+  if (qrResult && qrResult.status === "SUCCESS") {
+    score = Math.min(score + 40, 100);
   }
 
   return {
