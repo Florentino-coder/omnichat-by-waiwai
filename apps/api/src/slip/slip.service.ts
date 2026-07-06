@@ -496,10 +496,10 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
     if (options.dateFrom || options.dateTo) {
       where.createdAt = {};
       if (options.dateFrom) {
-        where.createdAt.gte = new Date(options.dateFrom);
+        where.createdAt.gte = new Date(`${options.dateFrom}T00:00:00+07:00`);
       }
       if (options.dateTo) {
-        where.createdAt.lte = new Date(options.dateTo);
+        where.createdAt.lte = new Date(`${options.dateTo}T23:59:59.999+07:00`);
       }
     }
 
