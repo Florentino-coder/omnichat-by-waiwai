@@ -28,7 +28,7 @@ export class SlipOkClient {
     const id = setTimeout(() => controller.abort(), 5000);
 
     try {
-      const url = `https://api.slipok.com/api/v2/partner/transfer/qrcode/${this.branchId}`;
+      const url = `https://api.slipok.com/api/line/apikey/${this.branchId}`;
       const response = await fetch(url, {
         method: "POST",
         headers: {

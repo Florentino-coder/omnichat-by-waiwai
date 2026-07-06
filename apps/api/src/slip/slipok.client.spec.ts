@@ -45,7 +45,7 @@ describe("SlipOkClient", () => {
       data: mockResponse.data,
     });
     expect(global.fetch).toHaveBeenCalledWith(
-      "https://api.slipok.com/api/v2/partner/transfer/qrcode/test-branch-id",
+      "https://api.slipok.com/api/line/apikey/test-branch-id",
       expect.objectContaining({
         method: "POST",
         headers: {
