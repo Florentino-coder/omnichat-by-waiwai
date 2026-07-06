@@ -86,4 +86,27 @@ export class UpdateInboxSettingsDto {
   @IsString({ each: true })
   @MaxLength(50, { each: true })
   aiPolicyBlockedTopics?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  enableSlipAutoAcknowledge?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  slipAutoAcknowledgeMessage?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  enableSlipResultAutoReply?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  slipResultSuccessMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  slipResultFailedMessage?: string;
 }

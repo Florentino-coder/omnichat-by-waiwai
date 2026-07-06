@@ -14,13 +14,14 @@ export interface SlipVerification {
   transferDate: string | null;
   slipScore: number;
   detectStatus: string;
-  verifyStatus: string; // PENDING, VERIFIED, INVALID, DUPLICATE, MANUAL_REVIEW
+  verifyStatus: string;
   intent: string | null;
   qrDecodedRaw: string | null;
   qrDecodeStatus: string;
   verifyProvider: string | null;
   verifyPayload: any;
   slipokCostCharged: boolean;
+  verifyErrorCode?: string | null;
   createdAt: string;
 }
 

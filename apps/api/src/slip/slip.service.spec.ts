@@ -8,6 +8,7 @@ import { RealtimeService } from "../realtime/realtime.service";
 import { SlipOkClient } from "./slipok.client";
 import { RedisService } from "../redis/redis.service";
 import { ConfigService } from "@nestjs/config";
+import { LineReplyService } from "../line/line-reply.service";
 import { decodeSlipQr } from "./slip-qr-decode.util";
 
 jest.mock("./slip-qr-decode.util", () => ({
@@ -24,11 +25,21 @@ describe("SlipService", () => {
   let slipOkClient: any;
   let redisService: any;
   let configService: any;
+  let lineReplyService: any;
 
   beforeEach(async () => {
     prisma = {
       conversation: {
         findUnique: jest.fn(),
+      },
+      tenantSettings: {
+        findUnique: jest.fn().mockResolvedValue({
+          enableSlipAutoAcknowledge: false,
+          slipAutoAcknowledgeMessage: "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
+          enableSlipResultAutoReply: false,
+          slipResultSuccessMessage: "สลิปข้อมูลถูกต้อง",
+          slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
+        }),
       },
       slipVerification: {
         create: jest.fn(),
@@ -72,13 +83,18 @@ describe("SlipService", () => {
         get: jest.fn(),
         incr: jest.fn(),
         expire: jest.fn(),
+        set: jest.fn(),
       },
+      getClient: jest.fn(() => redisService.client),
     };
     configService = {
       get: jest.fn((key: string) => {
         if (key === "SLIPOK_MONTHLY_LIMIT") return 100;
         return null;
       }),
+    };
+    lineReplyService = {
+      replyText: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -92,6 +108,7 @@ describe("SlipService", () => {
         { provide: SlipOkClient, useValue: slipOkClient },
         { provide: RedisService, useValue: redisService },
         { provide: ConfigService, useValue: configService },
+        { provide: LineReplyService, useValue: lineReplyService },
       ],
     }).compile();
 
@@ -323,6 +340,127 @@ describe("SlipService", () => {
     });
     expect(prisma.conversationTag.create).toHaveBeenCalledWith({
       data: { tenantId: "tenant-1", name: "สลิป-น่าสงสัย-QR", color: "#FF3333" },
+    });
+  });
+
+  describe("Phase 3: Auto-Replies and Error Codes", () => {
+    beforeEach(() => {
+      (decodeSlipQr as jest.Mock).mockResolvedValue({ status: "SUCCESS", rawData: "000201..." });
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => "image/jpeg" },
+        arrayBuffer: () => Promise.resolve(Buffer.from("mock-image-data")),
+      } as any);
+
+      geminiClient.analyzeImage.mockResolvedValue(
+        JSON.stringify({
+          bankName: "KBANK",
+          amount: 1500,
+          transactionRef: "1234567890AB",
+          transferDate: "2026-07-05 12:00:00",
+          promptpay: false,
+          rawText: "กสิกร โอนเงินสำเร็จ จํานวนเงิน 1500 บาท 06/07/2026 12:00 ref: 1234567890AB"
+        })
+      );
+      storageService.s3Client.send.mockResolvedValue({});
+      prisma.workspaceMember.findFirst.mockResolvedValue({ id: "member-1" });
+      prisma.slipVerification.create.mockResolvedValue({ id: "slip-test" });
+      prisma.conversationTag.findUnique.mockResolvedValue(null);
+      prisma.conversationTag.create.mockResolvedValue({ id: "tag-1" });
+      prisma.conversationTagLink.findFirst.mockResolvedValue(null);
+      prisma.conversationTagLink.create.mockResolvedValue({ id: "link-1" });
+    });
+
+    it("should send Safe Auto-Acknowledge when enabled and score >= 60, but respect Redis cooldown", async () => {
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableSlipAutoAcknowledge: true,
+        slipAutoAcknowledgeMessage: "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
+        enableSlipResultAutoReply: false,
+      });
+
+      // 1. First call: cooldown key is not set
+      redisService.client.get.mockResolvedValue(null);
+
+      await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
+
+      expect(lineReplyService.replyText).toHaveBeenCalledWith(
+        "tenant-1",
+        "system",
+        "conv-1",
+        { text: "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏" }
+      );
+      expect(redisService.client.set).toHaveBeenCalledWith(
+        "slip-ack-cooldown:conv-1",
+        "true",
+        "EX",
+        10
+      );
+
+      // Reset mocks for second call
+      lineReplyService.replyText.mockClear();
+
+      // 2. Second call: cooldown key is set
+      redisService.client.get.mockResolvedValue("true");
+
+      await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
+
+      expect(lineReplyService.replyText).not.toHaveBeenCalled();
+    });
+
+    it("should send success auto-reply when enableSlipResultAutoReply is true and verifyStatus is VERIFIED", async () => {
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableSlipAutoAcknowledge: false,
+        enableSlipResultAutoReply: true,
+        slipResultSuccessMessage: "สลิปข้อมูลถูกต้องจ้า",
+        slipResultFailedMessage: "ข้อมูลไม่ถูกต้องนะ",
+      });
+      slipOkClient.verifyQr.mockResolvedValue({ status: "valid" });
+
+      await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
+
+      expect(lineReplyService.replyText).toHaveBeenCalledWith(
+        "tenant-1",
+        "system",
+        "conv-1",
+        { text: "สลิปข้อมูลถูกต้องจ้า" }
+      );
+      // No verifyErrorCode since it's VERIFIED
+      expect(prisma.slipVerification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            verifyStatus: "VERIFIED",
+            verifyErrorCode: null,
+          }),
+        })
+      );
+    });
+
+    it("should send failed auto-reply and save error1 when verifyStatus is INVALID", async () => {
+      prisma.tenantSettings.findUnique.mockResolvedValue({
+        enableSlipAutoAcknowledge: false,
+        enableSlipResultAutoReply: true,
+        slipResultSuccessMessage: "สลิปข้อมูลถูกต้องจ้า",
+        slipResultFailedMessage: "ข้อมูลไม่ถูกต้องนะ",
+      });
+      slipOkClient.verifyQr.mockResolvedValue({ status: "invalid" });
+
+      await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
+
+      expect(lineReplyService.replyText).toHaveBeenCalledWith(
+        "tenant-1",
+        "system",
+        "conv-1",
+        { text: "ข้อมูลไม่ถูกต้องนะ" }
+      );
+      // verifyErrorCode must be error1 (customer does not see this in replyText!)
+      expect(prisma.slipVerification.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            verifyStatus: "INVALID",
+            verifyErrorCode: "error1",
+          }),
+        })
+      );
     });
   });
 });

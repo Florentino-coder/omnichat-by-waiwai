@@ -90,11 +90,11 @@ export function SlipVerificationPanel({
               // Parse provider status detail
               let detailStr = "ตรวจสอบความถูกต้องเรียบร้อย";
               if (slip.verifyStatus === "INVALID") {
-                detailStr = "สลิปไม่ถูกต้อง (ข้อมูลไม่ตรงกับธนาคารหรือสลิปปลอม)";
+                detailStr = `สลิปไม่ถูกต้อง (ข้อมูลไม่ตรงกับธนาคารหรือสลิปปลอม)${slip.verifyErrorCode ? ` [Code: ${slip.verifyErrorCode}]` : ""}`;
               } else if (slip.verifyStatus === "DUPLICATE") {
                 detailStr = "สลิปซ้ำซ้อน (สลิปนี้เคยใช้ยืนยันไปแล้ว)";
               } else if (slip.verifyStatus === "MANUAL_REVIEW") {
-                detailStr = "ระบบขัดข้องหรือโควตาหมด กรุณาตรวจสอบด้วยตนเอง";
+                detailStr = `ระบบขัดข้องหรือโควตาหมด กรุณาตรวจสอบด้วยตนเอง${slip.verifyErrorCode ? ` [Code: ${slip.verifyErrorCode}]` : ""}`;
               } else if (slip.verifyStatus === "PENDING") {
                 detailStr = "กำลังดำเนินการตรวจสอบ";
               }

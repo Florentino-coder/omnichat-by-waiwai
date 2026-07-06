@@ -1,10 +1,11 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
 import { AuthModule } from "../auth/auth.module";
 import { StorageModule } from "../storage/storage.module";
 import { RealtimeModule } from "../realtime/realtime.module";
 import { LlmModule } from "../common/llm/llm.module";
 import { RedisModule } from "../redis/redis.module";
+import { LineModule } from "../line/line.module";
 import { SlipService } from "./slip.service";
 import { SlipOkClient } from "./slipok.client";
 
@@ -16,6 +17,7 @@ import { SlipOkClient } from "./slipok.client";
     RealtimeModule,
     LlmModule,
     RedisModule,
+    forwardRef(() => LineModule)
   ],
   providers: [SlipService, SlipOkClient],
   exports: [SlipService, SlipOkClient],

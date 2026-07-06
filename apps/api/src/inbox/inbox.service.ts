@@ -109,6 +109,11 @@ export type InboxSettings = {
   aiAutoReplyConfidenceThreshold: number;
   aiPolicyBlockedTopics: string[];
   aiGuardrailNoticeAt: string | null;
+  enableSlipAutoAcknowledge: boolean;
+  slipAutoAcknowledgeMessage: string;
+  enableSlipResultAutoReply: boolean;
+  slipResultSuccessMessage: string;
+  slipResultFailedMessage: string;
 };
 
 export type AiCreditBlockReason = "PLAN_EXCLUDES_AI" | "MONTHLY_LIMIT_REACHED";
@@ -1167,7 +1172,12 @@ export class InboxService {
         aiEscalationKeywords: true,
         aiAutoReplyConfidenceThreshold: true,
         aiPolicyBlockedTopics: true,
-        aiGuardrailNoticeAt: true
+        aiGuardrailNoticeAt: true,
+        enableSlipAutoAcknowledge: true,
+        slipAutoAcknowledgeMessage: true,
+        enableSlipResultAutoReply: true,
+        slipResultSuccessMessage: true,
+        slipResultFailedMessage: true
       }
     });
 
@@ -1188,7 +1198,12 @@ export class InboxService {
       aiEscalationKeywords: resolveEscalationKeywords(settings?.aiEscalationKeywords),
       aiAutoReplyConfidenceThreshold: settings?.aiAutoReplyConfidenceThreshold ?? 0.80,
       aiPolicyBlockedTopics: normalizeEscalationKeywords(settings?.aiPolicyBlockedTopics ?? []),
-      aiGuardrailNoticeAt: settings?.aiGuardrailNoticeAt?.toISOString() ?? null
+      aiGuardrailNoticeAt: settings?.aiGuardrailNoticeAt?.toISOString() ?? null,
+      enableSlipAutoAcknowledge: settings?.enableSlipAutoAcknowledge ?? false,
+      slipAutoAcknowledgeMessage: settings?.slipAutoAcknowledgeMessage ?? "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
+      enableSlipResultAutoReply: settings?.enableSlipResultAutoReply ?? false,
+      slipResultSuccessMessage: settings?.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
+      slipResultFailedMessage: settings?.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
     };
   }
 
@@ -1226,7 +1241,12 @@ export class InboxService {
         aiEscalationKeywords:
           normalizedEscalationKeywords ?? [...DEFAULT_AI_ESCALATION_KEYWORDS],
         aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold ?? 0.80,
-        aiPolicyBlockedTopics: normalizedPolicyTopics ?? []
+        aiPolicyBlockedTopics: normalizedPolicyTopics ?? [],
+        enableSlipAutoAcknowledge: dto.enableSlipAutoAcknowledge ?? false,
+        slipAutoAcknowledgeMessage: dto.slipAutoAcknowledgeMessage ?? "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
+        enableSlipResultAutoReply: dto.enableSlipResultAutoReply ?? false,
+        slipResultSuccessMessage: dto.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
+        slipResultFailedMessage: dto.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
       },
       update: {
         inProgressAlertMinutes: dto.inProgressAlertMinutes,
@@ -1243,6 +1263,11 @@ export class InboxService {
         aiEscalationKeywords: normalizedEscalationKeywords,
         aiAutoReplyConfidenceThreshold: dto.aiAutoReplyConfidenceThreshold,
         aiPolicyBlockedTopics: normalizedPolicyTopics,
+        enableSlipAutoAcknowledge: dto.enableSlipAutoAcknowledge,
+        slipAutoAcknowledgeMessage: dto.slipAutoAcknowledgeMessage,
+        enableSlipResultAutoReply: dto.enableSlipResultAutoReply,
+        slipResultSuccessMessage: dto.slipResultSuccessMessage,
+        slipResultFailedMessage: dto.slipResultFailedMessage,
         ...(dto.enableAiAutoReply === true ? { aiGuardrailNoticeAt: null } : {})
       },
       select: {
@@ -1260,7 +1285,12 @@ export class InboxService {
         aiEscalationKeywords: true,
         aiAutoReplyConfidenceThreshold: true,
         aiPolicyBlockedTopics: true,
-        aiGuardrailNoticeAt: true
+        aiGuardrailNoticeAt: true,
+        enableSlipAutoAcknowledge: true,
+        slipAutoAcknowledgeMessage: true,
+        enableSlipResultAutoReply: true,
+        slipResultSuccessMessage: true,
+        slipResultFailedMessage: true
       }
     });
 
@@ -1317,7 +1347,12 @@ export class InboxService {
       aiEscalationKeywords: resolveEscalationKeywords(settings.aiEscalationKeywords),
       aiAutoReplyConfidenceThreshold: settings.aiAutoReplyConfidenceThreshold,
       aiPolicyBlockedTopics: normalizeEscalationKeywords(settings.aiPolicyBlockedTopics ?? []),
-      aiGuardrailNoticeAt: settings.aiGuardrailNoticeAt?.toISOString() ?? null
+      aiGuardrailNoticeAt: settings.aiGuardrailNoticeAt?.toISOString() ?? null,
+      enableSlipAutoAcknowledge: settings.enableSlipAutoAcknowledge,
+      slipAutoAcknowledgeMessage: settings.slipAutoAcknowledgeMessage,
+      enableSlipResultAutoReply: settings.enableSlipResultAutoReply,
+      slipResultSuccessMessage: settings.slipResultSuccessMessage,
+      slipResultFailedMessage: settings.slipResultFailedMessage
     };
   }
 

@@ -6,7 +6,8 @@ import { Button } from "@omnichat/ui";
 import { getAiCreditStatusMessage, type AiCreditBlockReason } from "../../lib/ai-credit-status";
 import { useLanguage } from "../../lib/language-context";
 import { getMessages, type Locale } from "../../lib/i18n";
-import { Sparkles, GitBranch, Cpu, User, Clock, MessageCircle } from "lucide-react";
+import { Sparkles, GitBranch, Cpu, User, Clock, MessageCircle, MessageSquare } from "lucide-react";
+
 
 interface ToggleSwitchProps {
   checked: boolean;
@@ -51,6 +52,11 @@ type AiSettingsData = {
   aiAutoReplyConfidenceThreshold: number;
   aiPolicyBlockedTopics: string[];
   aiGuardrailNoticeAt: string | null;
+  enableSlipAutoAcknowledge: boolean;
+  slipAutoAcknowledgeMessage: string;
+  enableSlipResultAutoReply: boolean;
+  slipResultSuccessMessage: string;
+  slipResultFailedMessage: string;
 };
 
 type PromptTemplateData = {
@@ -124,7 +130,12 @@ export function AiSettings() {
     aiEscalationKeywords: [],
     aiAutoReplyConfidenceThreshold: 0.80,
     aiPolicyBlockedTopics: [],
-    aiGuardrailNoticeAt: null
+    aiGuardrailNoticeAt: null,
+    enableSlipAutoAcknowledge: false,
+    slipAutoAcknowledgeMessage: "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
+    enableSlipResultAutoReply: false,
+    slipResultSuccessMessage: "สลิปข้อมูลถูกต้อง",
+    slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
   });
   const [escalationKeywordsText, setEscalationKeywordsText] = useState("");
   const [policyTopicsText, setPolicyTopicsText] = useState("");
@@ -236,7 +247,12 @@ export function AiSettings() {
           aiPolicyBlockedTopics: policyTopicsText
             .split(",")
             .map((topic) => topic.trim())
-            .filter(Boolean)
+            .filter(Boolean),
+          enableSlipAutoAcknowledge: settings.enableSlipAutoAcknowledge,
+          slipAutoAcknowledgeMessage: settings.slipAutoAcknowledgeMessage,
+          enableSlipResultAutoReply: settings.enableSlipResultAutoReply,
+          slipResultSuccessMessage: settings.slipResultSuccessMessage,
+          slipResultFailedMessage: settings.slipResultFailedMessage
         })
       });
 
@@ -673,6 +689,113 @@ export function AiSettings() {
             className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
           />
         </div>
+      </div>
+
+      {/* ระบบตอบกลับรับสลิปอัตโนมัติ (Slip Auto-Acknowledge) */}
+      <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm space-y-5">
+        <div className="flex items-start justify-between gap-4 border-b border-[#F5F4F7] pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <MessageSquare size={16} />
+              </div>
+              <h3 className="text-sm font-bold text-[#16182B]">
+                {locale === "th" ? "ระบบตอบกลับรับสลิปอัตโนมัติ (Slip Auto-Acknowledge)" : "Slip Auto-Acknowledge"}
+              </h3>
+            </div>
+            <p className="mt-2 text-xs text-[#767A8C] leading-relaxed">
+              {locale === "th"
+                ? "ส่งข้อความตอบกลับแจ้งรับเรื่องทันทีเมื่อตรวจพบรูปภาพสลิปโอนเงิน (คะแนนความมั่นใจ >= 60%)"
+                : "Instantly reply to the customer when a slip image is detected (confidence score >= 60%)"}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={settings.enableSlipAutoAcknowledge}
+            onChange={(val) => setSettings({ ...settings, enableSlipAutoAcknowledge: val })}
+          />
+        </div>
+
+        {settings.enableSlipAutoAcknowledge && (
+          <div>
+            <label htmlFor="slip-ack-msg" className="text-sm font-semibold text-[#16182B]">
+              {locale === "th" ? "ข้อความตอบกลับ" : "Acknowledge Message"}
+            </label>
+            <textarea
+              id="slip-ack-msg"
+              rows={3}
+              value={settings.slipAutoAcknowledgeMessage}
+              onChange={(e) => setSettings({ ...settings, slipAutoAcknowledgeMessage: e.target.value })}
+              className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+              placeholder="ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏"
+            />
+            <p className="mt-1 text-xs text-[#767A8C]">
+              {locale === "th"
+                ? "*ข้อความนี้จะส่งทันทีเพื่อแจ้งรับเรื่อง โดยไม่ระบุผลลัพธ์ของสลิปเพื่อความปลอดภัยสูงสุด"
+                : "*This message is sent immediately to acknowledge receipt, without confirming verification results."}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ระบบตอบกลับผลการทวนสอบสลิปอัตโนมัติ (Slip Result Auto-Reply) */}
+      <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm space-y-5">
+        <div className="flex items-start justify-between gap-4 border-b border-[#F5F4F7] pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="rounded-lg bg-[#ECEBFF] p-2 text-[#4636D7]">
+                <Sparkles size={16} className="text-[#4636D7]" />
+              </div>
+              <h3 className="text-sm font-bold text-[#16182B]">
+                {locale === "th" ? "ระบบตอบกลับผลการทวนสอบสลิป (Slip Result Auto-Reply)" : "Slip Result Auto-Reply"}
+              </h3>
+            </div>
+            <p className="mt-2 text-xs text-[#767A8C] leading-relaxed">
+              {locale === "th"
+                ? "ส่งข้อความตอบกลับลูกค้าโดยอัตโนมัติหลังจากทวนสอบสลิปกับระบบธนาคาร/SlipOK เสร็จสิ้น"
+                : "Automatically reply to the customer with verification results once processing completes."}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={settings.enableSlipResultAutoReply}
+            onChange={(val) => setSettings({ ...settings, enableSlipResultAutoReply: val })}
+          />
+        </div>
+
+        {settings.enableSlipResultAutoReply && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label htmlFor="slip-success-msg" className="text-sm font-semibold text-emerald-700 font-medium">
+                {locale === "th" ? "ข้อความเมื่อสลิปถูกต้อง" : "Verification Success Message"}
+              </label>
+              <textarea
+                id="slip-success-msg"
+                rows={3}
+                value={settings.slipResultSuccessMessage}
+                onChange={(e) => setSettings({ ...settings, slipResultSuccessMessage: e.target.value })}
+                className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+                placeholder="สลิปข้อมูลถูกต้อง"
+              />
+            </div>
+            <div>
+              <label htmlFor="slip-failed-msg" className="text-sm font-semibold text-red-600 font-medium">
+                {locale === "th" ? "ข้อความเมื่อข้อมูลไม่ถูกต้อง" : "Verification Failed Message"}
+              </label>
+              <textarea
+                id="slip-failed-msg"
+                rows={3}
+                value={settings.slipResultFailedMessage}
+                onChange={(e) => setSettings({ ...settings, slipResultFailedMessage: e.target.value })}
+                className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
+                placeholder="ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
+              />
+              <p className="mt-1 text-xs text-[#767A8C]">
+                {locale === "th"
+                  ? "*รหัส Error (error1/error2) จะถูกบันทึกให้แอดมินเห็นหลังบ้านเท่านั้น ไม่แสดงให้ลูกค้าเห็น"
+                  : "*Diagnostic error codes (error1/error2) are saved for admins only and hidden from customers."}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm">

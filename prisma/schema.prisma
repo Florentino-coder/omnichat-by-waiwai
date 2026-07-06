@@ -298,6 +298,11 @@ model TenantSettings {
   aiAutoReplyConfidenceThreshold Float @default(0.80) @map("ai_auto_reply_confidence_threshold")
   aiPolicyBlockedTopics      String[]  @default([])     @map("ai_policy_blocked_topics")
   aiGuardrailNoticeAt        DateTime?                  @map("ai_guardrail_notice_at")
+  enableSlipAutoAcknowledge   Boolean @default(false) @map("enable_slip_auto_acknowledge")
+  slipAutoAcknowledgeMessage  String  @default("ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏") @map("slip_auto_acknowledge_message")
+  enableSlipResultAutoReply   Boolean @default(false) @map("enable_slip_result_auto_reply")
+  slipResultSuccessMessage    String  @default("สลิปข้อมูลถูกต้อง") @map("slip_result_success_message")
+  slipResultFailedMessage     String  @default("ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง") @map("slip_result_failed_message")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -1085,6 +1090,7 @@ model SlipVerification {
   verifyProvider String?   @map("verify_provider")
   verifyPayload  Json?     @map("verify_payload")
   slipokCostCharged Boolean @default(false) @map("slipok_cost_charged")
+  verifyErrorCode String?   @map("verify_error_code")
 
   @@index([tenantId])
   @@index([conversationId])

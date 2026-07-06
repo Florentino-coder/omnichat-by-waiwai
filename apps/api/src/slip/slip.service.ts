@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Inject, forwardRef } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "../auth/crypto-secret.service";
 import { StorageService } from "../storage/storage.service";
@@ -6,6 +6,7 @@ import { GeminiClient } from "../common/llm/gemini.client";
 import { RealtimeService } from "../realtime/realtime.service";
 import { ConfigService } from "@nestjs/config";
 import { RedisService } from "../redis/redis.service";
+import { LineReplyService } from "../line/line-reply.service";
 import { SlipOkClient } from "./slipok.client";
 import { calculateSlipScore } from "./slip-score.util";
 import { decodeSlipQr } from "./slip-qr-decode.util";
@@ -23,7 +24,9 @@ export class SlipService {
     private readonly realtimeService: RealtimeService,
     private readonly slipOkClient: SlipOkClient,
     private readonly redisService: RedisService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => LineReplyService))
+    private readonly lineReplyService: LineReplyService
   ) {}
 
   private async ensureTagExistsAndLink(
@@ -163,7 +166,6 @@ export class SlipService {
         } catch (redisErr) {
           this.logger.error(`Failed to retrieve quota count from Redis: ${redisErr}`);
         }
-
         if (count >= limit) {
           this.logger.warn(
             `Tenant ${tenantId} exceeded SlipOK monthly limit of ${limit}. Falling back to MANUAL_REVIEW.`
@@ -175,13 +177,13 @@ export class SlipService {
             const response = await this.slipOkClient.verifyQr(qrResult.rawData);
             verifyPayload = response;
 
-            if (response.status === "valid") {
+            if (response && response.status === "valid") {
               verifyStatus = "VERIFIED";
               slipokCostCharged = true;
-            } else if (response.status === "duplicate") {
+            } else if (response && response.status === "duplicate") {
               verifyStatus = "DUPLICATE";
               slipokCostCharged = true;
-            } else if (response.status === "invalid") {
+            } else if (response && response.status === "invalid") {
               verifyStatus = "INVALID";
               slipokCostCharged = true;
             } else {
@@ -197,7 +199,7 @@ export class SlipService {
               }
             }
           } catch (verifyErr) {
-            this.logger.error(`SlipOK API error: ${verifyErr}`);
+            this.logger.error(`SlipOK API error: ${verifyErr instanceof Error ? verifyErr.stack : verifyErr}`);
             verifyStatus = "MANUAL_REVIEW";
           }
         }
@@ -259,6 +261,11 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
       const scoreResult = calculateSlipScore(ocrText, qrResult);
       const slipScore = scoreResult.score;
 
+      // Safe Auto-Acknowledge Trigger (Sends immediately if slipScore >= 60)
+      if (slipScore >= 60) {
+        await this.sendAutoAcknowledgeIfEnabled(tenantId, conversationId);
+      }
+
       let parsedDate: Date | null = null;
       if (transferDate) {
         const d = Date.parse(transferDate);
@@ -267,6 +274,14 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
       if (!parsedDate && scoreResult.transferDate) {
         const d = Date.parse(scoreResult.transferDate);
         if (!isNaN(d)) parsedDate = new Date(d);
+      }
+
+      // Map verifyErrorCode
+      let verifyErrorCode: string | null = null;
+      if (verifyStatus === "INVALID" || verifyStatus === "DUPLICATE") {
+        verifyErrorCode = "error1";
+      } else if (verifyStatus === "MANUAL_REVIEW" || verifyStatus === "PENDING") {
+        verifyErrorCode = "error2";
       }
 
       // 7. Save SlipVerification record to database
@@ -284,6 +299,7 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
           slipScore,
           detectStatus: "DETECTED",
           verifyStatus,
+          verifyErrorCode,
           intent: isPromptPay ? "PROMPTPAY" : "BANK_TRANSFER",
           qrDecodedRaw: qrResult.rawData || null,
           qrDecodeStatus: qrResult.status,
@@ -314,6 +330,9 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
           await this.ensureTagExistsAndLink(tenantId, conversationId, "สลิป-น่าสงสัย-QR", "#FF3333");
         }
 
+        // Send Slip Result Auto-Reply if enabled
+        await this.sendResultAutoReplyIfEnabled(tenantId, conversationId, verifyStatus);
+
         // Publish realtime event to trigger frontend updates
         await this.realtimeService.publishTenantEvent(tenantId, "conversation.updated", {
           conversationId,
@@ -326,6 +345,88 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
         err instanceof Error ? err.stack : undefined
       );
       throw err;
+    }
+  }
+
+  private async sendAutoAcknowledgeIfEnabled(
+    tenantId: string,
+    conversationId: string
+  ): Promise<void> {
+    try {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: {
+          enableSlipAutoAcknowledge: true,
+          slipAutoAcknowledgeMessage: true,
+        },
+      });
+
+      if (!settings?.enableSlipAutoAcknowledge) {
+        return;
+      }
+
+      const redis = this.redisService.client;
+      const cooldownKey = `slip-ack-cooldown:${conversationId}`;
+      const isCoolingDown = await redis.get(cooldownKey);
+      if (isCoolingDown) {
+        this.logger.log(`Acknowledge suppressed due to cooldown for conversation: ${conversationId}`);
+        return;
+      }
+
+      // Set cooldown for 10 seconds
+      await redis.set(cooldownKey, "true", "EX", 10);
+
+      await this.lineReplyService.replyText(
+        tenantId,
+        "system",
+        conversationId,
+        { text: settings.slipAutoAcknowledgeMessage }
+      );
+      this.logger.log(`Sent Safe Auto-Acknowledge to conversation: ${conversationId}`);
+    } catch (err) {
+      this.logger.error(`Error sending auto acknowledge: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  private async sendResultAutoReplyIfEnabled(
+    tenantId: string,
+    conversationId: string,
+    verifyStatus: string
+  ): Promise<void> {
+    try {
+      const settings = await this.prisma.tenantSettings.findUnique({
+        where: { tenantId },
+        select: {
+          enableSlipResultAutoReply: true,
+          slipResultSuccessMessage: true,
+          slipResultFailedMessage: true,
+        },
+      });
+
+      if (!settings?.enableSlipResultAutoReply) {
+        return;
+      }
+
+      let messageText = "";
+      if (verifyStatus === "VERIFIED") {
+        messageText = settings.slipResultSuccessMessage;
+      } else {
+        messageText = settings.slipResultFailedMessage;
+      }
+
+      if (!messageText) {
+        return;
+      }
+
+      await this.lineReplyService.replyText(
+        tenantId,
+        "system",
+        conversationId,
+        { text: messageText }
+      );
+      this.logger.log(`Sent Slip Result Auto-Reply to conversation: ${conversationId} for status: ${verifyStatus}`);
+    } catch (err) {
+      this.logger.error(`Error sending slip result auto-reply: ${err instanceof Error ? err.message : err}`);
     }
   }
 }

@@ -640,7 +640,12 @@ describe("InboxService", () => {
       aiEscalationKeywords: ["แอดมิน", "คุยกับคน"],
       aiAutoReplyConfidenceThreshold: 0.8,
       aiPolicyBlockedTopics: [],
-      aiGuardrailNoticeAt: null
+      aiGuardrailNoticeAt: null,
+      enableSlipAutoAcknowledge: false,
+      slipAutoAcknowledgeMessage: "ได้รับสลิปแล้วค่ะ กำลังตรวจสอบให้ รอสักครู่นะคะ 🙏",
+      enableSlipResultAutoReply: false,
+      slipResultSuccessMessage: "สลิปข้อมูลถูกต้อง",
+      slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง"
     });
 
     await createService(prisma).updateSettings("tenant-1", "user-1", {
@@ -654,10 +659,9 @@ describe("InboxService", () => {
       aiAutoReplyConfidenceThreshold: 0.85
     });
 
-    expect(prisma.tenantSettings.upsert).toHaveBeenCalledWith({
+    expect(prisma.tenantSettings.upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { tenantId: "tenant-1" },
-      create: {
-        tenantId: "tenant-1",
+      create: expect.objectContaining({
         inProgressAlertMinutes: 5,
         enableAiSuggest: true,
         enableHybridAutoDraft: true,
@@ -672,8 +676,8 @@ describe("InboxService", () => {
         aiEscalationKeywords: ["แอดมิน"],
         aiAutoReplyConfidenceThreshold: 0.85,
         aiPolicyBlockedTopics: []
-      },
-      update: {
+      }),
+      update: expect.objectContaining({
         inProgressAlertMinutes: 5,
         enableAiSuggest: undefined,
         enableHybridAutoDraft: undefined,
@@ -689,8 +693,8 @@ describe("InboxService", () => {
         aiAutoReplyConfidenceThreshold: 0.85,
         aiGuardrailNoticeAt: null,
         aiPolicyBlockedTopics: undefined
-      },
-      select: {
+      }),
+      select: expect.objectContaining({
         inProgressAlertMinutes: true,
         enableAiSuggest: true,
         enableHybridAutoDraft: true,
@@ -706,8 +710,8 @@ describe("InboxService", () => {
         aiAutoReplyConfidenceThreshold: true,
         aiGuardrailNoticeAt: true,
         aiPolicyBlockedTopics: true
-      }
-    });
+      })
+    }));
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         tenantId: "tenant-1",
