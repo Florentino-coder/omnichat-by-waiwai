@@ -39,6 +39,7 @@ interface SlipVerification {
   verifyStatus: string;
   verifyErrorCode: string | null;
   createdAt: string;
+  imageUrl?: string | null;
   conversation: {
     id: string;
     displayName: string | null;
@@ -418,6 +419,7 @@ export default function SlipVerificationDashboard() {
               <thead className="border-b border-slate-100 bg-slate-50/75 text-xs font-semibold uppercase text-slate-500">
                 <tr>
                   <th className="px-6 py-4">{locale === "th" ? "วันที่ / เวลา" : "Date & Time"}</th>
+                  <th className="px-6 py-4">{locale === "th" ? "รูปสลิป" : "Slip Image"}</th>
                   <th className="px-6 py-4">{locale === "th" ? "ลูกค้า" : "Customer"}</th>
                   <th className="px-6 py-4">LINE Channel</th>
                   <th className="px-6 py-4">{locale === "th" ? "ธนาคาร / ยอดโอน" : "Bank & Amount"}</th>
@@ -482,6 +484,28 @@ export default function SlipVerificationDashboard() {
                       {/* Date */}
                       <td className="whitespace-nowrap px-6 py-4 font-medium text-slate-900">
                         {dateStr}
+                      </td>
+
+                      {/* Slip Image */}
+                      <td className="whitespace-nowrap px-6 py-4">
+                        {item.imageUrl ? (
+                          <a
+                            href={item.imageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block relative h-10 w-10 overflow-hidden rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:scale-105 transition-all"
+                          >
+                            <img
+                              src={item.imageUrl}
+                              alt="Slip Thumbnail"
+                              className="h-full w-full object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-400">
+                            No Img
+                          </div>
+                        )}
                       </td>
 
                       {/* Customer */}

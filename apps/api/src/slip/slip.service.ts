@@ -568,6 +568,23 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
       }),
     ]);
 
+    const mappedItems = await Promise.all(
+      items.map(async (item) => {
+        let imageUrl: string | null = null;
+        if (item.r2ImageKey) {
+          try {
+            imageUrl = await this.storageService.getObjectUrl(item.r2ImageKey);
+          } catch (err) {
+            this.logger.error(`Failed to get object URL for key ${item.r2ImageKey}: ${err}`);
+          }
+        }
+        return {
+          ...item,
+          imageUrl,
+        };
+      })
+    );
+
     // Calculate today's summaries
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -599,7 +616,7 @@ Return ONLY a valid JSON object matching this structure, with no markdown format
     ]);
 
     return {
-      items,
+      items: mappedItems,
       total,
       summary: {
         verifiedCount,
