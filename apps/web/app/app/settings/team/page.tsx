@@ -448,14 +448,14 @@ export default function TeamSettingsPage() {
                     key={invitation.id}
                     className="flex items-center justify-between gap-2 rounded-md border border-border bg-secondary px-3 py-2"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{invitation.email}</p>
                       <div className="mt-1 flex gap-1.5 flex-wrap">
                         <Badge variant="muted">{invitation.role}</Badge>
                         <Badge variant={getStatusBadgeVariant(invitation.status)}>{invitation.status}</Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       {invitation.token ? (
                         <Button
                           aria-label={`Copy invitation link for ${invitation.email}`}
