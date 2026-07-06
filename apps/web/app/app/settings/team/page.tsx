@@ -333,7 +333,7 @@ export default function TeamSettingsPage() {
         ) : null}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <Card className="p-5">
+          <Card className="p-5 h-fit">
             <div className="mb-4 flex items-center gap-2">
               <UserCog size={18} aria-hidden="true" className="text-indigo-600" />
               <h2 className="font-heading text-base font-medium text-foreground">{t.members}</h2>
@@ -399,7 +399,7 @@ export default function TeamSettingsPage() {
             </div>
           </Card>
 
-          <Card className="p-5 border border-indigo-500/10 shadow-sm bg-white">
+          <Card className="p-5 border border-indigo-500/10 shadow-sm bg-white h-fit">
             <div className="mb-4 flex items-center gap-2">
               <MailPlus size={18} aria-hidden="true" className="text-indigo-600" />
               <h2 className="font-heading text-base font-medium text-foreground">{t.invite}</h2>

@@ -363,7 +363,7 @@ export function AiSettings() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="flex flex-col justify-between gap-3 rounded-xl border border-[#DEDDE6]/60 bg-white p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
           <div>
             <div className="flex items-center justify-between border-b border-[#F5F4F7] pb-3 mb-3">
