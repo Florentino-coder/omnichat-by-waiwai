@@ -57,7 +57,7 @@ export function SlipVerificationPanel({
           <p className="text-sm text-muted-foreground">กำลังโหลด...</p>
         ) : (
           <div className="space-y-4">
-            {slips.map((slip) => {
+            {slips.slice(0, 1).map((slip) => {
               // Format date nicely
               let formattedDate = "ไม่ระบุ";
               if (slip.transferDate) {
