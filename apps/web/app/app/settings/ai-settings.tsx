@@ -140,7 +140,7 @@ export function AiSettings() {
     slipResultSuccessMessage: "สลิปข้อมูลถูกต้อง",
     slipResultFailedMessage: "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
     slipResultManualReviewMessage: "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏",
-    slipResultDuplicateMessage: "สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏",
+    slipResultDuplicateMessage: "ระบบตรวจพบว่าสลิปนี้เคยส่งมาทวนสอบแล้วค่ะ หากโอนซ้ำโดยไม่ได้ตั้งใจหรือต้องการความช่วยเหลือเพิ่มเติม สามารถพิมพ์แจ้งเจ้าหน้าที่ตรงนี้ได้เลยนะคะ 🙏",
     enableDuplicateSlipCheck: true
   });
   const [escalationKeywordsText, setEscalationKeywordsText] = useState("");
@@ -856,7 +856,7 @@ export function AiSettings() {
                 value={settings.slipResultDuplicateMessage}
                 onChange={(e) => setSettings({ ...settings, slipResultDuplicateMessage: e.target.value })}
                 className="mt-2 w-full rounded-lg border border-[#DEDDE6] p-3 text-sm text-[#16182B] focus:border-[#4636D7] focus:ring-1 focus:ring-[#4636D7]"
-                placeholder="สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏"
+                placeholder="ระบบตรวจพบว่าสลิปนี้เคยส่งมาทวนสอบแล้วค่ะ หากโอนซ้ำโดยไม่ได้ตั้งใจหรือต้องการความช่วยเหลือเพิ่มเติม สามารถพิมพ์แจ้งเจ้าหน้าที่ตรงนี้ได้เลยนะคะ 🙏"
               />
               <p className="mt-1 text-xs text-[#767A8C]">
                 {locale === "th"

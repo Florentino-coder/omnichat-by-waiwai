@@ -305,7 +305,7 @@ model TenantSettings {
   slipResultSuccessMessage    String  @default("สลิปข้อมูลถูกต้อง") @map("slip_result_success_message")
   slipResultFailedMessage     String  @default("ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง") @map("slip_result_failed_message")
   slipResultManualReviewMessage String @default("ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏") @map("slip_result_manual_review_message")
-  slipResultDuplicateMessage String @default("สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏") @map("slip_result_duplicate_message")
+  slipResultDuplicateMessage String @default("ระบบตรวจพบว่าสลิปนี้เคยส่งมาทวนสอบแล้วค่ะ หากโอนซ้ำโดยไม่ได้ตั้งใจหรือต้องการความช่วยเหลือเพิ่มเติม สามารถพิมพ์แจ้งเจ้าหน้าที่ตรงนี้ได้เลยนะคะ 🙏") @map("slip_result_duplicate_message")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 

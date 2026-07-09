@@ -473,7 +473,7 @@ export default function SlipVerificationDashboard() {
                     statusText = locale === "th" ? "ไม่ถูกต้อง (Error 1)" : "Invalid (Error 1)";
                   } else if (item.verifyStatus === "DUPLICATE") {
                     statusBadgeClass = "bg-amber-50 text-amber-700 border-amber-100";
-                    statusText = locale === "th" ? "โอนซ้ำ" : "Duplicate";
+                    statusText = locale === "th" ? "โอนซ้ำ (Error 3)" : "Duplicate (Error 3)";
                   } else if (item.verifyStatus === "MANUAL_REVIEW") {
                     statusBadgeClass = "bg-sky-50 text-sky-700 border-sky-100";
                     statusText = locale === "th" ? "รอตรวจ (Error 2)" : "Manual Review (Error 2)";

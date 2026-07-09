@@ -1211,7 +1211,7 @@ export class InboxService {
       slipResultSuccessMessage: settings?.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
       slipResultFailedMessage: settings?.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
       slipResultManualReviewMessage: settings?.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏",
-      slipResultDuplicateMessage: settings?.slipResultDuplicateMessage ?? "สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏",
+      slipResultDuplicateMessage: settings?.slipResultDuplicateMessage ?? "ระบบตรวจพบว่าสลิปนี้เคยส่งมาทวนสอบแล้วค่ะ หากโอนซ้ำโดยไม่ได้ตั้งใจหรือต้องการความช่วยเหลือเพิ่มเติม สามารถพิมพ์แจ้งเจ้าหน้าที่ตรงนี้ได้เลยนะคะ 🙏",
       enableDuplicateSlipCheck: settings?.enableDuplicateSlipCheck ?? true
     };
   }
@@ -1257,7 +1257,7 @@ export class InboxService {
         slipResultSuccessMessage: dto.slipResultSuccessMessage ?? "สลิปข้อมูลถูกต้อง",
         slipResultFailedMessage: dto.slipResultFailedMessage ?? "ข้อมูลไม่ถูกต้อง รบกวนตรวจสอบใหม่อีกครั้ง",
         slipResultManualReviewMessage: dto.slipResultManualReviewMessage ?? "ระบบกำลังตรวจสอบเพิ่มเติมค่ะ เจ้าหน้าที่จะติดต่อกลับโดยเร็วที่สุดนะคะ 🙏",
-        slipResultDuplicateMessage: dto.slipResultDuplicateMessage ?? "สลิปนี้เคยส่งมาตรวจสอบแล้วค่ะ รบกวนตรวจสอบใหม่อีกครั้งนะคะ 🙏",
+        slipResultDuplicateMessage: dto.slipResultDuplicateMessage ?? "ระบบตรวจพบว่าสลิปนี้เคยส่งมาทวนสอบแล้วค่ะ หากโอนซ้ำโดยไม่ได้ตั้งใจหรือต้องการความช่วยเหลือเพิ่มเติม สามารถพิมพ์แจ้งเจ้าหน้าที่ตรงนี้ได้เลยนะคะ 🙏",
         enableDuplicateSlipCheck: dto.enableDuplicateSlipCheck ?? true
       },
       update: {
