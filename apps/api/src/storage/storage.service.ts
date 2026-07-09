@@ -96,7 +96,7 @@ export class StorageService {
       if (!accessKeyId) {
         return `https://storage.chatwai.com/${r2Key}`;
       }
-      return getSignedUrl(this.s3Client as any, new PutObjectCommand(command) as any, { expiresIn: expiresInSeconds });
+      return getSignedUrl(this.s3Client as any, new GetObjectCommand(command) as any, { expiresIn: expiresInSeconds });
     } catch (err) {
       throw new InternalServerErrorException("Failed to generate download presigned URL");
     }
