@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   HelpCircle,
   FileCheck2,
+  FileImage,
+  X,
 } from "lucide-react";
 import { apiFetch } from "../../lib/api-client";
 import { useLanguage } from "../../lib/language-context";
@@ -95,6 +97,7 @@ export default function SlipVerificationDashboard() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<VerificationsResponse | null>(null);
+  const [activeSlipImageUrl, setActiveSlipImageUrl] = useState<string | null>(null);
 
   // Authenticate role
   useEffect(() => {
@@ -501,21 +504,22 @@ export default function SlipVerificationDashboard() {
                       {/* Slip Image */}
                       <td className="whitespace-nowrap px-6 py-4">
                         {item.imageUrl ? (
-                          <a
-                            href={item.imageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block relative h-10 w-10 overflow-hidden rounded-lg border border-slate-200 shadow-sm hover:shadow-md hover:scale-105 transition-all"
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActiveSlipImageUrl(item.imageUrl || null)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-primary hover:bg-indigo-100 border border-indigo-100 hover:scale-105 transition-all shadow-sm p-0"
+                            title={locale === "th" ? "ดูรูปสลิป" : "View Slip Image"}
                           >
-                            <img
-                              src={item.imageUrl}
-                              alt="Slip Thumbnail"
-                              className="h-full w-full object-cover"
-                            />
-                          </a>
+                            <FileImage className="h-4 w-4" />
+                          </Button>
                         ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-400">
-                            No Img
+                          <div 
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-400"
+                            title={locale === "th" ? "ไม่มีรูปสลิป" : "No image available"}
+                          >
+                            -
                           </div>
                         )}
                       </td>
@@ -619,6 +623,34 @@ export default function SlipVerificationDashboard() {
           </div>
         )}
       </Card>
+
+      {/* Slip Image Preview Modal */}
+      {activeSlipImageUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm transition-all duration-200 animate-in fade-in"
+          onClick={() => setActiveSlipImageUrl(null)}
+        >
+          <div
+            className="relative max-h-[85vh] max-w-[90vw] overflow-hidden rounded-2xl bg-white p-3 shadow-2xl transition-all duration-200 animate-in zoom-in-95"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setActiveSlipImageUrl(null)}
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/10 text-slate-600 hover:bg-slate-900/20 hover:text-slate-800 transition-colors z-10"
+              title={locale === "th" ? "ปิด" : "Close"}
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex max-h-[80vh] items-center justify-center overflow-auto">
+              <img
+                src={activeSlipImageUrl}
+                alt="Slip Verification Full Preview"
+                className="max-h-[75vh] w-auto max-w-full rounded-xl object-contain shadow-sm"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
