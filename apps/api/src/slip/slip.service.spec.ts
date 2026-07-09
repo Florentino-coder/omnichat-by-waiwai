@@ -465,13 +465,14 @@ describe("SlipService", () => {
     });
 
     it("should send manual review auto-reply and save error2 when verifyStatus is MANUAL_REVIEW", async () => {
-      prisma.tenantSettings.findUnique.mockResolvedValue({
+      const settings = {
         enableSlipAutoAcknowledge: false,
         enableSlipResultAutoReply: true,
         slipResultSuccessMessage: "สลิปข้อมูลถูกต้องจ้า",
         slipResultFailedMessage: "ข้อมูลไม่ถูกต้องนะ",
         slipResultManualReviewMessage: "รอแอดมินตรวจเพิ่มเติมนะ",
-      });
+      };
+      prisma.tenantSettings.findUnique.mockResolvedValue(settings);
       slipOkClient.verifyQr.mockRejectedValue(new Error("SlipOK service down"));
 
       await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
@@ -480,8 +481,15 @@ describe("SlipService", () => {
         "tenant-1",
         "system",
         "conv-1",
-        { text: "รอแอดมินตรวจเพิ่มเติมนะ" }
+        { text: settings.slipResultManualReviewMessage }
       );
+
+      const calls = lineReplyService.replyText.mock.calls;
+      const lastCall = calls[calls.length - 1];
+      const sentMessage = lastCall[3].text;
+      expect(sentMessage).toBe(settings.slipResultManualReviewMessage);
+      expect(sentMessage).not.toBe(settings.slipResultFailedMessage);
+
       expect(prisma.slipVerification.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
