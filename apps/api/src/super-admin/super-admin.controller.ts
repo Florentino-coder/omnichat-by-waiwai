@@ -77,9 +77,10 @@ export class SuperAdminController {
 
   @Patch("tenants/:id/plan")
   updateTenantPlan(
+    @TenantCtx() ctx: JwtTenantPayload,
     @Param("id") tenantId: string,
     @Body() dto: UpdateTenantPlanDto
   ) {
-    return this.superAdminService.updateTenantPlan(tenantId, dto.planId);
+    return this.superAdminService.updateTenantPlan(ctx.sub, tenantId, dto.planId);
   }
 }

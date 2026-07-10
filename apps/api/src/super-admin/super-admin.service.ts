@@ -148,7 +148,7 @@ export class SuperAdminService {
     });
   }
 
-  async updateTenantPlan(tenantId: string, planId: string) {
+  async updateTenantPlan(superOwnerId: string, tenantId: string, planId: string) {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId }
     });
@@ -165,7 +165,7 @@ export class SuperAdminService {
     await this.prisma.auditLog.create({
       data: {
         tenantId: tenantId,
-        userId: "super-admin", // Since it is updated via super-admin console
+        userId: superOwnerId,
         action: AuditAction.PLAN_CHANGED,
         targetType: "Tenant",
         targetId: tenantId,
