@@ -105,6 +105,10 @@ export default function SuperAdminBackupsPage() {
   const [isTriggering, setIsTriggering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const loadBackupOps = useCallback(async () => {
     setIsLoading(true);
@@ -112,10 +116,11 @@ export default function SuperAdminBackupsPage() {
     try {
       const [healthData, runsData] = await Promise.all([
         apiFetch<BackupHealth>("/api/v1/super-admin/backups/health"),
-        apiFetch<BackupRun[]>("/api/v1/super-admin/backups/runs?limit=30")
+        apiFetch<BackupRun[]>("/api/v1/super-admin/backups/runs?limit=100")
       ]);
       setHealth(healthData);
       setRuns(Array.isArray(runsData) ? runsData : []);
+      setCurrentPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load backup operations.");
     } finally {
@@ -164,7 +169,7 @@ export default function SuperAdminBackupsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F7F7FA] via-[#FCFCFD] to-[#EBEBFF] text-[#16182B] font-sans selection:bg-[#4636D7] selection:text-white relative overflow-x-hidden">
+    <div className="h-screen overflow-y-auto bg-gradient-to-b from-[#F7F7FA] via-[#FCFCFD] to-[#EBEBFF] text-[#16182B] font-sans selection:bg-[#4636D7] selection:text-white relative overflow-x-hidden">
       
       {/* Background gradients */}
       <div className="absolute top-1/4 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-[#ECEBFF] opacity-70 blur-3xl" />
@@ -282,32 +287,72 @@ export default function SuperAdminBackupsPage() {
               No backup runs recorded yet.
             </div>
           ) : (
-            <div className="overflow-x-auto border border-[#DEDDE6]/60 rounded-xl shadow-sm">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-[#DEDDE6]/60 text-slate-500 font-bold">
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">R2 Key</th>
-                    <th className="px-4 py-3">Size</th>
-                    <th className="px-4 py-3">Started</th>
-                    <th className="px-4 py-3">Completed</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-slate-100">
-                  {runs.map((run) => (
-                    <tr key={run.id} className="hover:bg-slate-50/50 transition-colors text-slate-700">
-                      <td className="px-4 py-3 font-semibold text-[#16182B]">{run.runType}</td>
-                      <td className="px-4 py-3">{statusBadge(run.status)}</td>
-                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500">{run.r2Key ?? "-"}</td>
-                      <td className="px-4 py-3 text-slate-600 font-semibold">{formatBytes(run.sizeBytes)}</td>
-                      <td className="px-4 py-3 text-slate-400">{formatDateTime(run.startedAt)}</td>
-                      <td className="px-4 py-3 text-slate-400">{formatDateTime(run.completedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            (() => {
+              const totalPages = Math.ceil(runs.length / itemsPerPage);
+              const paginatedRuns = runs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+              return (
+                <>
+                  <div className="overflow-x-auto border border-[#DEDDE6]/60 rounded-xl shadow-sm">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-[#DEDDE6]/60 text-slate-500 font-bold">
+                          <th className="px-4 py-3">Type</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3">R2 Key</th>
+                          <th className="px-4 py-3">Size</th>
+                          <th className="px-4 py-3">Started</th>
+                          <th className="px-4 py-3">Completed</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-slate-100">
+                        {paginatedRuns.map((run) => (
+                          <tr key={run.id} className="hover:bg-slate-50/50 transition-colors text-slate-700">
+                            <td className="px-4 py-3 font-semibold text-[#16182B]">{run.runType}</td>
+                            <td className="px-4 py-3">{statusBadge(run.status)}</td>
+                            <td className="px-4 py-3 font-mono text-[10px] text-slate-500">{run.r2Key ?? "-"}</td>
+                            <td className="px-4 py-3 text-slate-600 font-semibold">{formatBytes(run.sizeBytes)}</td>
+                            <td className="px-4 py-3 text-slate-400">{formatDateTime(run.startedAt)}</td>
+                            <td className="px-4 py-3 text-slate-400">{formatDateTime(run.completedAt)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t border-[#DEDDE6]/50 text-xs">
+                      <span className="text-slate-500 font-medium">
+                        Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, runs.length)} of {runs.length} runs
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold px-3 py-1.5 h-auto rounded-lg disabled:opacity-50 disabled:pointer-events-none"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        >
+                          Previous
+                        </Button>
+                        <span className="text-slate-700 font-semibold px-2">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold px-3 py-1.5 h-auto rounded-lg disabled:opacity-50 disabled:pointer-events-none"
+                          disabled={currentPage === totalPages}
+                          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()
           )}
         </Card>
       </main>

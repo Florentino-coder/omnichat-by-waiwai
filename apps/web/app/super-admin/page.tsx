@@ -118,7 +118,7 @@ export default function SuperAdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F7F7FA] via-[#FCFCFD] to-[#EBEBFF] text-[#16182B] font-sans selection:bg-[#4636D7] selection:text-white relative overflow-x-hidden">
+    <div className="h-screen overflow-y-auto bg-gradient-to-b from-[#F7F7FA] via-[#FCFCFD] to-[#EBEBFF] text-[#16182B] font-sans selection:bg-[#4636D7] selection:text-white relative overflow-x-hidden">
       
       {/* Background gradients */}
       <div className="absolute top-1/4 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-[#ECEBFF] opacity-70 blur-3xl" />
