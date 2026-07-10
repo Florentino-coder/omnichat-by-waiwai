@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, UseGuards, Patch } from "@nestjs/common";
 import { SuperAdminService } from "./super-admin.service";
 import { AiMonitorService } from "./ai-monitor.service";
 import { AiQaService } from "../ai/ai-qa.service";
 import { BackupService } from "../backup/backup.service";
 import { CreateTenantOwnerDto } from "./dto/create-tenant-owner.dto";
+import { UpdateTenantPlanDto } from "../tenants/dto/update-tenant-plan.dto";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { SuperOwnerGuard } from "./guards/super-owner.guard";
 import { TenantCtx } from "../auth/decorators/tenant-context.decorator";
@@ -72,5 +73,13 @@ export class SuperAdminController {
   @Post("backups/run")
   triggerBackupRun(@TenantCtx() ctx: JwtTenantPayload) {
     return this.backupService.triggerManualBackup(ctx.sub);
+  }
+
+  @Patch("tenants/:id/plan")
+  updateTenantPlan(
+    @Param("id") tenantId: string,
+    @Body() dto: UpdateTenantPlanDto
+  ) {
+    return this.superAdminService.updateTenantPlan(tenantId, dto.planId);
   }
 }

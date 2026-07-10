@@ -24,4 +24,8 @@ export class CreateTenantOwnerDto {
   @MinLength(2)
   @MaxLength(50)
   ownerUsername?: string;
+
+  @IsOptional()
+  @IsString()
+  planId?: string;
 }

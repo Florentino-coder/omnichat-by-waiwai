@@ -68,7 +68,7 @@ export class SuperAdminService {
         data: {
           name: dto.tenantName,
           slug: uniqueSlug,
-          planId: "free"
+          planId: dto.planId || "free"
         }
       });
 
@@ -146,5 +146,36 @@ export class SuperAdminService {
         }
       };
     });
+  }
+
+  async updateTenantPlan(tenantId: string, planId: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId }
+    });
+    if (!tenant) {
+      throw new ConflictException("Tenant not found");
+    }
+
+    const updated = await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: { planId }
+    });
+
+    // Create Audit Log for Plan Changed
+    await this.prisma.auditLog.create({
+      data: {
+        tenantId: tenantId,
+        userId: "super-admin", // Since it is updated via super-admin console
+        action: AuditAction.PLAN_CHANGED,
+        targetType: "Tenant",
+        targetId: tenantId,
+        metadata: {
+          oldPlan: tenant.planId,
+          newPlan: planId
+        }
+      }
+    });
+
+    return updated;
   }
 }

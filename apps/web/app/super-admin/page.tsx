@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Plus, Users, LogOut, ArrowRight, RefreshCw, Activity, Brain, Database, MessageSquare } from "lucide-react";
-import { Badge, Button, Card, Input, Label } from "@omnichat/ui";
+import { Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../lib/api-client";
 import { clearAuthSessionCookies } from "../lib/session-cookies";
 import { useSuperOwnerGate } from "../lib/use-super-owner-gate";
@@ -31,8 +31,13 @@ export default function SuperAdminPage() {
   const [ownerDisplayName, setOwnerDisplayName] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
   const [ownerUsername, setOwnerUsername] = useState("");
+  const [planId, setPlanId] = useState("free");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Pagination states
+  const [tenantsPage, setTenantsPage] = useState(1);
+  const tenantsPerPage = 10;
 
   const loadTenants = async () => {
     setIsLoadingTenants(true);
@@ -40,10 +45,24 @@ export default function SuperAdminPage() {
     try {
       const data = await apiFetch<TenantInfo[]>("/api/v1/super-admin/tenants");
       setTenants(Array.isArray(data) ? data : []);
+      setTenantsPage(1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load tenants list.");
     } finally {
       setIsLoadingTenants(false);
+    }
+  };
+
+  const handleUpdateTenantPlan = async (tenantId: string, newPlanId: string) => {
+    try {
+      await apiFetch(`/api/v1/super-admin/tenants/${tenantId}/plan`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId: newPlanId })
+      });
+      void loadTenants();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update tenant plan");
     }
   };
 
@@ -83,6 +102,7 @@ export default function SuperAdminPage() {
         ownerEmail,
         ownerDisplayName,
         ownerPassword,
+        planId,
         ...(ownerUsername ? { ownerUsername } : {})
       };
 
@@ -98,6 +118,8 @@ export default function SuperAdminPage() {
       setOwnerDisplayName("");
       setOwnerPassword("");
       setOwnerUsername("");
+      setPlanId("free");
+      setTenantsPage(1);
       void loadTenants();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create tenant.");
@@ -199,6 +221,22 @@ export default function SuperAdminPage() {
                   onChange={(e) => setTenantName(e.target.value)}
                   disabled={isSubmitting}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="planId" className="text-slate-700 font-bold text-xs">Tenant Plan *</Label>
+                <select
+                  id="planId"
+                  value={planId}
+                  onChange={(e) => setPlanId(e.target.value)}
+                  className="w-full bg-white border border-[#DEDDE6] text-[#16182B] focus:border-[#4636D7] rounded-xl text-sm h-10 px-3 transition-colors outline-none"
+                  disabled={isSubmitting}
+                >
+                  <option value="free">FREE</option>
+                  <option value="starter">STARTER</option>
+                  <option value="pro">PRO</option>
+                  <option value="enterprise">ENTERPRISE</option>
+                </select>
               </div>
 
               <div className="space-y-1.5 pt-2 border-t border-slate-100">
@@ -315,41 +353,88 @@ export default function SuperAdminPage() {
                   No tenants registered yet.
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-[#DEDDE6]/60 rounded-xl shadow-sm">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-[#DEDDE6]/60 text-slate-500 font-bold">
-                        <th className="px-4 py-3">Business Name</th>
-                        <th className="px-4 py-3">Slug</th>
-                        <th className="px-4 py-3">Plan</th>
-                        <th className="px-4 py-3 text-center">Users</th>
-                        <th className="px-4 py-3">Created</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {tenants.map((t) => (
-                        <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-[#16182B]">{t.name}</td>
-                          <td className="px-4 py-3 text-slate-500 font-mono text-[10px]">{t.slug}</td>
-                          <td className="px-4 py-3">
-                            <Badge className="bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] font-semibold px-2 py-0.5">
-                              {t.planId.toUpperCase()}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 text-center text-slate-600 font-medium">
-                            <div className="flex items-center justify-center gap-1">
-                              <Users size={12} className="text-slate-400" />
-                              {t.userCount}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-slate-500">
-                            {new Date(t.createdAt).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                (() => {
+                  const totalTenantsPages = Math.ceil(tenants.length / tenantsPerPage);
+                  const paginatedTenants = tenants.slice((tenantsPage - 1) * tenantsPerPage, tenantsPage * tenantsPerPage);
+                  return (
+                    <>
+                      <div className="overflow-x-auto border border-[#DEDDE6]/60 rounded-xl shadow-sm">
+                        <table className="w-full text-left border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-[#DEDDE6]/60 text-slate-500 font-bold">
+                              <th className="px-4 py-3">Business Name</th>
+                              <th className="px-4 py-3">Slug</th>
+                              <th className="px-4 py-3">Plan</th>
+                              <th className="px-4 py-3 text-center">Users</th>
+                              <th className="px-4 py-3">Created</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {paginatedTenants.map((t) => (
+                              <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-3 font-semibold text-[#16182B]">{t.name}</td>
+                                <td className="px-4 py-3 text-slate-500 font-mono text-[10px]">{t.slug}</td>
+                                <td className="px-4 py-3">
+                                  <select
+                                    value={t.planId}
+                                    onChange={(e) => void handleUpdateTenantPlan(t.id, e.target.value)}
+                                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-150 text-[10px] font-bold px-2 py-0.5 rounded-full cursor-pointer outline-none focus:ring-1 focus:ring-indigo-400 transition-colors"
+                                  >
+                                    <option value="free">FREE</option>
+                                    <option value="starter">STARTER</option>
+                                    <option value="pro">PRO</option>
+                                    <option value="enterprise">ENTERPRISE</option>
+                                  </select>
+                                </td>
+                                <td className="px-4 py-3 text-center text-slate-600 font-medium">
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Users size={12} className="text-slate-400" />
+                                    {t.userCount}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-slate-500">
+                                  {new Date(t.createdAt).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Pagination Controls */}
+                      {totalTenantsPages > 1 && (
+                        <div className="flex items-center justify-between gap-4 pt-4 mt-4 border-t border-[#DEDDE6]/50 text-xs">
+                          <span className="text-slate-500 font-medium">
+                            Showing {((tenantsPage - 1) * tenantsPerPage) + 1} - {Math.min(tenantsPage * tenantsPerPage, tenants.length)} of {tenants.length} tenants
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold px-3 py-1.5 h-auto rounded-lg disabled:opacity-50 disabled:pointer-events-none"
+                              disabled={tenantsPage === 1}
+                              onClick={() => setTenantsPage((p) => Math.max(1, p - 1))}
+                            >
+                              Previous
+                            </Button>
+                            <span className="text-slate-700 font-semibold px-2">
+                              Page {tenantsPage} of {totalTenantsPages}
+                            </span>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold px-3 py-1.5 h-auto rounded-lg disabled:opacity-50 disabled:pointer-events-none"
+                              disabled={tenantsPage === totalTenantsPages}
+                              onClick={() => setTenantsPage((p) => Math.min(totalTenantsPages, p + 1))}
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
               )}
             </div>
           </Card>
