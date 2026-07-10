@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, Loader2, ScrollText } from "lucide-react";
 import { Badge, Button, Card, Label } from "@omnichat/ui";
-import { apiFetch, authorizedFetch } from "../../../lib/api-client";
+import { authorizedFetch } from "../../../lib/api-client";
 import {
   AUDIT_LOG_CATEGORIES,
   formatAuditAction,
@@ -89,7 +89,11 @@ export default function AuditLogsPage() {
       if (category) {
         params.set("category", category);
       }
-      const response = await apiFetch<ListResponse>(`/api/v1/audit-logs?${params.toString()}`);
+      const res = await authorizedFetch(`/api/v1/audit-logs?${params.toString()}`);
+      if (!res.ok) {
+        throw new Error("Failed to load audit logs");
+      }
+      const response = (await res.json()) as ListResponse;
       setRows(response.data ?? []);
       setTotal(response.meta?.total ?? response.data?.length ?? 0);
     } catch {
