@@ -142,15 +142,15 @@ export default function TenantSelectPage() {
     <section className="w-full space-y-5">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading text-2xl font-medium text-white">Select workspace</h1>
-          <p className="mt-1 text-sm text-indigo-300/70">
+          <h1 className="font-heading text-2xl font-medium text-[#16182B]">Select workspace</h1>
+          <p className="mt-1 text-sm text-[#767A8C]">
             Choose active tenant workspace for this session.
           </p>
         </div>
         {!isAgentOnly ? (
           <Button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex-shrink-0 whitespace-nowrap bg-indigo-950/40 hover:bg-indigo-900/40 text-indigo-300 border border-indigo-500/20"
+            className="flex-shrink-0 whitespace-nowrap bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
             variant="secondary"
             size="sm"
             type="button"
@@ -167,16 +167,16 @@ export default function TenantSelectPage() {
       ) : null}
 
       {showCreateForm ? (
-        <Card className="p-5 border border-indigo-500/15 bg-indigo-950/10 text-slate-100">
+        <Card className="p-5 border border-slate-200/60 bg-slate-50/50 text-[#16182B]">
           <form className="space-y-4" onSubmit={(event) => void handleCreateTenant(event)}>
             <div>
-              <h2 className="font-heading text-base font-medium text-white">สร้างองค์กรใหม่</h2>
-              <p className="text-xs text-indigo-300/70 mt-0.5">
+              <h2 className="font-heading text-base font-medium text-[#16182B]">สร้างองค์กรใหม่</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
                 สร้าง Tenant และ Workspace เริ่มต้นสำหรับจัดการแชทของคุณ
               </p>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="new-tenant-name" className="text-slate-200">ชื่อองค์กร / บริษัท</Label>
+              <Label htmlFor="new-tenant-name" className="text-[#16182B]">ชื่อองค์กร / บริษัท</Label>
               <Input
                 id="new-tenant-name"
                 placeholder="เช่น Acme Corp หรือ ร้านป้าสมศรี"
@@ -195,28 +195,28 @@ export default function TenantSelectPage() {
       {!showCreateForm ? (
         <div className="grid gap-3">
           {isLoading ? (
-            <Card className="p-4 text-sm text-indigo-300/70 border border-indigo-500/10 bg-indigo-950/20">Loading workspaces...</Card>
+            <Card className="p-4 text-sm text-slate-500 border border-slate-200 bg-slate-50/50">Loading workspaces...</Card>
           ) : null}
           {!isLoading && memberships.length === 0 ? (
-            <Card className="p-4 text-sm text-indigo-300/70 border border-indigo-500/10 bg-indigo-950/20">No active tenant workspace found.</Card>
+            <Card className="p-4 text-sm text-slate-500 border border-slate-200 bg-slate-50/50">No active tenant workspace found.</Card>
           ) : null}
           {memberships.map((membership) => (
             <Card
               key={membership.membershipId}
-              className="flex items-center justify-between gap-4 p-4 border border-indigo-500/10 bg-indigo-950/20 text-slate-100"
+              className="flex items-center justify-between gap-4 p-4 border border-slate-200 bg-slate-50/50 text-[#16182B]"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-indigo-500/10 bg-indigo-950/30 text-indigo-400">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-indigo-100 bg-indigo-50 text-indigo-600">
                   <Building2 size={18} aria-hidden="true" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate font-heading text-base font-medium text-white">
+                    <h2 className="truncate font-heading text-base font-medium text-[#16182B]">
                       {membership.tenantName}
                     </h2>
-                    <Badge variant="muted" className="bg-indigo-950/50 text-indigo-300 border-indigo-500/10">{membership.role}</Badge>
+                    <Badge variant="muted" className="bg-indigo-50 text-indigo-600 border border-indigo-100">{membership.role}</Badge>
                   </div>
-                  <p className="truncate text-sm text-indigo-300/70">
+                  <p className="truncate text-sm text-[#767A8C]">
                     <span>{membership.workspaceName}</span>
                     {membership.isDefaultWorkspace ? " · Default" : ""}
                   </p>

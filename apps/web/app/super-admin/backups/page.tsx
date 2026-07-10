@@ -11,8 +11,8 @@ import {
   LogOut,
   Play,
   RefreshCw,
-  ShieldCheck,
-  XCircle
+  XCircle,
+  MessageSquare
 } from "lucide-react";
 import { Badge, Button, Card } from "@omnichat/ui";
 import { apiFetch } from "../../lib/api-client";
@@ -67,20 +67,20 @@ function formatDateTime(value: string | null): string {
 function statusBadge(status: string) {
   if (status === "SUCCESS") {
     return (
-      <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+      <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
         Success
       </Badge>
     );
   }
   if (status === "FAILED") {
     return (
-      <Badge className="bg-rose-500/10 text-rose-400 border border-rose-500/20">
+      <Badge className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold">
         Failed
       </Badge>
     );
   }
   return (
-    <Badge className="bg-amber-500/10 text-amber-300 border border-amber-500/20">
+    <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
       Running
     </Badge>
   );
@@ -88,12 +88,12 @@ function statusBadge(status: string) {
 
 function healthTone(status: BackupHealth["status"]): string {
   if (status === "healthy") {
-    return "text-emerald-400";
+    return "text-emerald-600 font-bold";
   }
   if (status === "degraded") {
-    return "text-amber-400";
+    return "text-amber-600 font-bold";
   }
-  return "text-rose-400";
+  return "text-rose-600 font-bold";
 }
 
 export default function SuperAdminBackupsPage() {
@@ -154,48 +154,48 @@ export default function SuperAdminBackupsPage() {
 
   if (isAuthGateLoading || !isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#F7F7FA] to-[#EBEBFF] text-[#16182B]">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="h-8 w-8 animate-spin text-indigo-400" />
-          <p className="text-sm font-medium text-slate-400">Verifying authorization...</p>
+          <RefreshCw className="h-8 w-8 animate-spin text-[#4636D7]" />
+          <p className="text-sm font-medium text-slate-500">Verifying authorization...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-indigo-500 selection:text-white">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-500/10 rounded-full blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] bg-sky-500/10 rounded-full blur-[120px]" />
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-[#F7F7FA] via-[#FCFCFD] to-[#EBEBFF] text-[#16182B] font-sans selection:bg-[#4636D7] selection:text-white relative overflow-x-hidden">
+      
+      {/* Background gradients */}
+      <div className="absolute top-1/4 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-[#ECEBFF] opacity-70 blur-3xl" />
+      <div className="absolute top-10 right-10 -z-10 h-96 w-96 rounded-full bg-blue-100/40 opacity-50 blur-3xl" />
 
-      <header className="relative z-10 border-b border-slate-800 bg-slate-900/60 backdrop-blur-md">
+      <header className="relative z-10 border-b border-white/50 bg-white/70 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-indigo-600/20 p-2 rounded-xl border border-indigo-500/30">
-              <ShieldCheck className="h-6 w-6 text-indigo-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#4636D7] to-[#8B5CF6] text-white shadow-md shadow-indigo-200">
+              <MessageSquare className="h-5.5 w-5.5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-white font-sans">
+              <h1 className="text-lg font-bold tracking-tight text-[#16182B] flex items-center gap-2">
                 Backup Operations
               </h1>
-              <p className="text-xs text-slate-400 font-medium">Database backups in R2 `chatwai-backups`</p>
+              <p className="text-[10px] text-slate-500 font-medium leading-none mt-1">Database backups in R2 `chatwai-backups`</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/super-admin")}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-700 hover:text-[#4636D7] bg-white border border-[#DEDDE6] hover:border-[#4636D7]/20 rounded-xl transition-all shadow-sm"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={14} />
               Console
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-red-950/40 hover:border-red-900/40 border border-slate-700 rounded-xl transition-all"
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-100 hover:border-rose-600 rounded-xl transition-all shadow-sm"
             >
-              <LogOut size={16} />
+              <LogOut size={14} />
               Sign Out
             </button>
           </div>
@@ -204,37 +204,37 @@ export default function SuperAdminBackupsPage() {
 
       <main className="relative z-10 max-w-7xl mx-auto px-6 py-8 space-y-8">
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-slate-900/80 border-slate-800 p-5 rounded-2xl">
+          <Card className="bg-white/80 border-[#DEDDE6]/50 shadow-md p-5 rounded-2xl backdrop-blur-md text-[#16182B]">
             <div className="flex items-center gap-3 mb-3">
-              <Database className="h-5 w-5 text-sky-400" />
-              <h2 className="font-semibold">Health</h2>
+              <Database className="h-5 w-5 text-sky-500" />
+              <h2 className="font-bold text-sm text-slate-500 uppercase tracking-wider">Health</h2>
             </div>
-            <p className={`text-2xl font-bold capitalize ${health ? healthTone(health.status) : "text-slate-400"}`}>
+            <p className={`text-2xl font-extrabold capitalize ${health ? healthTone(health.status) : "text-slate-400"}`}>
               {health?.status ?? "loading"}
             </p>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-slate-400 font-medium mt-2">
               Failures (7d): {health?.failuresLast7Days ?? 0}
             </p>
           </Card>
 
-          <Card className="bg-slate-900/80 border-slate-800 p-5 rounded-2xl md:col-span-2">
+          <Card className="bg-white/80 border-[#DEDDE6]/50 shadow-md p-5 rounded-2xl md:col-span-2 backdrop-blur-md text-[#16182B]">
             <div className="flex items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <HardDrive className="h-5 w-5 text-indigo-400" />
-                  <h2 className="font-semibold">Backup Bucket</h2>
+                  <HardDrive className="h-5 w-5 text-indigo-500" />
+                  <h2 className="font-bold text-sm text-slate-500 uppercase tracking-wider">Backup Bucket</h2>
                 </div>
-                <p className="font-mono text-sm text-slate-300">{health?.backupBucket ?? "chatwai-backups"}</p>
-                <p className="text-xs text-slate-500 mt-2">
+                <p className="font-mono text-sm text-slate-700 font-semibold">{health?.backupBucket ?? "chatwai-backups"}</p>
+                <p className="text-xs text-slate-400 font-medium mt-2">
                   Latest success: {formatDateTime(health?.latestSuccessfulBackup?.completedAt ?? null)}
                 </p>
               </div>
               <Button
                 onClick={() => void handleTriggerBackup()}
                 disabled={isTriggering}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl flex items-center gap-2"
+                className="bg-[#4636D7] hover:bg-[#382BB5] text-white font-semibold rounded-xl flex items-center gap-2 shadow-md shadow-indigo-200"
               >
-                <Play size={16} />
+                <Play size={14} />
                 {isTriggering ? "Running..." : "Run Manual Backup"}
               </Button>
             </div>
@@ -242,50 +242,50 @@ export default function SuperAdminBackupsPage() {
         </section>
 
         {error ? (
-          <div className="p-3 text-sm bg-red-950/40 border border-red-900/50 text-red-400 rounded-xl flex items-center gap-2">
-            <AlertTriangle size={16} />
+          <div className="p-3 text-xs bg-red-50 border border-red-200 text-red-700 rounded-xl font-medium flex items-center gap-2">
+            <AlertTriangle size={14} />
             {error}
           </div>
         ) : null}
 
         {successMessage ? (
-          <div className="p-3 text-sm bg-emerald-950/40 border border-emerald-900/50 text-emerald-400 rounded-xl flex items-center gap-2">
-            <CheckCircle2 size={16} />
+          <div className="p-3 text-xs bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl font-medium flex items-center gap-2">
+            <CheckCircle2 size={14} />
             {successMessage}
           </div>
         ) : null}
 
-        <Card className="bg-slate-900/80 border-slate-800 shadow-2xl p-6 rounded-2xl">
+        <Card className="bg-white/80 border-[#DEDDE6]/50 shadow-xl p-6 rounded-2xl backdrop-blur-md">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-lg font-bold text-white">Recent Backup Runs</h2>
-              <p className="text-xs text-slate-400">Scheduled daily/weekly/monthly plus manual triggers</p>
+              <h2 className="text-base font-bold text-[#16182B]">Recent Backup Runs</h2>
+              <p className="text-xs text-slate-500">Scheduled daily/weekly/monthly plus manual triggers</p>
             </div>
             <button
               onClick={() => void loadBackupOps()}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors border border-slate-850"
+              className="p-2 text-slate-500 hover:text-[#4636D7] hover:bg-slate-100 rounded-xl transition-all border border-slate-200/60"
               title="Refresh"
               disabled={isLoading}
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin text-indigo-400" : ""}`} />
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin text-[#4636D7]" : ""}`} />
             </button>
           </div>
 
           {isLoading && runs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-sm">
-              <RefreshCw className="h-8 w-8 animate-spin text-indigo-500/50 mb-3" />
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 text-xs font-medium">
+              <RefreshCw className="h-8 w-8 animate-spin text-[#4636D7]/50 mb-3" />
               Loading backup runs...
             </div>
           ) : runs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-sm border border-dashed border-slate-800 rounded-xl">
-              <XCircle className="h-10 w-10 text-slate-700 mb-3" />
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 text-xs font-medium border border-dashed border-slate-200 rounded-xl">
+              <XCircle className="h-10 w-10 text-slate-300 mb-3" />
               No backup runs recorded yet.
             </div>
           ) : (
-            <div className="overflow-x-auto border border-slate-800/80 rounded-xl">
-              <table className="w-full text-left border-collapse text-sm">
+            <div className="overflow-x-auto border border-[#DEDDE6]/60 rounded-xl shadow-sm">
+              <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold text-xs">
+                  <tr className="bg-slate-50 border-b border-[#DEDDE6]/60 text-slate-500 font-bold">
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">R2 Key</th>
@@ -294,15 +294,15 @@ export default function SuperAdminBackupsPage() {
                     <th className="px-4 py-3">Completed</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-850 bg-slate-900/40">
+                <tbody className="bg-white divide-y divide-slate-100">
                   {runs.map((run) => (
-                    <tr key={run.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-3 font-medium text-white">{run.runType}</td>
+                    <tr key={run.id} className="hover:bg-slate-50/50 transition-colors text-slate-700">
+                      <td className="px-4 py-3 font-semibold text-[#16182B]">{run.runType}</td>
                       <td className="px-4 py-3">{statusBadge(run.status)}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-400">{run.r2Key ?? "-"}</td>
-                      <td className="px-4 py-3 text-slate-300">{formatBytes(run.sizeBytes)}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{formatDateTime(run.startedAt)}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{formatDateTime(run.completedAt)}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-500">{run.r2Key ?? "-"}</td>
+                      <td className="px-4 py-3 text-slate-600 font-semibold">{formatBytes(run.sizeBytes)}</td>
+                      <td className="px-4 py-3 text-slate-400">{formatDateTime(run.startedAt)}</td>
+                      <td className="px-4 py-3 text-slate-400">{formatDateTime(run.completedAt)}</td>
                     </tr>
                   ))}
                 </tbody>
