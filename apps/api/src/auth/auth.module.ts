@@ -6,6 +6,9 @@ import { RedisModule } from "../redis/redis.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { CryptoSecretService } from "./crypto-secret.service";
+import { LoginAttemptService } from "./login-attempt.service";
+import { PasswordResetService } from "./password-reset.service";
+import { MailModule } from "../mail/mail.module";
 import { RefreshSessionService } from "./refresh-session.service";
 import { TotpService } from "./totp.service";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
@@ -20,16 +23,25 @@ import { TenantGuard } from "./guards/tenant.guard";
         name: "forgot-password",
         ttl: 900_000,
         limit: 5
+      },
+      {
+        // Per-IP brute-force limit for login, refresh, and 2FA code endpoints.
+        name: "auth-sensitive",
+        ttl: 900_000,
+        limit: 20
       }
     ]),
     PrismaModule,
-    RedisModule
+    RedisModule,
+    MailModule
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
     RefreshSessionService,
     CryptoSecretService,
+    LoginAttemptService,
+    PasswordResetService,
     TotpService,
     JwtAuthGuard,
     TenantGuard,

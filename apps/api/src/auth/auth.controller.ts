@@ -10,7 +10,7 @@ import {
   UseGuards
 } from "@nestjs/common";
 import type { Request } from "express";
-import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { SkipThrottle, Throttle } from "@nestjs/throttler";
 import { readRefreshTokenFromCookieHeader } from "./auth-cookie.util";
 import { TenantCtx } from "./decorators/tenant-context.decorator";
 import { AuthService } from "./auth.service";
@@ -20,6 +20,9 @@ import { SwitchTenantDto } from "./dto/switch-tenant.dto";
 import { TwoFaCodeDto } from "./dto/two-fa-code.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { PasswordResetService } from "./password-reset.service";
+import { AuthThrottlerGuard } from "./guards/auth-throttler.guard";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { TenantGuard } from "./guards/tenant.guard";
 import {
@@ -32,10 +35,15 @@ import {
 
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly passwordResetService: PasswordResetService
+  ) {}
 
   @Post("login")
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthThrottlerGuard)
+  @SkipThrottle({ "forgot-password": true })
   login(@Body() dto: LoginDto): Promise<AuthResponse> {
     return this.authService.login(dto.email, dto.password, dto.totpCode);
   }
@@ -91,7 +99,8 @@ export class AuthController {
   }
 
   @Post("2fa/verify")
-  @UseGuards(JwtAuthGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, AuthThrottlerGuard)
+  @SkipThrottle({ "forgot-password": true })
   verifyTwoFa(
     @TenantCtx() ctx: JwtTenantPayload,
     @Body() dto: TwoFaCodeDto
@@ -100,7 +109,8 @@ export class AuthController {
   }
 
   @Post("2fa/disable")
-  @UseGuards(JwtAuthGuard, TenantGuard)
+  @UseGuards(JwtAuthGuard, TenantGuard, AuthThrottlerGuard)
+  @SkipThrottle({ "forgot-password": true })
   disableTwoFa(
     @TenantCtx() ctx: JwtTenantPayload,
     @Body() dto: TwoFaCodeDto
@@ -110,10 +120,17 @@ export class AuthController {
 
   @Post("forgot-password")
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(AuthThrottlerGuard)
   @Throttle({ "forgot-password": { limit: 5, ttl: 900_000 } })
+  @SkipThrottle({ "auth-sensitive": true })
   async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
-    await this.authService.resetPasswordByEmailVerification(dto);
+    await this.passwordResetService.requestReset(dto.identifier);
+  }
+
+  @Post("reset-password")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.passwordResetService.resetPassword(dto.token, dto.newPassword);
   }
 
   @Post("change-password")

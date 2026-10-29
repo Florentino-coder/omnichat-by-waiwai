@@ -1,4 +1,4 @@
-import { forgotPasswordSchema, loginSchema } from "../lib/schemas/auth";
+import { forgotPasswordSchema, loginSchema, resetPasswordSchema } from "../lib/schemas/auth";
 
 describe("auth schemas", () => {
   it("accepts username instead of email", () => {
@@ -17,19 +17,20 @@ describe("auth schemas", () => {
     expect(loginSchema.safeParse({ email: "user@example.com", password: "ChangeMe123!" }).success).toBe(true);
   });
 
-  it("requires matching passwords for forgot password reset", () => {
+  it("requires only an identifier to request a reset link", () => {
+    expect(forgotPasswordSchema.safeParse({ identifier: "owner" }).success).toBe(true);
+    expect(forgotPasswordSchema.safeParse({ identifier: "   " }).success).toBe(false);
+  });
+
+  it("requires matching passwords to complete a reset", () => {
     expect(
-      forgotPasswordSchema.safeParse({
-        identifier: "owner",
-        email: "owner@example.com",
+      resetPasswordSchema.safeParse({
         newPassword: "ChangeMe123!",
         confirmPassword: "Mismatch123!"
       }).success
     ).toBe(false);
     expect(
-      forgotPasswordSchema.safeParse({
-        identifier: "owner",
-        email: "owner@example.com",
+      resetPasswordSchema.safeParse({
         newPassword: "ChangeMe123!",
         confirmPassword: "ChangeMe123!"
       }).success

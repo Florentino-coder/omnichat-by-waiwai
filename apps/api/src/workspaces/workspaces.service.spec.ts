@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { AuditAction, Role } from "@prisma/client";
 import { PlanLimitExceededException } from "../common/exceptions/plan-limit-exceeded.exception";
 import { RefreshSessionService } from "../auth/refresh-session.service";
@@ -32,6 +32,7 @@ type MockPrisma = {
     updateMany: jest.Mock<Promise<unknown>, [unknown]>;
   };
   user: {
+    findUnique: jest.Mock<Promise<unknown>, [unknown]>;
     update: jest.Mock<Promise<unknown>, [unknown]>;
   };
 };
@@ -63,6 +64,7 @@ const createPrisma = (): MockPrisma => ({
     updateMany: jest.fn<Promise<unknown>, [unknown]>()
   },
   user: {
+    findUnique: jest.fn<Promise<unknown>, [unknown]>(),
     update: jest.fn<Promise<unknown>, [unknown]>()
   }
 });
@@ -217,6 +219,8 @@ describe("WorkspacesService", () => {
       role: Role.AGENT,
       userId: "user-2"
     });
+    prisma.user.findUnique.mockResolvedValue({ isSuperOwner: false });
+    prisma.workspaceMember.count.mockResolvedValue(0);
     prisma.user.update.mockResolvedValue({ id: "user-2" });
     prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
     prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
@@ -240,6 +244,58 @@ describe("WorkspacesService", () => {
         action: AuditAction.PASSWORD_CHANGED,
         metadata: { source: "admin_reset", workspaceId: "workspace-1" }
       })
+    });
+  });
+
+  describe("resetMemberPassword cross-account protection", () => {
+    const setup = (targetRole: Role, isSuperOwner = false, otherTenants = 0): MockPrisma => {
+      const prisma = createPrisma();
+      prisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+      prisma.workspaceMember.findFirst.mockResolvedValue({
+        id: "member-2",
+        role: targetRole,
+        userId: "user-2"
+      });
+      prisma.user.findUnique.mockResolvedValue({ isSuperOwner });
+      prisma.workspaceMember.count.mockResolvedValue(otherTenants);
+      return prisma;
+    };
+
+    const reset = (prisma: MockPrisma, actorRole: Role): Promise<void> =>
+      createService(prisma).resetMemberPassword(
+        "tenant-1",
+        "workspace-1",
+        "user-2",
+        "actor-1",
+        actorRole,
+        { newPassword: "NewPassword123!" }
+      );
+
+    it("rejects an admin resetting another admin", async () => {
+      const prisma = setup(Role.ADMIN);
+      await expect(reset(prisma, Role.ADMIN)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects an owner resetting a co-owner", async () => {
+      const prisma = setup(Role.OWNER);
+      await expect(reset(prisma, Role.OWNER)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects resetting a user who belongs to another tenant", async () => {
+      const prisma = setup(Role.AGENT, false, 1);
+      await expect(reset(prisma, Role.ADMIN)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.workspaceMember.count).toHaveBeenCalledWith({
+        where: { userId: "user-2", isActive: true, tenantId: { not: "tenant-1" } }
+      });
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects resetting a super owner", async () => {
+      const prisma = setup(Role.AGENT, true);
+      await expect(reset(prisma, Role.OWNER)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
     });
   });
 });
