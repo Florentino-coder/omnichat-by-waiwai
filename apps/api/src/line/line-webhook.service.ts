@@ -47,9 +47,14 @@ type LineProfile = {
   language?: string;
 };
 
+const UNKNOWN_CHANNEL_CACHE_TTL_MS = 60_000;
+const UNKNOWN_CHANNEL_CACHE_MAX_ENTRIES = 10_000;
+
 @Injectable()
 export class LineWebhookService {
   private readonly logger = new Logger(LineWebhookService.name);
+
+  private readonly unknownChannels = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -65,17 +70,26 @@ export class LineWebhookService {
   ) { }
 
   async getChannelSecret(lineChannelId: string): Promise<string> {
+    // The webhook route is public, so unknown ids must not reach the DB on every
+    // request. Only misses are cached: a rotated secret is never served stale.
+    const missExpiresAt = this.unknownChannels.get(lineChannelId);
+    if (missExpiresAt !== undefined && missExpiresAt > Date.now()) {
+      throw new NotFoundException("LINE channel not found");
+    }
+
     const channel = await this.prisma.lineChannel.findUnique({
       where: { lineChannelId }
     });
 
-    if (channel && (channel.deletedAt !== null || !channel.isActive)) {
+    if (!channel || channel.deletedAt !== null || !channel.isActive) {
+      if (this.unknownChannels.size >= UNKNOWN_CHANNEL_CACHE_MAX_ENTRIES) {
+        this.unknownChannels.clear();
+      }
+      this.unknownChannels.set(lineChannelId, Date.now() + UNKNOWN_CHANNEL_CACHE_TTL_MS);
       throw new NotFoundException("LINE channel not found");
     }
 
-    if (!channel) {
-      throw new NotFoundException("LINE channel not found");
-    }
+    this.unknownChannels.delete(lineChannelId);
 
     return this.cryptoSecret.decrypt(channel.encryptedChannelSecret);
   }

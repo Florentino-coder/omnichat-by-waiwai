@@ -266,16 +266,31 @@ export class AuthService {
     const user = storedToken.user;
     this.assertUserAccountCanUseTokens(user);
 
-    if (user.isSuperOwner) {
-      const tokens = await this.issueSuperOwnerTokens(user);
-      await this.revokeRefreshToken(tokenHash);
-      await this.refreshSessionService.delete(tokenHash, session.userId);
-      return tokens;
+    const membership = user.isSuperOwner ? null : this.resolveMembershipFromSession(user, session);
+
+    // Claim the token atomically so concurrent requests cannot both rotate it.
+    const claim = await this.prisma.refreshToken.updateMany({
+      where: { tokenHash, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
+    if (claim.count !== 1) {
+      throw new UnauthorizedException("Invalid refresh token");
     }
 
-    const membership = this.resolveMembershipFromSession(user, session);
-    const tokens = await this.issueTokens(user, membership);
-    await this.revokeRefreshToken(tokenHash);
+    let tokens: AuthTokens;
+    try {
+      tokens = membership
+        ? await this.issueTokens(user, membership)
+        : await this.issueSuperOwnerTokens(user);
+    } catch (error) {
+      // Issuing failed (e.g. Redis outage): keep the session usable for a retry.
+      await this.prisma.refreshToken.updateMany({
+        where: { tokenHash },
+        data: { revokedAt: null }
+      });
+      throw error;
+    }
+
     await this.refreshSessionService.delete(tokenHash, session.userId);
 
     return tokens;

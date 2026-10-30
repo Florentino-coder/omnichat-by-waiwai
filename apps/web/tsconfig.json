@@ -26,5 +26,5 @@
     "types": ["jest", "@testing-library/jest-dom"]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "../../packages/ui/src/**/*.ts", "../../packages/ui/src/**/*.tsx"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "playwright-*.spec.ts"]
 }
