@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { TermwaiLookupPanel } from "../components/inbox/TermwaiLookupPanel";
+import { ConnectLookupPanel } from "../components/inbox/ConnectLookupPanel";
 import { apiFetch } from "../app/lib/api-client";
 
 jest.mock("../app/lib/api-client", () => ({
@@ -13,13 +13,13 @@ const apiFetchMock = apiFetch as jest.Mock;
 
 const respond = (lookup: unknown) => {
   apiFetchMock.mockImplementation(async (path: string) =>
-    path === "/api/v1/integrations/termwai" ? { connected: true } : lookup
+    path === "/api/v1/integrations/status" ? { connected: true } : lookup
   );
 };
 
 const customer = {
   id: "c1",
-  username: "somchai",
+  displayName: "somchai",
   phoneMasked: "***5678",
   emailMasked: "so***@example.com",
   recentOrders: [
@@ -29,7 +29,7 @@ const customer = {
       paymentStatus: "paid",
       total: 100,
       createdAt: "2026-10-01T00:00:00.000Z",
-      items: [{ productName: "Diamonds", quantity: 1 }]
+      items: [{ name: "Diamonds", quantity: 1 }]
     }
   ],
   recentDeposits: [
@@ -37,26 +37,26 @@ const customer = {
   ]
 };
 
-describe("TermwaiLookupPanel", () => {
+describe("ConnectLookupPanel", () => {
   beforeEach(() => apiFetchMock.mockReset());
 
-  it("renders nothing when Termwai is not connected", async () => {
+  it("renders nothing when no system is connected", async () => {
     apiFetchMock.mockResolvedValue({ connected: false });
-    render(<TermwaiLookupPanel phone="0812345678" />);
+    render(<ConnectLookupPanel phone="0812345678" />);
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalled());
-    expect(screen.queryByTestId("termwai-lookup-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("connect-lookup-panel")).not.toBeInTheDocument();
   });
 
   it("renders nothing when the role has no access", async () => {
     apiFetchMock.mockRejectedValue(new Error("Forbidden"));
-    render(<TermwaiLookupPanel />);
+    render(<ConnectLookupPanel />);
     await waitFor(() => expect(apiFetchMock).toHaveBeenCalled());
-    expect(screen.queryByTestId("termwai-lookup-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("connect-lookup-panel")).not.toBeInTheDocument();
   });
 
   it("does not search until the agent asks, then shows a phone result", async () => {
     respond([customer]);
-    render(<TermwaiLookupPanel phone="0812345678" />);
+    render(<ConnectLookupPanel phone="0812345678" />);
     const button = await screen.findByRole("button", { name: "Search" });
     expect(apiFetchMock).toHaveBeenCalledTimes(1);
 
@@ -64,7 +64,7 @@ describe("TermwaiLookupPanel", () => {
 
     expect(await screen.findByText("somchai")).toBeInTheDocument();
     expect(apiFetchMock).toHaveBeenLastCalledWith(
-      "/api/v1/integrations/termwai/customers?phone=0812345678"
+      "/api/v1/integrations/lookup/customers?phone=0812345678"
     );
     expect(screen.getByText("GT123456")).toBeInTheDocument();
     expect(screen.getByText("฿500")).toBeInTheDocument();
@@ -73,24 +73,24 @@ describe("TermwaiLookupPanel", () => {
 
   it("searches by order when the query has letters", async () => {
     respond({ order: customer.recentOrders[0], customer: null });
-    render(<TermwaiLookupPanel />);
+    render(<ConnectLookupPanel />);
     const input = await screen.findByLabelText("Phone or order number");
 
     fireEvent.change(input, { target: { value: "GT123456" } });
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
 
     expect(await screen.findByText("GT123456")).toBeInTheDocument();
-    expect(apiFetchMock).toHaveBeenLastCalledWith("/api/v1/integrations/termwai/orders/GT123456");
+    expect(apiFetchMock).toHaveBeenLastCalledWith("/api/v1/integrations/lookup/orders/GT123456");
   });
 
   it("shows empty and error states", async () => {
     respond([]);
-    render(<TermwaiLookupPanel phone="0812345678" />);
+    render(<ConnectLookupPanel phone="0812345678" />);
     fireEvent.click(await screen.findByRole("button", { name: "Search" }));
-    expect(await screen.findByText("Nothing found in Termwai")).toBeInTheDocument();
+    expect(await screen.findByText("Nothing found in the store system")).toBeInTheDocument();
 
-    apiFetchMock.mockRejectedValue(new Error("Could not reach Termwai. Try again."));
+    apiFetchMock.mockRejectedValue(new Error("Could not reach the system. Try again."));
     fireEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Could not reach Termwai");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not reach the system");
   });
 });

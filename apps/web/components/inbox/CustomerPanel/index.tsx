@@ -9,7 +9,7 @@ import { QuickReplyList } from "./QuickReplyList";
 import { TagList } from "./TagList";
 import { useSlipVerifications } from "../../../app/app/inbox/hooks/useSlipVerifications";
 import { SlipVerificationPanel } from "../SlipVerificationPanel";
-import { TermwaiLookupPanel } from "../TermwaiLookupPanel";
+import { ConnectLookupPanel } from "../ConnectLookupPanel";
 
 interface CustomerPanelProps {
   customerName: string;
@@ -323,8 +323,8 @@ export function CustomerPanel({
           onToggle={() => toggleSection("slipVerification")}
         />
 
-        {/* ข้อมูลจาก Termwai */}
-        <TermwaiLookupPanel key={conversationId ?? "none"} phone={phone} disabled={disabled} />
+        {/* ข้อมูลจากระบบร้านค้า (ChatWai Connect) */}
+        <ConnectLookupPanel key={conversationId ?? "none"} phone={phone} disabled={disabled} />
 
         {/* สรุปบทสนทนา (AI) */}
         {enableAiSuggest && (

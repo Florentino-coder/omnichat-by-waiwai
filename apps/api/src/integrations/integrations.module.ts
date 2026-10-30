@@ -1,13 +1,18 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
 import { PrismaModule } from "../prisma/prisma.module";
-import { TermwaiClient } from "./termwai.client";
-import { TermwaiController } from "./termwai.controller";
-import { TermwaiService } from "./termwai.service";
+import { CONNECT_TRANSPORT, ConnectClient } from "./connect.client";
+import { httpsConnectTransport } from "./connect-transport";
+import { ConnectionsController } from "./connections.controller";
+import { ConnectionsService } from "./connections.service";
 
 @Module({
   imports: [AuthModule, PrismaModule],
-  controllers: [TermwaiController],
-  providers: [TermwaiClient, TermwaiService]
+  controllers: [ConnectionsController],
+  providers: [
+    { provide: CONNECT_TRANSPORT, useValue: httpsConnectTransport },
+    ConnectClient,
+    ConnectionsService
+  ]
 })
 export class IntegrationsModule {}

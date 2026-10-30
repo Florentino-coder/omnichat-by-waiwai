@@ -49,8 +49,8 @@ Version: 1.0 | Stage: 0 (Architecture)
 
 | Action                        | OWNER | ADMIN | AGENT | QC  | VIEWER |
 |-------------------------------|-------|-------|-------|-----|--------|
-| Connect/Disconnect Termwai    | ✅    | ✅    | ❌    | ❌  | ❌     |
-| Look Up Termwai Customer/Order| ✅    | ✅    | ✅    | ❌  | ❌     |
+| Manage ChatWai Connect        | ✅    | ✅    | ❌    | ❌  | ❌     |
+| Look Up Customer/Order        | ✅    | ✅    | ✅    | ❌  | ❌     |
 
 ---
 
