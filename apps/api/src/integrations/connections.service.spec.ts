@@ -22,6 +22,8 @@ const stored = {
   previousSecretExpiresAt: null as Date | null,
   lastTestedAt: null,
   lastTestOk: true,
+  suspendedAt: null as Date | null,
+  suspendedReason: null as string | null,
   createdAt: new Date("2026-10-30"),
   updatedAt: new Date("2026-10-30"),
   deletedAt: null
@@ -33,6 +35,7 @@ const createDeps = () => {
     planLimit: { findUnique: jest.fn().mockResolvedValue({ maxIntegrations: 3 }) },
     integrationConnection: {
       findFirst: jest.fn().mockResolvedValue(stored),
+      // Calls: suspended connections first, then the plan limit count.
       count: jest.fn().mockResolvedValue(0),
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...stored, ...data })),
       updateMany: jest.fn().mockResolvedValue({ count: 1 })
@@ -108,11 +111,44 @@ describe("ConnectionsService", () => {
     it("asks to disconnect first on a one-connection plan", async () => {
       const { prisma, service } = createDeps();
       prisma.planLimit.findUnique.mockResolvedValue({ maxIntegrations: 1 });
-      prisma.integrationConnection.count.mockResolvedValue(1);
+      prisma.integrationConnection.count.mockResolvedValueOnce(0).mockResolvedValueOnce(1);
 
       await expect(
         service.create("tenant-1", "user-1", "Shop", "https://shop.test")
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe("suspension", () => {
+    const suspended = { ...stored, suspendedAt: new Date(), suspendedReason: "Key leaked" };
+
+    it("blocks lookups and tests, and reports not connected", async () => {
+      const { client, prisma, service } = createDeps();
+      prisma.integrationConnection.findFirst.mockResolvedValue(suspended);
+
+      const lookup = await service.lookupCustomers("tenant-1", "user-1", "0812345678").catch((e: unknown) => e);
+      expect((lookup as HttpException).getStatus()).toBe(403);
+      expect(client.lookupCustomers).not.toHaveBeenCalled();
+
+      await expect(service.test("tenant-1", "user-1")).rejects.toBeInstanceOf(HttpException);
+      expect(client.health).not.toHaveBeenCalled();
+
+      await expect(service.getStatus("tenant-1")).resolves.toEqual({ connected: false });
+    });
+
+    it("stops a tenant lifting a suspension by disconnecting and recreating", async () => {
+      const { prisma, service } = createDeps();
+      prisma.integrationConnection.count.mockResolvedValue(1);
+
+      const error = await service
+        .create("tenant-1", "user-1", "Shop", "https://shop.test")
+        .catch((e: unknown) => e);
+
+      expect((error as HttpException).getStatus()).toBe(403);
+      expect(prisma.integrationConnection.count).toHaveBeenCalledWith({
+        where: { tenantId: "tenant-1", suspendedAt: { not: null } }
+      });
+      expect(prisma.integrationConnection.create).not.toHaveBeenCalled();
     });
   });
 

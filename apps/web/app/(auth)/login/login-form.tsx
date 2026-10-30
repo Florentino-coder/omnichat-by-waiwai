@@ -29,10 +29,14 @@ interface ErrorBody {
   };
 }
 
+const TOTP_REQUIRED_MESSAGE = "Two-factor code is required";
+
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,9 +44,17 @@ export function LoginForm() {
     event.preventDefault();
     setError(null);
 
-    const parsed = loginSchema.safeParse({ email, password });
+    const parsed = loginSchema.safeParse({
+      email,
+      password,
+      ...(needsTotp ? { totpCode: totpCode.trim() } : {})
+    });
     if (!parsed.success) {
-      setError("Enter a valid email/username and a password with at least 8 characters.");
+      setError(
+        needsTotp
+          ? "Enter the 6-digit code from your authenticator app."
+          : "Enter a valid email/username and a password with at least 8 characters."
+      );
       return;
     }
 
@@ -57,7 +69,13 @@ export function LoginForm() {
       const body: unknown = await response.json();
 
       if (!response.ok) {
-        setError(readErrorMessage(body));
+        const message = readErrorMessage(body);
+        if (message === TOTP_REQUIRED_MESSAGE) {
+          setNeedsTotp(true);
+          setError("Enter the 6-digit code from your authenticator app.");
+          return;
+        }
+        setError(message);
         return;
       }
 
@@ -100,6 +118,21 @@ export function LoginForm() {
           onChange={(event) => setPassword(event.target.value)}
         />
       </div>
+      {needsTotp ? (
+        <div className="space-y-2">
+          <Label htmlFor="totp-code" className="text-[#16182B] font-medium">Authenticator code</Label>
+          <Input
+            id="totp-code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            autoFocus
+            value={totpCode}
+            onChange={(event) => setTotpCode(event.target.value)}
+          />
+        </div>
+      ) : null}
       {error ? (
         <p className="rounded-lg border border-red-200 bg-red-50/50 px-3 py-2 text-sm text-red-700" role="alert">
           {error}

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { AuditAction, User, WorkspaceMember } from "@prisma/client";
@@ -44,6 +44,8 @@ const REFRESH_TOKEN_DAYS = 7;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
@@ -61,7 +63,8 @@ export class AuthService {
         id: true,
         email: true,
         displayName: true,
-        isSuperOwner: true
+        isSuperOwner: true,
+        twoFaEnabled: true
       }
     });
 
@@ -74,7 +77,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
-        isSuperOwner: true
+        isSuperOwner: true,
+        twoFaEnabled: user.twoFaEnabled
       };
     }
 
@@ -314,6 +318,12 @@ export class AuthService {
   }
 
   async setupTwoFa(ctx: TwoFaContext): Promise<{ otpauthUri: string }> {
+    // Without this, a stolen session could silently replace an enrolled authenticator.
+    const existing = await this.getTwoFaUser(this.contextUserId(ctx));
+    if (existing.twoFaEnabled) {
+      throw new ConflictException("Two-factor authentication is already enabled");
+    }
+
     const setup = this.totpService.generateSetup(ctx.email);
     await this.prisma.user.update({
       where: { id: this.contextUserId(ctx) },
@@ -338,13 +348,18 @@ export class AuthService {
         twoFaEnabled: true
       }
     });
-    await this.prisma.auditLog.create({
-      data: {
-        tenantId: ctx.tenantId,
-        userId: user.id,
-        action: AuditAction.TWO_FA_ENABLED
-      }
-    });
+    if (ctx.tenantId) {
+      await this.prisma.auditLog.create({
+        data: {
+          tenantId: ctx.tenantId,
+          userId: user.id,
+          action: AuditAction.TWO_FA_ENABLED
+        }
+      });
+    } else {
+      // Audit logs belong to a tenant, and super owners have none.
+      this.logger.log(`Two-factor authentication enabled for super owner ${user.id}`);
+    }
   }
 
   async disableTwoFa(ctx: TwoFaContext, code: string): Promise<void> {

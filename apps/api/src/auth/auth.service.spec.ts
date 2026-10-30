@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { AuditAction, Role } from "@prisma/client";
@@ -23,6 +23,7 @@ jest.mock("otplib", () => ({
 
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService } from "./auth.service";
+import { JwtTenantPayload } from "./types/auth.types";
 import { CryptoSecretService } from "./crypto-secret.service";
 import { LoginAttemptService } from "./login-attempt.service";
 import { RefreshSessionService } from "./refresh-session.service";
@@ -746,6 +747,64 @@ describe("AuthService", () => {
         action: AuditAction.TWO_FA_DISABLED
       }
     });
+  });
+
+  it("refuses to replace an enrolled authenticator", async () => {
+    const prisma = createPrisma();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "user-1",
+      email: "owner@omnichat.local",
+      twoFaSecret: "encrypted:totp-secret",
+      twoFaEnabled: true
+    });
+
+    await expect(
+      createService(prisma).setupTwoFa({
+        userId: "user-1",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        role: Role.OWNER,
+        email: "owner@omnichat.local"
+      })
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("enables two-factor for a super owner without writing a tenant audit log", async () => {
+    const prisma = createPrisma();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "owner-1",
+      email: "super@omnichat.local",
+      twoFaSecret: "encrypted:totp-secret",
+      twoFaEnabled: false
+    });
+    prisma.user.update.mockResolvedValue({ id: "owner-1" });
+
+    await createService(prisma).verifyTwoFa(
+      { sub: "owner-1", email: "super@omnichat.local" } as unknown as JwtTenantPayload,
+      "123456"
+    );
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "owner-1" },
+      data: { twoFaEnabled: true }
+    });
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("reports two-factor status for a super owner in the session", async () => {
+    const prisma = createPrisma();
+    prisma.user.findUnique.mockResolvedValue({
+      id: "owner-1",
+      email: "super@omnichat.local",
+      displayName: "Super",
+      isSuperOwner: true,
+      twoFaEnabled: false
+    });
+
+    await expect(
+      createService(prisma).getMe({ sub: "owner-1", isSuperOwner: true } as unknown as JwtTenantPayload)
+    ).resolves.toMatchObject({ isSuperOwner: true, twoFaEnabled: false });
   });
 
   it("rejects invalid two-factor verification codes", async () => {

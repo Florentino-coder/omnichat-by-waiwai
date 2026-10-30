@@ -20,7 +20,8 @@ const connection = {
   keyId: "ck_abc",
   lastTestedAt: null,
   lastTestOk: false,
-  previousSecretExpiresAt: null
+  previousSecretExpiresAt: null,
+  suspendedAt: null
 };
 
 describe("ConnectSettings", () => {

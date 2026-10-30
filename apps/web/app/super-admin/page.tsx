@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Plus, Users, LogOut, ArrowRight, RefreshCw, Activity, Brain, Database, MessageSquare } from "lucide-react";
+import { Plug, Building2, Plus, Users, LogOut, ArrowRight, RefreshCw, Activity, Brain, Database, MessageSquare } from "lucide-react";
 import { Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch } from "../lib/api-client";
 import { clearAuthSessionCookies } from "../lib/session-cookies";
@@ -162,6 +162,13 @@ export default function SuperAdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => router.push("/super-admin/integrations")}
+              className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-700 bg-white/80 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              <Plug size={14} />
+              Integrations
+            </button>
             <button
               onClick={() => router.push("/super-admin/backups")}
               className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-700 hover:text-[#4636D7] bg-white border border-[#DEDDE6] hover:border-[#4636D7]/20 rounded-xl transition-all shadow-sm"
