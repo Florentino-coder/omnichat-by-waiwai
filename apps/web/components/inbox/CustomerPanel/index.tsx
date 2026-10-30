@@ -9,6 +9,7 @@ import { QuickReplyList } from "./QuickReplyList";
 import { TagList } from "./TagList";
 import { useSlipVerifications } from "../../../app/app/inbox/hooks/useSlipVerifications";
 import { SlipVerificationPanel } from "../SlipVerificationPanel";
+import { ConnectLookupPanel } from "../ConnectLookupPanel";
 
 interface CustomerPanelProps {
   customerName: string;
@@ -321,6 +322,9 @@ export function CustomerPanel({
           isExpanded={expanded.slipVerification}
           onToggle={() => toggleSection("slipVerification")}
         />
+
+        {/* ข้อมูลจากระบบร้านค้า (ChatWai Connect) */}
+        <ConnectLookupPanel key={conversationId ?? "none"} phone={phone} disabled={disabled} />
 
         {/* สรุปบทสนทนา (AI) */}
         {enableAiSuggest && (

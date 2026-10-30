@@ -17,6 +17,7 @@ import { SuperAdminModule } from "./super-admin/super-admin.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { StorageModule } from "./storage/storage.module";
 import { BackupModule } from "./backup/backup.module";
+import { IntegrationsModule } from "./integrations/integrations.module";
 import { MonitorModule } from "./monitor/monitor.module";
 import { CustomersModule } from "./customers/customers.module";
 import { KnowledgeModule } from "./knowledge/knowledge.module";
@@ -39,6 +40,7 @@ import { SlipModule } from "./slip/slip.module";
     HealthModule,
     AuthModule,
     InvitationsModule,
+    IntegrationsModule,
     UsersModule,
     AuditLogsModule,
     InboxModule,

@@ -127,6 +127,12 @@ enum AuditAction {
   BACKUP_RUN_TRIGGERED
   BACKUP_RUN_SUCCEEDED
   BACKUP_RUN_FAILED
+  // External integrations
+  INTEGRATION_CONNECTED
+  INTEGRATION_DISCONNECTED
+  INTEGRATION_LOOKUP
+  INTEGRATION_TESTED
+  INTEGRATION_SECRET_ROTATED
 }
 
 enum BackupRunType {
@@ -251,6 +257,7 @@ model Tenant {
   knowledgeChunks           KnowledgeChunk[]
   aiScenarios               AiScenario[]
   automationRules           AutomationRule[]
+  integrationConnections    IntegrationConnection[]
   automationRuns            AutomationRun[]
   aiTrainingPairs           AiTrainingPair[]
   aiQaScores                AiQaScore[]
@@ -267,6 +274,7 @@ model PlanLimit {
   maxWorkspaces        Int
   maxAgents            Int
   maxAiCreditsPerMonth Int      @default(0)
+  maxIntegrations      Int      @default(1)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1100,3 +1108,26 @@ model SlipVerification {
   @@map("slip_verifications")
 }
 
+// ============================================================
+// External integrations (ChatWai Connect)
+// ============================================================
+
+model IntegrationConnection {
+  id                       String    @id @default(uuid())
+  tenantId                 String    @map("tenant_id")
+  tenant                   Tenant    @relation(fields: [tenantId], references: [id])
+  name                     String
+  baseUrl                  String    @map("base_url")
+  keyId                    String    @unique @map("key_id")
+  encryptedSecret          String    @map("encrypted_secret")
+  encryptedPreviousSecret  String?   @map("encrypted_previous_secret")
+  previousSecretExpiresAt  DateTime? @map("previous_secret_expires_at")
+  lastTestedAt             DateTime? @map("last_tested_at")
+  lastTestOk               Boolean   @default(false) @map("last_test_ok")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
+  deletedAt                DateTime? @map("deleted_at")
+
+  @@index([tenantId])
+  @@map("integration_connections")
+}

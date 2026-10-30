@@ -45,6 +45,15 @@ Version: 1.0 | Stage: 0 (Architecture)
 
 ---
 
+## External Integrations
+
+| Action                        | OWNER | ADMIN | AGENT | QC  | VIEWER |
+|-------------------------------|-------|-------|-------|-----|--------|
+| Manage ChatWai Connect        | ✅    | ✅    | ❌    | ❌  | ❌     |
+| Look Up Customer/Order        | ✅    | ✅    | ✅    | ❌  | ❌     |
+
+---
+
 ## Conversations & Inbox (Stage 3)
 
 | Action                        | OWNER | ADMIN | AGENT | QC  | VIEWER |

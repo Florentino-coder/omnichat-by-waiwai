@@ -7,7 +7,8 @@ export type SettingsTab =
   | "team"
   | "profile"
   | "ai"
-  | "ai-curation";
+  | "ai-curation"
+  | "integrations";
 
 export type WorkspaceRole = "OWNER" | "ADMIN" | "AGENT" | "QC" | "VIEWER";
 
@@ -20,7 +21,8 @@ const SETTINGS_TABS: SettingsTab[] = [
   "team",
   "profile",
   "ai",
-  "ai-curation"
+  "ai-curation",
+  "integrations"
 ];
 
 const TAB_ROLES: Record<SettingsTab, WorkspaceRole[]> = {
@@ -32,7 +34,8 @@ const TAB_ROLES: Record<SettingsTab, WorkspaceRole[]> = {
   team: ["OWNER", "ADMIN"],
   profile: ["OWNER", "ADMIN", "AGENT", "QC", "VIEWER"],
   ai: ["OWNER", "ADMIN"],
-  "ai-curation": ["OWNER", "ADMIN", "QC"]
+  "ai-curation": ["OWNER", "ADMIN", "QC"],
+  integrations: ["OWNER", "ADMIN"]
 };
 
 export function isSettingsTab(value: string | null | undefined): value is SettingsTab {
