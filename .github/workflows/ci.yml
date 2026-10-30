@@ -12,6 +12,20 @@ jobs:
     env:
       DATABASE_URL: postgresql://user:password@localhost:5432/omnichat
       DIRECT_URL: postgresql://user:password@localhost:5432/omnichat
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: omnichat
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U user -d omnichat"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,6 +47,9 @@ jobs:
 
       - name: Build API
         run: npm run api:build
+
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
 
       - name: Test API
         run: npm test
