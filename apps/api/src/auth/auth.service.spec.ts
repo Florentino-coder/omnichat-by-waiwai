@@ -24,6 +24,7 @@ jest.mock("otplib", () => ({
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthService } from "./auth.service";
 import { CryptoSecretService } from "./crypto-secret.service";
+import { LoginAttemptService } from "./login-attempt.service";
 import { RefreshSessionService } from "./refresh-session.service";
 import { TotpService } from "./totp.service";
 
@@ -112,11 +113,24 @@ const createTotp = (): MockTotpService => ({
   verify: jest.fn<boolean, Parameters<TotpService["verify"]>>().mockReturnValue(true)
 });
 
+type MockLoginAttemptService = {
+  assertNotLocked: jest.Mock<Promise<void>, [string]>;
+  recordFailure: jest.Mock<Promise<void>, [string]>;
+  reset: jest.Mock<Promise<void>, [string]>;
+};
+
+const createLoginAttempts = (): MockLoginAttemptService => ({
+  assertNotLocked: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
+  recordFailure: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined),
+  reset: jest.fn<Promise<void>, [string]>().mockResolvedValue(undefined)
+});
+
 const createService = (
   prisma: MockPrisma,
   refreshSessions = createRefreshSessions(),
   crypto = createCrypto(),
-  totp = createTotp()
+  totp = createTotp(),
+  loginAttempts = createLoginAttempts()
 ): AuthService => {
   const configService = {
     get: (key: string): string | undefined =>
@@ -129,7 +143,8 @@ const createService = (
     configService as ConfigService,
     refreshSessions as unknown as RefreshSessionService,
     crypto as unknown as CryptoSecretService,
-    totp as unknown as TotpService
+    totp as unknown as TotpService,
+    loginAttempts as unknown as LoginAttemptService
   );
 };
 
@@ -373,6 +388,39 @@ describe("AuthService", () => {
       createService(prisma).login("unknown@omnichat.local", "wrong-password")
     ).rejects.toThrow("Invalid email or password");
     expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("records a per-account failure on wrong password", async () => {
+    const prisma = createPrisma();
+    const loginAttempts = createLoginAttempts();
+    prisma.user.findFirst.mockResolvedValue(await createLoginUser());
+    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
+
+    await expect(
+      createService(prisma, undefined, undefined, undefined, loginAttempts).login(
+        "owner@omnichat.local",
+        "wrong-password"
+      )
+    ).rejects.toThrow("Invalid email or password");
+    expect(loginAttempts.assertNotLocked).toHaveBeenCalledWith("user-1");
+    expect(loginAttempts.recordFailure).toHaveBeenCalledWith("user-1");
+    expect(loginAttempts.reset).not.toHaveBeenCalled();
+  });
+
+  it("rejects a locked account before checking the password", async () => {
+    const prisma = createPrisma();
+    const loginAttempts = createLoginAttempts();
+    loginAttempts.assertNotLocked.mockRejectedValue(new Error("ACCOUNT_TEMPORARILY_LOCKED"));
+    prisma.user.findFirst.mockResolvedValue(await createLoginUser());
+
+    await expect(
+      createService(prisma, undefined, undefined, undefined, loginAttempts).login(
+        "owner@omnichat.local",
+        "wrong-password"
+      )
+    ).rejects.toThrow("ACCOUNT_TEMPORARILY_LOCKED");
+    expect(loginAttempts.recordFailure).not.toHaveBeenCalled();
+    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
   });
 
   it("rotates refresh token in Redis and DB before revoking the old session", async () => {
@@ -751,57 +799,5 @@ describe("AuthService", () => {
       workspaceId: "workspace-1",
       role: Role.OWNER
     });
-  });
-
-  it("resets password when identifier and registered email match", async () => {
-    const prisma = createPrisma();
-    const refreshSessions = createRefreshSessions();
-    prisma.user.findFirst.mockResolvedValue({
-      id: "user-1",
-      email: "owner@omnichat.local",
-      passwordHash: "old-hash",
-      memberships: [{ tenantId: "tenant-1", workspaceId: "workspace-1", role: Role.OWNER, isActive: true }]
-    });
-    prisma.user.update.mockResolvedValue({ id: "user-1" });
-    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
-    prisma.auditLog.create.mockResolvedValue({ id: "audit-1" });
-
-    await createService(prisma, refreshSessions).resetPasswordByEmailVerification({
-      identifier: "owner",
-      email: "Owner@OmniChat.local",
-      newPassword: "NewPassword123!"
-    });
-
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: "user-1" },
-      data: { passwordHash: expect.any(String) }
-    });
-    expect(refreshSessions.deleteAllForUser).toHaveBeenCalledWith("user-1");
-    expect(prisma.auditLog.create).toHaveBeenCalledWith({
-      data: {
-        tenantId: "tenant-1",
-        userId: "user-1",
-        action: AuditAction.PASSWORD_CHANGED,
-        metadata: { source: "forgot_password" }
-      }
-    });
-  });
-
-  it("rejects forgot password when registered email does not match", async () => {
-    const prisma = createPrisma();
-    prisma.user.findFirst.mockResolvedValue({
-      id: "user-1",
-      email: "owner@omnichat.local",
-      passwordHash: "old-hash",
-      memberships: [{ tenantId: "tenant-1", workspaceId: "workspace-1", role: Role.OWNER, isActive: true }]
-    });
-
-    await expect(
-      createService(prisma).resetPasswordByEmailVerification({
-        identifier: "owner",
-        email: "wrong@example.com",
-        newPassword: "NewPassword123!"
-      })
-    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

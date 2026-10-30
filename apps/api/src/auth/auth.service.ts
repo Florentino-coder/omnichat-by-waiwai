@@ -6,10 +6,10 @@ import * as bcrypt from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
 import { PrismaService } from "../prisma/prisma.service";
 import { CryptoSecretService } from "./crypto-secret.service";
+import { LoginAttemptService } from "./login-attempt.service";
 import { RefreshSessionService } from "./refresh-session.service";
 import { TotpService } from "./totp.service";
 import { ChangePasswordDto } from "./dto/change-password.dto";
-import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import {
   AuthResponse,
   AuthTokens,
@@ -50,7 +50,8 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly refreshSessionService: RefreshSessionService,
     private readonly cryptoSecretService: CryptoSecretService,
-    private readonly totpService: TotpService
+    private readonly totpService: TotpService,
+    private readonly loginAttemptService: LoginAttemptService
   ) {}
 
   async getMe(ctx: JwtTenantPayload): Promise<AuthUserResponse> {
@@ -173,16 +174,28 @@ export class AuthService {
 
   async login(email: string, password: string, totpCode?: string): Promise<AuthResponse> {
     const user = await this.findLoginUser(email);
+    if (user) {
+      await this.loginAttemptService.assertNotLocked(user.id);
+    }
     const validPassword = user ? await bcrypt.compare(password, user.passwordHash) : false;
 
     if (!user || !validPassword) {
       if (user) {
+        await this.loginAttemptService.recordFailure(user.id);
         await this.auditLoginFailed(user, "INVALID_CREDENTIALS");
       }
       throw new UnauthorizedException("Invalid email or password");
     }
 
-    await this.assertUserCanLogin(user, totpCode);
+    try {
+      await this.assertUserCanLogin(user, totpCode);
+    } catch (error) {
+      if (user.twoFaEnabled && totpCode) {
+        await this.loginAttemptService.recordFailure(user.id);
+      }
+      throw error;
+    }
+    await this.loginAttemptService.reset(user.id);
 
     if (user.isSuperOwner) {
       const tokens = await this.issueSuperOwnerTokens(user);
@@ -625,35 +638,6 @@ export class AuthService {
         action: AuditAction.PASSWORD_CHANGED
       }
     });
-  }
-
-  async resetPasswordByEmailVerification(dto: ForgotPasswordDto): Promise<void> {
-    const user = await this.findLoginUser(dto.identifier);
-
-    if (!user || user.email.toLowerCase() !== dto.email.trim().toLowerCase()) {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
-    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash }
-    });
-
-    await this.revokeAllUserRefreshTokens(user.id);
-    await this.refreshSessionService.deleteAllForUser(user.id);
-
-    const membership = user.memberships.find((item) => item.isActive);
-    if (membership) {
-      await this.prisma.auditLog.create({
-        data: {
-          tenantId: membership.tenantId,
-          userId: user.id,
-          action: AuditAction.PASSWORD_CHANGED,
-          metadata: { source: "forgot_password" }
-        }
-      });
-    }
   }
 
   private async getTwoFaUser(userId: string): Promise<Pick<User, "id" | "email" | "twoFaSecret" | "twoFaEnabled">> {

@@ -9,10 +9,12 @@ export const loginSchema = z.object({
   totpCode: z.string().length(6).optional()
 });
 
-export const forgotPasswordSchema = z
+export const forgotPasswordSchema = z.object({
+  identifier: z.string().trim().min(1, "Email or username is required")
+});
+
+export const resetPasswordSchema = z
   .object({
-    identifier: z.string().min(1, "Email or username is required"),
-    email: emailSchema,
     newPassword: passwordSchema,
     confirmPassword: passwordSchema
   })
@@ -20,11 +22,6 @@ export const forgotPasswordSchema = z
     message: "Passwords do not match",
     path: ["confirmPassword"]
   });
-
-export const resetPasswordSchema = z.object({
-  token: z.string().min(1),
-  password: passwordSchema
-});
 
 export const invitationAcceptSchema = z.object({
   token: z.string().min(1),

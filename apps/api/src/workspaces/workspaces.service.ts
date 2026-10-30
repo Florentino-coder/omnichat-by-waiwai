@@ -200,6 +200,27 @@ export class WorkspacesService {
       throw new ForbiddenException("Admins cannot reset owner passwords");
     }
 
+    // Peers cannot reset each other: an ADMIN resetting another ADMIN (or an
+    // OWNER resetting a co-owner) would be a lateral account takeover.
+    if (targetMember.role === actorRole) {
+      throw new ForbiddenException("Cannot reset the password of a member with the same role");
+    }
+
+    // Users are global and may belong to other tenants. Resetting their
+    // password here would hand this tenant's admin access to those tenants.
+    const target = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { isSuperOwner: true }
+    });
+    const otherTenantMemberships = await this.prisma.workspaceMember.count({
+      where: { userId: targetUserId, isActive: true, tenantId: { not: tenantId } }
+    });
+    if (target?.isSuperOwner || otherTenantMemberships > 0) {
+      throw new ForbiddenException(
+        "This user belongs to other organizations. Ask them to use forgot password instead."
+      );
+    }
+
     const passwordHash = await bcrypt.hash(dto.newPassword, 12);
     await this.prisma.user.update({
       where: { id: targetUserId },

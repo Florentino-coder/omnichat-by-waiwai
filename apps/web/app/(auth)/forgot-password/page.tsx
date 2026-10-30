@@ -8,7 +8,8 @@ export default function ForgotPasswordPage() {
           Reset password
         </h1>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
-          Enter the username or email you use to sign in, plus the email registered on your account.
+          Enter the username or email you use to sign in. We will email a reset link to the address
+          registered on your account.
         </p>
       </div>
       <ForgotPasswordForm />

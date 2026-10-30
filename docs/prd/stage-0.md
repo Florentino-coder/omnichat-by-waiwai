@@ -217,8 +217,10 @@ Sensitive values (LINE channel secrets, 2FA secrets, API keys for AI) are:
 
 | Endpoint | Limit |
 |---|---|
-| POST /auth/login | 5 req/min per IP |
-| POST /auth/forgot-password | 3 req/15min per email |
+| POST /auth/login | 20 req/15min per email + account lockout after 10 failed password/TOTP attempts (15 min) |
+| POST /auth/2fa/verify, /auth/2fa/disable | 20 req/15min per user |
+| POST /auth/forgot-password | 5 req/15min per identifier (always 204, no account enumeration) |
+| POST /auth/reset-password | Single-use token, 30 min expiry, stored hashed in Redis |
 | POST /auth/register | 10 req/hour per IP |
 | All other endpoints | 100 req/min per user |
 
