@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { AuditAction, User, WorkspaceMember } from "@prisma/client";
@@ -340,7 +340,7 @@ export class AuthService {
 
   async verifyTwoFa(ctx: TwoFaContext, code: string): Promise<void> {
     const user = await this.getTwoFaUser(this.contextUserId(ctx));
-    this.assertTotpCode(user.twoFaSecret, code);
+    this.assertTotpCodeForSignedInUser(user.twoFaSecret, code);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -364,7 +364,7 @@ export class AuthService {
 
   async disableTwoFa(ctx: TwoFaContext, code: string): Promise<void> {
     const user = await this.getTwoFaUser(this.contextUserId(ctx));
-    this.assertTotpCode(user.twoFaSecret, code);
+    this.assertTotpCodeForSignedInUser(user.twoFaSecret, code);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -691,6 +691,21 @@ export class AuthService {
   private assertTotpCode(encryptedSecret: string | null, code: string | undefined): void {
     if (!encryptedSecret || !this.totpService.verify(this.cryptoSecretService.decrypt(encryptedSecret), code)) {
       throw new UnauthorizedException("Invalid two-factor code");
+    }
+  }
+
+  /**
+   * The session is valid here, only the code is wrong. A 401 would make the web
+   * client treat the session as expired and sign the user out on a mistyped code.
+   */
+  private assertTotpCodeForSignedInUser(
+    encryptedSecret: string | null,
+    code: string | undefined
+  ): void {
+    try {
+      this.assertTotpCode(encryptedSecret, code);
+    } catch {
+      throw new BadRequestException("Invalid two-factor code");
     }
   }
 

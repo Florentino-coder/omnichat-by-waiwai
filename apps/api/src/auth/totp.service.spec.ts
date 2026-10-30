@@ -21,14 +21,14 @@ jest.mock("otplib", () => ({
 import { TotpService } from "./totp.service";
 
 describe("TotpService", () => {
-  it("generates otpauth setup uri with OmniChat issuer", () => {
+  it("generates otpauth setup uri with ChatWai issuer", () => {
     const service = new TotpService();
 
     const setup = service.generateSetup("owner@omnichat.test");
 
     expect(setup.secret.length).toBeGreaterThan(10);
     expect(setup.otpauthUri).toContain("otpauth://");
-    expect(setup.otpauthUri).toContain("issuer=OmniChat");
+    expect(setup.otpauthUri).toContain("issuer=ChatWai");
   });
 
   it("verifies valid codes and rejects invalid or missing codes", () => {
