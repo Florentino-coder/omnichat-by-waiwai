@@ -23,6 +23,13 @@ describe("settings RBAC", () => {
     expect(canAccessSettingsTab("profile", null)).toBe(true);
   });
 
+  it("limits the integrations tab to owners and admins", () => {
+    expect(canAccessSettingsTab("integrations", "OWNER")).toBe(true);
+    expect(canAccessSettingsTab("integrations", "ADMIN")).toBe(true);
+    expect(canAccessSettingsTab("integrations", "AGENT")).toBe(false);
+    expect(canAccessSettingsTab("integrations", null)).toBe(false);
+  });
+
   it("rejects tab params that exceed the user role", () => {
     expect(resolveSettingsTab("team", "AGENT")).toBe("replies");
     expect(resolveSettingsTab("channels", "OWNER")).toBe("channels");

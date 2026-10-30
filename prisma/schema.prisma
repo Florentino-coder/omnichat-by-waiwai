@@ -127,6 +127,10 @@ enum AuditAction {
   BACKUP_RUN_TRIGGERED
   BACKUP_RUN_SUCCEEDED
   BACKUP_RUN_FAILED
+  // External integrations
+  INTEGRATION_CONNECTED
+  INTEGRATION_DISCONNECTED
+  INTEGRATION_LOOKUP
 }
 
 enum BackupRunType {
@@ -251,6 +255,7 @@ model Tenant {
   knowledgeChunks           KnowledgeChunk[]
   aiScenarios               AiScenario[]
   automationRules           AutomationRule[]
+  integrationCredentials    IntegrationCredential[]
   automationRuns            AutomationRun[]
   aiTrainingPairs           AiTrainingPair[]
   aiQaScores                AiQaScore[]
@@ -1100,3 +1105,26 @@ model SlipVerification {
   @@map("slip_verifications")
 }
 
+// ============================================================
+// External integrations
+// ============================================================
+
+enum IntegrationProvider {
+  TERMWAI
+}
+
+model IntegrationCredential {
+  id              String              @id @default(uuid())
+  tenantId        String              @map("tenant_id")
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  provider        IntegrationProvider
+  encryptedApiKey String              @map("encrypted_api_key")
+  keyLast4        String              @map("key_last4")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  deletedAt       DateTime?           @map("deleted_at")
+
+  @@unique([tenantId, provider])
+  @@index([tenantId])
+  @@map("integration_credentials")
+}

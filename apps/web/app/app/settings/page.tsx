@@ -4,10 +4,11 @@ import { Children, Suspense, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@omnichat/ui";
 import Link from "next/link";
-import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch, Workflow, ScrollText } from "lucide-react";
+import { MessageSquareQuote, Sparkles, Users, MessageSquareCode, User as UserIcon, BookOpen, GitBranch, Plug, Workflow, ScrollText } from "lucide-react";
 import { LineChannelForm } from "./line-channel-form";
 import { QuickReplyManager } from "./quick-reply-manager";
 import { KnowledgeSettingsPanel } from "./knowledge-settings-panel";
+import { TermwaiSettings } from "./termwai-settings";
 import { ScenarioManager } from "./scenario-manager";
 import { AutomationManager } from "./automation-manager";
 import { ProfileEditor } from "./profile-editor";
@@ -192,6 +193,16 @@ function SettingsContent() {
                 {t.automationTab}
               </button>
             )}
+            {(role === "OWNER" || role === "ADMIN") && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("integrations")}
+                className={tabButtonClass(activeTab === "integrations")}
+              >
+                <Plug size={16} />
+                {t.integrationsTab}
+              </button>
+            )}
           </SettingsTabGroup>
 
           <div className="border-t border-[#DEDDE6]/80" />
@@ -236,6 +247,14 @@ function SettingsContent() {
                   </p>
                 </div>
                 <QuickReplyManager />
+              </Card>
+            </div>
+          )}
+
+          {(role === "OWNER" || role === "ADMIN") && (
+            <div className={`${activeTab === "integrations" ? "block animate-in fade-in-50 slide-in-from-bottom-2 duration-300" : "hidden"}`}>
+              <Card className="border border-[#DEDDE6]/80 p-4 sm:p-6 shadow-sm bg-white hover:shadow-md transition-shadow duration-300 rounded-2xl">
+                <TermwaiSettings />
               </Card>
             </div>
           )}

@@ -45,6 +45,15 @@ Version: 1.0 | Stage: 0 (Architecture)
 
 ---
 
+## External Integrations
+
+| Action                        | OWNER | ADMIN | AGENT | QC  | VIEWER |
+|-------------------------------|-------|-------|-------|-----|--------|
+| Connect/Disconnect Termwai    | ✅    | ✅    | ❌    | ❌  | ❌     |
+| Look Up Termwai Customer/Order| ✅    | ✅    | ✅    | ❌  | ❌     |
+
+---
+
 ## Conversations & Inbox (Stage 3)
 
 | Action                        | OWNER | ADMIN | AGENT | QC  | VIEWER |
