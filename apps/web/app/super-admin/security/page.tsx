@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
+import QRCode from "qrcode";
 import { Button, Card, Input, Label } from "@omnichat/ui";
 import { apiFetch, authorizedFetch } from "../../lib/api-client";
 import { useAuthSession } from "../../lib/use-auth-session";
@@ -19,6 +20,7 @@ export default function SuperAdminSecurityPage() {
   const router = useRouter();
   const { user, isLoading } = useAuthSession();
   const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,25 @@ export default function SuperAdminSecurityPage() {
       router.replace("/super-admin");
     }
   }, [isLoading, router, user]);
+
+  useEffect(() => {
+    if (!otpauthUri) {
+      return;
+    }
+    let cancelled = false;
+    // Generated in the browser: the secret must never go to an external QR service.
+    QRCode.toDataURL(otpauthUri, { margin: 1, width: 208, errorCorrectionLevel: "M" })
+      .then((dataUrl) => {
+        if (!cancelled) setQrDataUrl(dataUrl);
+      })
+      .catch(() => {
+        // The setup key below still works without the QR code.
+        if (!cancelled) setQrDataUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [otpauthUri]);
 
   async function onStart(): Promise<void> {
     setIsBusy(true);
@@ -76,61 +97,75 @@ export default function SuperAdminSecurityPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F7FA] p-4">
-      <Card className="w-full max-w-md space-y-5 bg-white p-6">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="h-6 w-6 text-[#4636D7]" aria-hidden="true" />
-          <h1 className="font-heading text-lg font-semibold text-[#16182B]">Set up two-factor authentication</h1>
-        </div>
-        <p className="text-sm text-[#767A8C]">
-          The platform console can reach every tenant, so it requires an authenticator app such as Google
-          Authenticator.
-        </p>
-
-        {otpauthUri ? (
-          <form className="space-y-4" onSubmit={(event) => void onVerify(event)}>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-[#16182B]">1. Add this setup key to your app</p>
-              <p className="rounded-lg bg-[#F6F5FA] p-3 font-mono text-sm break-all" data-testid="totp-secret">
-                {readSecret(otpauthUri)}
-              </p>
-              <a className="text-xs font-medium text-[#4636D7] underline" href={otpauthUri}>
-                Open in authenticator app
-              </a>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="totp-code">2. Enter the 6-digit code</Label>
-              <Input
-                id="totp-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-              />
-            </div>
-            {error ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <Button className="w-full" type="submit" disabled={isBusy || code.trim().length !== 6}>
-              {isBusy ? "Checking..." : "Turn on two-factor authentication"}
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-3">
-            {error ? (
-              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <Button className="w-full" type="button" disabled={isBusy} onClick={() => void onStart()}>
-              {isBusy ? "Starting..." : "Start setup"}
-            </Button>
+    <div className="h-screen overflow-y-auto bg-[#F7F7FA] p-4">
+      <div className="flex min-h-full items-center justify-center">
+        <Card className="w-full max-w-md space-y-5 bg-white p-6">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="h-6 w-6 text-[#4636D7]" aria-hidden="true" />
+            <h1 className="font-heading text-lg font-semibold text-[#16182B]">Set up two-factor authentication</h1>
           </div>
-        )}
-      </Card>
+          <p className="text-sm text-[#767A8C]">
+            The platform console can reach every tenant, so it requires an authenticator app such as Google
+            Authenticator.
+          </p>
+
+          {otpauthUri ? (
+            <form className="space-y-4" onSubmit={(event) => void onVerify(event)}>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-[#16182B]">1. Scan this code with your authenticator app</p>
+                {qrDataUrl ? (
+                  // A data URL generated on this page, which next/image cannot optimize.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrDataUrl}
+                    alt="QR code for your authenticator app"
+                    width={208}
+                    height={208}
+                    className="mx-auto rounded-lg border border-slate-200"
+                  />
+                ) : null}
+                <p className="text-xs text-[#767A8C]">Can't scan it? Enter this setup key instead:</p>
+                <p className="rounded-lg bg-[#F6F5FA] p-3 font-mono text-sm break-all" data-testid="totp-secret">
+                  {readSecret(otpauthUri)}
+                </p>
+                <a className="text-xs font-medium text-[#4636D7] underline" href={otpauthUri}>
+                  Open in authenticator app
+                </a>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="totp-code">2. Enter the 6-digit code</Label>
+                <Input
+                  id="totp-code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                />
+              </div>
+              {error ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <Button className="w-full" type="submit" disabled={isBusy || code.trim().length !== 6}>
+                {isBusy ? "Checking..." : "Turn on two-factor authentication"}
+              </Button>
+            </form>
+          ) : (
+            <div className="space-y-3">
+              {error ? (
+                <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <Button className="w-full" type="button" disabled={isBusy} onClick={() => void onStart()}>
+                {isBusy ? "Starting..." : "Start setup"}
+              </Button>
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
