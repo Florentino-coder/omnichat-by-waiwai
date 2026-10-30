@@ -11,19 +11,25 @@ The platform console (`/super-admin`, `/app/admin/monitor`) reaches every tenant
 
 After that, the login page asks for the 6-digit code.
 
-## If you lose your authenticator
+## If you forget your password
 
-There is no self-service reset. Someone with production database access must turn it off, then you set it up again at next sign-in.
+**Use the login page first.** Click **Forgot password**, enter your email, and open the link sent to your inbox. The link lasts 30 minutes. It needs `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` set on the API. Your 2FA stays on.
 
-Back up the database before running this. Replace the email with the Super Owner's address.
+**If the email does not arrive**, use the script below. It needs `DATABASE_URL` for production. It asks you to type the database host to confirm, then asks for the new password in a hidden prompt. It only matches Super Owner accounts, and it signs out existing sessions.
 
-```sql
-UPDATE users
-SET "twoFaEnabled" = false, "twoFaSecret" = NULL
-WHERE email = 'owner@example.com' AND "isSuperOwner" = true;
+```bash
+npx tsx scripts/reset-super-owner-password.ts --email=owner@example.com
 ```
 
-Check the column names in `prisma/schema.prisma` first. Do this only after confirming who is asking.
+After 10 failed sign-ins, an account is locked for 15 minutes. Resetting the password by script does not clear that lock, so wait it out.
+
+## If you lose your authenticator
+
+There is no self-service reset. Someone with production database access runs the script with `--reset-2fa`, which also sets a new password. You then set up 2FA again at next sign-in. Do this only after confirming who is asking.
+
+```bash
+npx tsx scripts/reset-super-owner-password.ts --email=owner@example.com --reset-2fa
+```
 
 ## Setup can't overwrite an enrolled authenticator
 
