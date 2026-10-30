@@ -133,6 +133,8 @@ enum AuditAction {
   INTEGRATION_LOOKUP
   INTEGRATION_TESTED
   INTEGRATION_SECRET_ROTATED
+  INTEGRATION_SUSPENDED
+  INTEGRATION_RESUMED
 }
 
 enum BackupRunType {
@@ -1124,6 +1126,8 @@ model IntegrationConnection {
   previousSecretExpiresAt  DateTime? @map("previous_secret_expires_at")
   lastTestedAt             DateTime? @map("last_tested_at")
   lastTestOk               Boolean   @default(false) @map("last_test_ok")
+  suspendedAt              DateTime? @map("suspended_at")
+  suspendedReason          String?   @map("suspended_reason")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
   deletedAt                DateTime? @map("deleted_at")

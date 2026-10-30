@@ -11,6 +11,7 @@ export type AuthSessionUser = {
   workspaceId?: string;
   role?: string;
   isSuperOwner?: boolean;
+  twoFaEnabled?: boolean;
 };
 
 type AuthSessionState = {

@@ -13,6 +13,7 @@ type Connection = {
   lastTestedAt: string | null;
   lastTestOk: boolean;
   previousSecretExpiresAt: string | null;
+  suspendedAt: string | null;
 };
 
 type TestResult = {
@@ -39,6 +40,7 @@ const COPY = {
     copied: "คัดลอกแล้ว",
     keyId: "Key ID",
     secret: "Secret",
+    suspended: "การเชื่อมต่อนี้ถูกระงับโดยผู้ดูแลระบบ กรุณาติดต่อฝ่ายสนับสนุน",
     verified: "ทดสอบผ่านแล้ว เจ้าหน้าที่ค้นข้อมูลจากหน้าแชทได้",
     unverified: "ยังไม่ผ่านการทดสอบ เจ้าหน้าที่ยังค้นข้อมูลไม่ได้",
     test: "ทดสอบการเชื่อมต่อ",
@@ -72,6 +74,7 @@ const COPY = {
     copied: "Copied",
     keyId: "Key ID",
     secret: "Secret",
+    suspended: "This connection was suspended by the platform administrator. Please contact support.",
     verified: "Test passed. Agents can look up data from the inbox.",
     unverified: "Not tested yet. Agents cannot look up data until the test passes.",
     test: "Test connection",
@@ -234,6 +237,12 @@ export function ConnectSettings() {
             </div>
           ) : null}
 
+          {connection.suspendedAt ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              {copy.suspended}
+            </p>
+          ) : null}
+
           <p
             className={`rounded-lg px-3 py-2 text-sm ${
               connection.lastTestOk ? "bg-emerald-50 text-emerald-800" : "bg-[#F6F5FA] text-[#60636F]"
@@ -258,7 +267,7 @@ export function ConnectSettings() {
           {errorBanner}
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" disabled={isBusy} onClick={onTest}>
+            <Button type="button" disabled={isBusy || Boolean(connection.suspendedAt)} onClick={onTest}>
               {isBusy ? copy.saving : copy.test}
             </Button>
             <Button type="button" variant="secondary" disabled={isBusy} onClick={onRotate}>

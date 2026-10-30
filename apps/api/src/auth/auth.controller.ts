@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  ForbiddenException,
   HttpCode,
   HttpStatus,
   Post,
@@ -118,6 +119,25 @@ export class AuthController {
     return this.authService.disableTwoFa(ctx, dto.code);
   }
 
+  @Post("2fa/super-owner/setup")
+  @UseGuards(JwtAuthGuard, AuthThrottlerGuard)
+  @SkipThrottle({ "forgot-password": true })
+  setupSuperOwnerTwoFa(@TenantCtx() ctx: JwtTenantPayload): Promise<{ otpauthUri: string }> {
+    this.assertSuperOwner(ctx);
+    return this.authService.setupTwoFa(ctx);
+  }
+
+  @Post("2fa/super-owner/verify")
+  @UseGuards(JwtAuthGuard, AuthThrottlerGuard)
+  @SkipThrottle({ "forgot-password": true })
+  verifySuperOwnerTwoFa(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Body() dto: TwoFaCodeDto
+  ): Promise<void> {
+    this.assertSuperOwner(ctx);
+    return this.authService.verifyTwoFa(ctx, dto.code);
+  }
+
   @Post("forgot-password")
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AuthThrottlerGuard)
@@ -141,5 +161,11 @@ export class AuthController {
     @Body() dto: ChangePasswordDto
   ): Promise<void> {
     await this.authService.changePassword(ctx.sub, ctx.tenantId, dto);
+  }
+
+  private assertSuperOwner(ctx: JwtTenantPayload): void {
+    if (ctx.isSuperOwner !== true) {
+      throw new ForbiddenException("Super owner access is required");
+    }
   }
 }

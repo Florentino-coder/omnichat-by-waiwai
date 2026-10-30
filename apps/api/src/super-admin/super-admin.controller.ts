@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards, Patch } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards, Patch } from "@nestjs/common";
 import { SuperAdminService } from "./super-admin.service";
 import { AiMonitorService } from "./ai-monitor.service";
+import { IntegrationsAdminService } from "./integrations-admin.service";
+import { SuspendConnectionDto } from "./dto/suspend-connection.dto";
 import { AiQaService } from "../ai/ai-qa.service";
 import { BackupService } from "../backup/backup.service";
 import { CreateTenantOwnerDto } from "./dto/create-tenant-owner.dto";
@@ -17,7 +19,8 @@ export class SuperAdminController {
     private readonly superAdminService: SuperAdminService,
     private readonly aiMonitorService: AiMonitorService,
     private readonly aiQaService: AiQaService,
-    private readonly backupService: BackupService
+    private readonly backupService: BackupService,
+    private readonly integrationsAdminService: IntegrationsAdminService
   ) {}
 
   @Get("tenants")
@@ -73,6 +76,27 @@ export class SuperAdminController {
   @Post("backups/run")
   triggerBackupRun(@TenantCtx() ctx: JwtTenantPayload) {
     return this.backupService.triggerManualBackup(ctx.sub);
+  }
+
+  @Get("integrations")
+  listIntegrations() {
+    return this.integrationsAdminService.list();
+  }
+
+  @Post("integrations/:id/suspend")
+  @HttpCode(HttpStatus.OK)
+  suspendIntegration(
+    @TenantCtx() ctx: JwtTenantPayload,
+    @Param("id") id: string,
+    @Body() dto: SuspendConnectionDto
+  ) {
+    return this.integrationsAdminService.suspend(ctx.sub, id, dto.reason);
+  }
+
+  @Post("integrations/:id/resume")
+  @HttpCode(HttpStatus.OK)
+  resumeIntegration(@TenantCtx() ctx: JwtTenantPayload, @Param("id") id: string) {
+    return this.integrationsAdminService.resume(ctx.sub, id);
   }
 
   @Patch("tenants/:id/plan")

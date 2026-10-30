@@ -28,6 +28,8 @@ export type ConnectionView = {
   lastTestedAt: Date | null;
   lastTestOk: boolean;
   previousSecretExpiresAt: Date | null;
+  suspendedAt: Date | null;
+  suspendedReason: string | null;
   createdAt: Date;
 };
 
@@ -45,6 +47,8 @@ const toView = (connection: IntegrationConnection): ConnectionView => ({
   lastTestedAt: connection.lastTestedAt,
   lastTestOk: connection.lastTestOk,
   previousSecretExpiresAt: connection.previousSecretExpiresAt,
+  suspendedAt: connection.suspendedAt,
+  suspendedReason: connection.suspendedReason,
   createdAt: connection.createdAt
 });
 
@@ -61,7 +65,7 @@ export class ConnectionsService {
 
   async getStatus(tenantId: string): Promise<{ connected: boolean }> {
     const connection = await this.findActive(tenantId);
-    return { connected: Boolean(connection?.lastTestOk) };
+    return { connected: Boolean(connection?.lastTestOk && !connection.suspendedAt) };
   }
 
   async getConnection(tenantId: string): Promise<ConnectionView | null> {
@@ -76,6 +80,7 @@ export class ConnectionsService {
     rawBaseUrl: string
   ): Promise<ConnectionView & { secret: string }> {
     const baseUrl = await this.validateBaseUrl(rawBaseUrl);
+    await this.assertNotSuspended(tenantId);
     await this.assertWithinPlanLimit(tenantId, userId);
 
     const secret = generateSecret();
@@ -100,6 +105,7 @@ export class ConnectionsService {
 
   async test(tenantId: string, userId: string): Promise<ConnectionTestResult> {
     const connection = await this.requireConnection(tenantId);
+    this.assertConnectionActive(connection);
     const target = this.toTarget(connection);
 
     const result: ConnectionTestResult = { ok: false, signatureEnforced: false, errorCode: null };
@@ -203,6 +209,9 @@ export class ConnectionsService {
 
   private async requireVerifiedConnection(tenantId: string): Promise<IntegrationConnection> {
     const connection = await this.findActive(tenantId);
+    if (connection) {
+      this.assertConnectionActive(connection);
+    }
     if (!connection?.lastTestOk) {
       throw new HttpException(
         {
@@ -216,6 +225,40 @@ export class ConnectionsService {
       );
     }
     return connection;
+  }
+
+  private assertConnectionActive(connection: IntegrationConnection): void {
+    if (connection.suspendedAt) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "CONNECT_SUSPENDED",
+            message: "This connection was suspended by the platform administrator."
+          }
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
+  }
+
+  /** Includes disconnected rows, so deleting and recreating cannot lift a suspension. */
+  private async assertNotSuspended(tenantId: string): Promise<void> {
+    const suspended = await this.prisma.integrationConnection.count({
+      where: { tenantId, suspendedAt: { not: null } }
+    });
+    if (suspended > 0) {
+      throw new HttpException(
+        {
+          success: false,
+          error: {
+            code: "CONNECT_SUSPENDED",
+            message: "Connections for this account were suspended by the platform administrator."
+          }
+        },
+        HttpStatus.FORBIDDEN
+      );
+    }
   }
 
   private toTarget(connection: IntegrationConnection): ConnectTarget {

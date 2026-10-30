@@ -37,7 +37,8 @@ export class JwtAuthGuard implements CanActivate {
         isActive: true,
         deletedAt: true,
         emailVerified: true,
-        isSuperOwner: true
+        isSuperOwner: true,
+        twoFaEnabled: true
       }
     });
 
@@ -46,7 +47,7 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     if (payload.isSuperOwner || user.isSuperOwner) {
-      request.user = payload;
+      request.user = { ...payload, twoFaEnabled: user.twoFaEnabled };
       return true;
     }
 

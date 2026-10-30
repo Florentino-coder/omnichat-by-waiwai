@@ -7,6 +7,8 @@ export interface JwtTenantPayload {
   workspaceId: string;
   role: Role;
   isSuperOwner?: boolean;
+  /** Set by JwtAuthGuard from the database for super owners, never from the token. */
+  twoFaEnabled?: boolean;
 }
 
 export interface AuthTokens {
@@ -22,6 +24,7 @@ export interface AuthUserResponse {
   workspaceId?: string;
   role?: Role;
   isSuperOwner?: boolean;
+  twoFaEnabled?: boolean;
 }
 
 export interface AuthResponse {

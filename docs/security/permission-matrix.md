@@ -52,6 +52,8 @@ Version: 1.0 | Stage: 0 (Architecture)
 | Manage ChatWai Connect        | ✅    | ✅    | ❌    | ❌  | ❌     |
 | Look Up Customer/Order        | ✅    | ✅    | ✅    | ❌  | ❌     |
 
+Only the platform Super Owner can suspend or resume a connection, from `/super-admin/integrations`. The Super Owner sees connection metadata and lookup counts, never secrets or lookup results, and cannot change a merchant's URL.
+
 ---
 
 ## Conversations & Inbox (Stage 3)

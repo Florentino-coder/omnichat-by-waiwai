@@ -47,6 +47,11 @@ export function useSuperOwnerGate(options: SuperOwnerGateOptions = {}): SuperOwn
       return;
     }
 
+    if (user.twoFaEnabled === false) {
+      router.replace("/super-admin/security");
+      return;
+    }
+
     if (skipApiVerify) {
       setApiVerified(true);
       return;
