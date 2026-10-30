@@ -24,6 +24,13 @@ describe("LoginForm two-factor step", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
   };
 
+  it("explains when a signed-in account is not a Super Admin", async () => {
+    window.history.pushState({}, "", "/login?notice=super-owner-required");
+    render(<LoginForm />);
+    expect(await screen.findByRole("status")).toHaveTextContent("Sign in with the Super Admin account");
+    window.history.pushState({}, "", "/login");
+  });
+
   it("does not show the code field until the API asks for it", () => {
     render(<LoginForm />);
     expect(screen.queryByLabelText("Authenticator code")).not.toBeInTheDocument();
