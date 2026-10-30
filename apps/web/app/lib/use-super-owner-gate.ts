@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { verifySuperOwnerAccess } from "./super-owner-access";
+import { checkSuperOwnerAccess } from "./super-owner-access";
 import { useAuthSession } from "./use-auth-session";
+
+const SESSION_RETRY_MS = 5000;
 
 type SuperOwnerGateOptions = {
   /** Redirect when logged in but not a super owner. Defaults to `/login`. */
@@ -22,7 +24,7 @@ type SuperOwnerGateState = {
 
 export function useSuperOwnerGate(options: SuperOwnerGateOptions = {}): SuperOwnerGateState {
   const router = useRouter();
-  const { user, isLoading: isAuthLoading } = useAuthSession();
+  const { user, isLoading: isAuthLoading, error: sessionError } = useAuthSession();
   const deniedRedirect = options.deniedRedirect ?? "/login";
   const unauthenticatedRedirect = options.unauthenticatedRedirect ?? "/login";
   const skipApiVerify = options.skipApiVerify ?? false;
@@ -34,6 +36,14 @@ export function useSuperOwnerGate(options: SuperOwnerGateOptions = {}): SuperOwn
   useEffect(() => {
     if (isAuthLoading) {
       return;
+    }
+
+    if (!user && sessionError) {
+      // The session check itself failed, for example while the API wakes up. That
+      // is not proof of being signed out, and a real 401 already redirects in
+      // apiFetch, so keep waiting and try again.
+      const retry = window.setTimeout(() => window.location.reload(), SESSION_RETRY_MS);
+      return () => window.clearTimeout(retry);
     }
 
     if (!user) {
@@ -60,12 +70,16 @@ export function useSuperOwnerGate(options: SuperOwnerGateOptions = {}): SuperOwn
     let active = true;
     setApiVerifying(true);
 
-    void verifySuperOwnerAccess().then((allowed) => {
+    void checkSuperOwnerAccess().then((access) => {
       if (!active) {
         return;
       }
       setApiVerifying(false);
-      if (!allowed) {
+      if (access === "two-fa-required") {
+        router.replace("/super-admin/security");
+        return;
+      }
+      if (access === "denied") {
         setIsDenied(true);
         router.replace(deniedRedirect);
         return;
@@ -79,6 +93,7 @@ export function useSuperOwnerGate(options: SuperOwnerGateOptions = {}): SuperOwn
   }, [
     isAuthLoading,
     user,
+    sessionError,
     deniedRedirect,
     unauthenticatedRedirect,
     skipApiVerify,
@@ -90,6 +105,7 @@ export function useSuperOwnerGate(options: SuperOwnerGateOptions = {}): SuperOwn
   const isLoading =
     isAuthLoading ||
     apiVerifying ||
+    Boolean(!user && sessionError) ||
     (Boolean(user?.isSuperOwner) && !skipApiVerify && !apiVerified && !isDenied);
 
   return { isLoading, isReady, isDenied };

@@ -115,6 +115,19 @@ describe("SuperAdminPage", () => {
     });
   });
 
+  it("does not send a user to login when the session check itself fails", async () => {
+    mockedUseAuthSession.mockReturnValue({
+      user: null,
+      isLoading: false,
+      error: "Request failed"
+    });
+
+    render(<SuperAdminPage />);
+
+    expect(await screen.findByText("Verifying authorization...")).toBeInTheDocument();
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
   it("redirects unauthenticated users to login after auth resolves", async () => {
     mockedUseAuthSession.mockReturnValue({
       user: null,

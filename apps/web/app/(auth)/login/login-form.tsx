@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Button, Input, Label } from "@omnichat/ui";
 import { loginSchema } from "../../../lib/schemas/auth";
 import { clearLegacyAuthStorage } from "../../lib/api-client";
@@ -39,6 +39,13 @@ export function LoginForm() {
   const [needsTotp, setNeedsTotp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuperOwnerNotice, setShowSuperOwnerNotice] = useState(false);
+
+  useEffect(() => {
+    setShowSuperOwnerNotice(
+      new URLSearchParams(window.location.search).get("notice") === "super-owner-required"
+    );
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -96,6 +103,11 @@ export function LoginForm() {
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit}>
+      {showSuperOwnerNotice ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800" role="status">
+          This account cannot open the platform console. Sign in with the Super Admin account.
+        </p>
+      ) : null}
       <div className="space-y-2">
         <Label htmlFor="email" className="text-[#16182B] font-medium">Email or Username</Label>
         <Input
