@@ -14,7 +14,7 @@ describe("AiAutomationReplyService", () => {
     tenant: { findUnique: jest.fn() },
     message: { findFirst: jest.fn() },
     planLimit: { findUnique: jest.fn() },
-    usageCounter: { findUnique: jest.fn(), upsert: jest.fn() },
+    usageCounter: { upsert: jest.fn(), updateMany: jest.fn() },
     auditLog: { create: jest.fn() }
   };
 
@@ -43,7 +43,7 @@ describe("AiAutomationReplyService", () => {
     prisma.tenant.findUnique.mockResolvedValue({ planId: "pro" });
     prisma.message.findFirst.mockResolvedValue(null);
     prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 100 });
-    prisma.usageCounter.findUnique.mockResolvedValue({ value: 0n });
+    prisma.usageCounter.updateMany.mockResolvedValue({ count: 1 });
     prisma.usageCounter.upsert.mockResolvedValue({});
     prisma.auditLog.create.mockResolvedValue({});
 

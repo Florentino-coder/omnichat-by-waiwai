@@ -30,11 +30,10 @@ import {
   sanitizeAutoReplyText
 } from "./ai-auto-reply.constants";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
+import { runWithAiCredit } from "./ai-credit.util";
 import { AiPolicyService } from "./ai-policy.service";
-import {
-  AI_SUGGEST_USAGE_METRIC,
-  getCurrentMonthUsagePeriod
-} from "../inbox/thai-speech.util";
+
+type AiAutoReplyResult = { outcome: "sent" | "skipped" | "failed"; reason?: string };
 
 export type AiAutoReplyInput = {
   tenantId: string;
@@ -58,7 +57,7 @@ export class AiAutoReplyService {
 
   async tryAutoReply(
     input: AiAutoReplyInput
-  ): Promise<{ outcome: "sent" | "skipped" | "failed"; reason?: string }> {
+  ): Promise<AiAutoReplyResult> {
     const trimmedText = input.messageText.trim();
     if (!trimmedText) {
       await this.logSkipped(input, "non_text");
@@ -148,180 +147,186 @@ export class AiAutoReplyService {
       return { outcome: "skipped", reason: "debounce" };
     }
 
-    const creditAvailable = await this.hasAiCreditAvailable(input.tenantId, tenant.planId);
-    if (!creditAvailable) {
-      await this.logSkipped(input, "no_credits");
-      return { outcome: "skipped", reason: "no_credits" };
-    }
+    return runWithAiCredit<AiAutoReplyResult>(
+      this.prisma,
+      input.tenantId,
+      tenant.planId,
+      async (credit) => {
 
-    if (await this.isRateLimited(input.tenantId, input.conversationId)) {
-      await this.logSkipped(input, "rate_limited");
-      return { outcome: "skipped", reason: "rate_limited" };
-    }
+      if (await this.isRateLimited(input.tenantId, input.conversationId)) {
+        await this.logSkipped(input, "rate_limited");
+        return { outcome: "skipped", reason: "rate_limited" };
+      }
 
-    const aiAgentGender = settings.aiAgentGender ?? AiAgentGender.FEMALE;
-    const provider = (settings.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
+      const aiAgentGender = settings.aiAgentGender ?? AiAgentGender.FEMALE;
+      const provider = (settings.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
 
-    const generateResult = await this.aiReplyGenerator.generate({
-      tenantId: input.tenantId,
-      conversationId: input.conversationId,
-      userId: "system",
-      actionType: "generate",
-      aiAgentGender,
-      provider,
-      applyScenarioActions: false,
-      extraInstructions: settings.aiAutoReplyInstructions,
-      includeConfidence: true
-    });
-
-    if (generateResult.outcome === "knowledge_only") {
-      await this.escalateConversationForHumanReview({
+      const generateResult = await this.aiReplyGenerator.generate({
         tenantId: input.tenantId,
         conversationId: input.conversationId,
-        inboundMessageId: input.inboundMessageId,
-        matchedKeywords: [],
-        reason: "knowledge_only",
-        suggestion: {
-          suggestionText: null,
-          compiledPrompt: null,
-          provider: generateResult.provider,
-          latencyMs: 0,
-          citations: generateResult.knowledgeCitations,
-          confidence: null
-        }
+        userId: "system",
+        actionType: "generate",
+        aiAgentGender,
+        provider,
+        applyScenarioActions: false,
+        extraInstructions: settings.aiAutoReplyInstructions,
+        includeConfidence: true
       });
-      return { outcome: "skipped", reason: "knowledge_only" };
-    }
 
-    if (generateResult.outcome === "llm_failed") {
+      if (generateResult.outcome === "knowledge_only") {
+        await this.escalateConversationForHumanReview({
+          tenantId: input.tenantId,
+          conversationId: input.conversationId,
+          inboundMessageId: input.inboundMessageId,
+          matchedKeywords: [],
+          reason: "knowledge_only",
+          suggestion: {
+            suggestionText: null,
+            compiledPrompt: null,
+            provider: generateResult.provider,
+            latencyMs: 0,
+            citations: generateResult.knowledgeCitations,
+            confidence: null
+          }
+        });
+        return { outcome: "skipped", reason: "knowledge_only" };
+      }
+
+      if (generateResult.outcome === "llm_failed") {
+        await this.prisma.auditLog.create({
+          data: {
+            tenantId: input.tenantId,
+            action: AuditAction.AI_AUTO_REPLY_FAILED,
+            targetType: "Conversation",
+            targetId: input.conversationId,
+            metadata: {
+              inboundMessageId: input.inboundMessageId,
+              provider: generateResult.provider,
+              errorCode: generateResult.errorCode
+            }
+          }
+        });
+        return { outcome: "failed", reason: "llm_failed" };
+      }
+
+      const replyText = sanitizeAutoReplyText(generateResult.suggestionText);
+      if (!replyText) {
+        await this.logSkipped(input, "provider_unavailable", { reason: "empty_reply" });
+        return { outcome: "skipped", reason: "provider_unavailable" };
+      }
+
+      const confidence = generateResult.confidence ?? 0.0;
+      const threshold = settings.aiAutoReplyConfidenceThreshold ?? 0.80;
+
+      if (confidence < threshold) {
+        await this.escalateConversationForHumanReview({
+          tenantId: input.tenantId,
+          conversationId: input.conversationId,
+          inboundMessageId: input.inboundMessageId,
+          matchedKeywords: [],
+          reason: "low_confidence",
+          suggestion: {
+            suggestionText: replyText,
+            compiledPrompt: generateResult.compiledPrompt,
+            provider: generateResult.provider,
+            latencyMs: generateResult.latencyMs,
+            citations: generateResult.knowledgeCitations,
+            confidence
+          }
+        });
+        credit.consume();
+        return { outcome: "skipped", reason: "low_confidence" };
+      }
+
+      const policyCheck = this.aiPolicyService.checkReply(
+        replyText,
+        settings.aiPolicyBlockedTopics
+      );
+      if (!policyCheck.allowed) {
+        await this.escalateConversationForHumanReview({
+          tenantId: input.tenantId,
+          conversationId: input.conversationId,
+          inboundMessageId: input.inboundMessageId,
+          matchedKeywords: policyCheck.matchedTopics,
+          reason: "policy_blocked",
+          suggestion: {
+            suggestionText: replyText,
+            compiledPrompt: generateResult.compiledPrompt,
+            provider: generateResult.provider,
+            latencyMs: generateResult.latencyMs,
+            citations: generateResult.knowledgeCitations,
+            confidence
+          }
+        });
+        await this.prisma.auditLog.create({
+          data: {
+            tenantId: input.tenantId,
+            action: AuditAction.AI_POLICY_BLOCKED,
+            targetType: "Conversation",
+            targetId: input.conversationId,
+            metadata: {
+              inboundMessageId: input.inboundMessageId,
+              matchedTopics: policyCheck.matchedTopics,
+              triggeredBy: "system"
+            }
+          }
+        });
+        credit.consume();
+        return { outcome: "skipped", reason: "policy_blocked" };
+      }
+
+      try {
+        await this.lineReplyService.replyText(
+          input.tenantId,
+          "system",
+          input.conversationId,
+          { text: replyText }
+        );
+      } catch (error) {
+        this.logger.error(
+          "Failed to send AI auto-reply via LINE",
+          error instanceof Error ? error.stack : error
+        );
+        await this.prisma.auditLog.create({
+          data: {
+            tenantId: input.tenantId,
+            action: AuditAction.AI_AUTO_REPLY_FAILED,
+            targetType: "Conversation",
+            targetId: input.conversationId,
+            metadata: {
+              inboundMessageId: input.inboundMessageId,
+              provider: generateResult.provider,
+              error: error instanceof Error ? error.message : "LINE send failed"
+            }
+          }
+        });
+        return { outcome: "failed", reason: "send_failed" };
+      }
+
+      credit.consume();
+
       await this.prisma.auditLog.create({
         data: {
           tenantId: input.tenantId,
-          action: AuditAction.AI_AUTO_REPLY_FAILED,
+          action: AuditAction.AI_AUTO_REPLY_SENT,
           targetType: "Conversation",
           targetId: input.conversationId,
           metadata: {
             inboundMessageId: input.inboundMessageId,
             provider: generateResult.provider,
-            errorCode: generateResult.errorCode
-          }
-        }
-      });
-      return { outcome: "failed", reason: "llm_failed" };
-    }
-
-    const replyText = sanitizeAutoReplyText(generateResult.suggestionText);
-    if (!replyText) {
-      await this.logSkipped(input, "provider_unavailable", { reason: "empty_reply" });
-      return { outcome: "skipped", reason: "provider_unavailable" };
-    }
-
-    const confidence = generateResult.confidence ?? 0.0;
-    const threshold = settings.aiAutoReplyConfidenceThreshold ?? 0.80;
-
-    if (confidence < threshold) {
-      await this.escalateConversationForHumanReview({
-        tenantId: input.tenantId,
-        conversationId: input.conversationId,
-        inboundMessageId: input.inboundMessageId,
-        matchedKeywords: [],
-        reason: "low_confidence",
-        suggestion: {
-          suggestionText: replyText,
-          compiledPrompt: generateResult.compiledPrompt,
-          provider: generateResult.provider,
-          latencyMs: generateResult.latencyMs,
-          citations: generateResult.knowledgeCitations,
-          confidence
-        }
-      });
-      await this.incrementAiCreditUsage(input.tenantId);
-      return { outcome: "skipped", reason: "low_confidence" };
-    }
-
-    const policyCheck = this.aiPolicyService.checkReply(
-      replyText,
-      settings.aiPolicyBlockedTopics
-    );
-    if (!policyCheck.allowed) {
-      await this.escalateConversationForHumanReview({
-        tenantId: input.tenantId,
-        conversationId: input.conversationId,
-        inboundMessageId: input.inboundMessageId,
-        matchedKeywords: policyCheck.matchedTopics,
-        reason: "policy_blocked",
-        suggestion: {
-          suggestionText: replyText,
-          compiledPrompt: generateResult.compiledPrompt,
-          provider: generateResult.provider,
-          latencyMs: generateResult.latencyMs,
-          citations: generateResult.knowledgeCitations,
-          confidence
-        }
-      });
-      await this.prisma.auditLog.create({
-        data: {
-          tenantId: input.tenantId,
-          action: AuditAction.AI_POLICY_BLOCKED,
-          targetType: "Conversation",
-          targetId: input.conversationId,
-          metadata: {
-            inboundMessageId: input.inboundMessageId,
-            matchedTopics: policyCheck.matchedTopics,
+            latencyMs: generateResult.latencyMs,
             triggeredBy: "system"
           }
         }
       });
-      await this.incrementAiCreditUsage(input.tenantId);
-      return { outcome: "skipped", reason: "policy_blocked" };
-    }
 
-    try {
-      await this.lineReplyService.replyText(
-        input.tenantId,
-        "system",
-        input.conversationId,
-        { text: replyText }
-      );
-    } catch (error) {
-      this.logger.error(
-        "Failed to send AI auto-reply via LINE",
-        error instanceof Error ? error.stack : error
-      );
-      await this.prisma.auditLog.create({
-        data: {
-          tenantId: input.tenantId,
-          action: AuditAction.AI_AUTO_REPLY_FAILED,
-          targetType: "Conversation",
-          targetId: input.conversationId,
-          metadata: {
-            inboundMessageId: input.inboundMessageId,
-            provider: generateResult.provider,
-            error: error instanceof Error ? error.message : "LINE send failed"
-          }
-        }
-      });
-      return { outcome: "failed", reason: "send_failed" };
-    }
-
-    await this.incrementAiCreditUsage(input.tenantId);
-
-    await this.prisma.auditLog.create({
-      data: {
-        tenantId: input.tenantId,
-        action: AuditAction.AI_AUTO_REPLY_SENT,
-        targetType: "Conversation",
-        targetId: input.conversationId,
-        metadata: {
-          inboundMessageId: input.inboundMessageId,
-          provider: generateResult.provider,
-          latencyMs: generateResult.latencyMs,
-          triggeredBy: "system"
-        }
+      return { outcome: "sent" };
+      },
+      async () => {
+        await this.logSkipped(input, "no_credits");
+        return { outcome: "skipped", reason: "no_credits" };
       }
-    });
-
-    return { outcome: "sent" };
+    );
   }
 
   private async logSkipped(
@@ -614,54 +619,5 @@ export class AiAutoReplyService {
       convCount > AI_AUTO_REPLY_CONV_RATE_LIMIT ||
       tenantCount > AI_AUTO_REPLY_TENANT_RATE_LIMIT
     );
-  }
-
-  private async hasAiCreditAvailable(tenantId: string, planId: string): Promise<boolean> {
-    const limits = await this.prisma.planLimit.findUnique({
-      where: { planId }
-    });
-
-    if (!limits || limits.maxAiCreditsPerMonth <= 0) {
-      return false;
-    }
-
-    const { periodStart } = getCurrentMonthUsagePeriod();
-    const counter = await this.prisma.usageCounter.findUnique({
-      where: {
-        tenantId_metric_periodStart: {
-          tenantId,
-          metric: AI_SUGGEST_USAGE_METRIC,
-          periodStart
-        }
-      }
-    });
-
-    const currentUsage = Number(counter?.value ?? 0n);
-    return currentUsage < limits.maxAiCreditsPerMonth;
-  }
-
-  private async incrementAiCreditUsage(tenantId: string): Promise<void> {
-    const { periodStart, periodEnd } = getCurrentMonthUsagePeriod();
-
-    await this.prisma.usageCounter.upsert({
-      where: {
-        tenantId_metric_periodStart: {
-          tenantId,
-          metric: AI_SUGGEST_USAGE_METRIC,
-          periodStart
-        }
-      },
-      create: {
-        tenantId,
-        metric: AI_SUGGEST_USAGE_METRIC,
-        periodStart,
-        periodEnd,
-        value: 1
-      },
-      update: {
-        value: { increment: 1 },
-        periodEnd
-      }
-    });
   }
 }

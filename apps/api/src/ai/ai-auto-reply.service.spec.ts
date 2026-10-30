@@ -40,7 +40,7 @@ function createMocks() {
     tenant: { findUnique: jest.fn() },
     message: { findFirst: jest.fn(), update: jest.fn() },
     planLimit: { findUnique: jest.fn() },
-    usageCounter: { findUnique: jest.fn(), upsert: jest.fn() },
+    usageCounter: { upsert: jest.fn(), updateMany: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({ id: "audit-1" }) },
     conversationTag: { findFirst: jest.fn(), create: jest.fn() },
     conversationTagLink: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
@@ -98,7 +98,7 @@ function mockHappyPath(mocks: ReturnType<typeof createMocks>) {
   });
   mocks.prisma.message.findFirst.mockResolvedValue(null);
   mocks.prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 100 });
-  mocks.prisma.usageCounter.findUnique.mockResolvedValue({ value: 0n });
+  mocks.prisma.usageCounter.updateMany.mockResolvedValue({ count: 1 });
   mocks.prisma.conversationTag.findFirst.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
   mocks.prisma.conversationTag.create.mockResolvedValue({ id: "tag-1", name: "ai-escalated" });
   mocks.prisma.conversationTagLink.findFirst.mockResolvedValue(null);
@@ -272,7 +272,7 @@ describe("AiAutoReplyService", () => {
     const mocks = createMocks();
     mockHappyPath(mocks);
     mocks.prisma.planLimit.findUnique.mockResolvedValue({ maxAiCreditsPerMonth: 10 });
-    mocks.prisma.usageCounter.findUnique.mockResolvedValue({ value: 10n });
+    mocks.prisma.usageCounter.updateMany.mockResolvedValue({ count: 0 });
     const service = createService(mocks);
 
     await service.tryAutoReply(baseInput);
@@ -312,7 +312,7 @@ describe("AiAutoReplyService", () => {
       "conversation-1",
       { text: "สวัสดีค่ะ ยินดีให้บริการค่ะ" }
     );
-    expect(mocks.prisma.usageCounter.upsert).toHaveBeenCalled();
+    expect(mocks.prisma.usageCounter.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: { value: { decrement: 1 } } }));
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         action: AuditAction.AI_AUTO_REPLY_SENT,
@@ -439,7 +439,7 @@ describe("AiAutoReplyService", () => {
     });
 
     // Assert credit is charged for low-confidence text reply
-    expect(mocks.prisma.usageCounter.upsert).toHaveBeenCalled();
+    expect(mocks.prisma.usageCounter.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: { value: { decrement: 1 } } }));
 
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -507,7 +507,7 @@ describe("AiAutoReplyService", () => {
     });
 
     // Assert credit is NOT charged
-    expect(mocks.prisma.usageCounter.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.usageCounter.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { value: { decrement: 1 } } }));
 
     // Assert message marked escalated with escalationReason: knowledge_only
     expect(mocks.prisma.message.update).toHaveBeenCalledWith({

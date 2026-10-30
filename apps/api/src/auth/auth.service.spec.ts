@@ -423,7 +423,7 @@ describe("AuthService", () => {
     expect(prisma.refreshToken.create).not.toHaveBeenCalled();
   });
 
-  it("rotates refresh token in Redis and DB before revoking the old session", async () => {
+  it("claims the old refresh token atomically before issuing and storing new tokens", async () => {
     const prisma = createPrisma();
     const refreshSessions = createRefreshSessions();
     refreshSessions.get.mockResolvedValue({
@@ -450,10 +450,65 @@ describe("AuthService", () => {
     expect(refreshSessions.store.mock.invocationCallOrder[0]).toBeLessThan(
       refreshSessions.delete.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER
     );
-    expect(prisma.refreshToken.create.mock.invocationCallOrder[0]).toBeLessThan(
-      prisma.refreshToken.updateMany.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { tokenHash: hashToken("old-refresh-token"), revokedAt: null },
+      data: { revokedAt: expect.any(Date) }
+    });
+    expect(prisma.refreshToken.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      prisma.refreshToken.create.mock.invocationCallOrder[0] ?? Number.MAX_SAFE_INTEGER
     );
     expect(refreshSessions.delete).toHaveBeenCalledWith(hashToken("old-refresh-token"), "user-1");
+  });
+
+  describe("concurrent refresh", () => {
+    const setup = async (): Promise<{
+      prisma: MockPrisma;
+      refreshSessions: MockRefreshSessionService;
+    }> => {
+      const prisma = createPrisma();
+      const refreshSessions = createRefreshSessions();
+      refreshSessions.get.mockResolvedValue({
+        userId: "user-1",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1",
+        role: Role.OWNER,
+        expiresAt: new Date(Date.now() + 60_000).toISOString()
+      });
+      prisma.refreshToken.findUnique.mockResolvedValue({
+        userId: "user-1",
+        tokenHash: hashToken("old-refresh-token"),
+        revokedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+        user: await createLoginUser()
+      });
+      return { prisma, refreshSessions };
+    };
+
+    it("issues no tokens when another request already claimed the token", async () => {
+      const { prisma, refreshSessions } = await setup();
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        createService(prisma, refreshSessions).refresh("old-refresh-token")
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+      expect(refreshSessions.deleteAllForUser).not.toHaveBeenCalled();
+    });
+
+    it("releases the claim when issuing new tokens fails", async () => {
+      const { prisma, refreshSessions } = await setup();
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+      prisma.refreshToken.create.mockRejectedValue(new Error("db down"));
+
+      await expect(
+        createService(prisma, refreshSessions).refresh("old-refresh-token")
+      ).rejects.toThrow("db down");
+      expect(prisma.refreshToken.updateMany).toHaveBeenLastCalledWith({
+        where: { tokenHash: hashToken("old-refresh-token") },
+        data: { revokedAt: null }
+      });
+      expect(refreshSessions.delete).not.toHaveBeenCalled();
+    });
   });
 
   it("reissues tokens using the refresh session tenant context instead of primary membership", async () => {

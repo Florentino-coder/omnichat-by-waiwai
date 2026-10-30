@@ -19,7 +19,7 @@
 
 ### Backend
 ```
-Runtime:      Node.js 20 LTS
+Runtime:      Node.js 20 LTS (API Docker image; web on Vercel runs 26.x because Vercel discontinued 20.x)
 Framework:    NestJS 10
 Language:     TypeScript 5.x (strict mode)
 ORM:          Prisma 5.x

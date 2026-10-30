@@ -15,6 +15,11 @@ jest.mock("./slip-qr-decode.util", () => ({
   decodeSlipQr: jest.fn(),
 }));
 
+jest.mock("../knowledge/knowledge-url.util", () => ({
+  assertSafePublicUrl: jest.fn((url: string) => new URL(url)),
+  assertResolvesToPublicAddress: jest.fn().mockResolvedValue(undefined)
+}));
+
 describe("SlipService", () => {
   let service: SlipService;
   let prisma: any;
@@ -406,6 +411,19 @@ describe("SlipService", () => {
       await service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://example.com/slip.jpg");
 
       expect(lineReplyService.replyText).not.toHaveBeenCalled();
+    });
+
+    it("should not fetch an image URL that fails the public address check", async () => {
+      const urlGuards = jest.requireMock("../knowledge/knowledge-url.util") as {
+        assertResolvesToPublicAddress: jest.Mock;
+      };
+      urlGuards.assertResolvesToPublicAddress.mockRejectedValueOnce(new Error("URL host is not allowed"));
+
+      await expect(
+        service.processImageAsync("tenant-1", "conv-1", "msg-1", "https://internal.example/slip.jpg")
+      ).rejects.toThrow("URL host is not allowed");
+
+      expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it("should send success auto-reply when enableSlipResultAutoReply is true and verifyStatus is VERIFIED", async () => {

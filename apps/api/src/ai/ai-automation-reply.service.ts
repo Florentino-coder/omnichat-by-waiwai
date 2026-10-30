@@ -8,16 +8,13 @@ import {
 import { LineReplyService } from "../line/line-reply.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
-  AI_SUGGEST_USAGE_METRIC,
-  getCurrentMonthUsagePeriod
-} from "../inbox/thai-speech.util";
-import {
   AI_AUTO_REPLY_DEBOUNCE_MS,
   AI_ESCALATED_TAG_COLOR,
   AI_ESCALATED_TAG_NAME,
   sanitizeAutoReplyText
 } from "./ai-auto-reply.constants";
 import { AiReplyGeneratorService } from "./ai-reply-generator.service";
+import { runWithAiCredit } from "./ai-credit.util";
 import { AiPolicyService } from "./ai-policy.service";
 
 @Injectable()
@@ -48,89 +45,94 @@ export class AiAutomationReplyService {
       return;
     }
 
-    if (!(await this.hasAiCreditAvailable(tenantId, tenant.planId))) {
-      return;
-    }
-
-    const provider = (settings.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
-    const aiAgentGender = settings.aiAgentGender ?? AiAgentGender.FEMALE;
-
-    const generateResult = await this.aiReplyGenerator.generate({
+    await runWithAiCredit<void>(
+      this.prisma,
       tenantId,
-      conversationId,
-      userId: "automation",
-      actionType: "generate",
-      aiAgentGender,
-      provider,
-      applyScenarioActions: false,
-      extraInstructions: settings.aiAutoReplyInstructions,
-      includeConfidence: true
-    });
+      tenant.planId,
+      async (credit) => {
 
-    if (generateResult.outcome !== "success") {
-      return;
-    }
+      const provider = (settings.aiProvider || process.env.LLM_PROVIDER || "gemini").toLowerCase();
+      const aiAgentGender = settings.aiAgentGender ?? AiAgentGender.FEMALE;
 
-    const replyText = sanitizeAutoReplyText(generateResult.suggestionText);
-    if (!replyText) {
-      return;
-    }
+      const generateResult = await this.aiReplyGenerator.generate({
+        tenantId,
+        conversationId,
+        userId: "automation",
+        actionType: "generate",
+        aiAgentGender,
+        provider,
+        applyScenarioActions: false,
+        extraInstructions: settings.aiAutoReplyInstructions,
+        includeConfidence: true
+      });
 
-    const confidence = generateResult.confidence ?? 0;
-    const threshold = settings.aiAutoReplyConfidenceThreshold ?? 0.8;
-    if (confidence < threshold) {
-      return;
-    }
+      if (generateResult.outcome !== "success") {
+        return;
+      }
 
-    const policyCheck = this.aiPolicyService.checkReply(
-      replyText,
-      settings.aiPolicyBlockedTopics
-    );
-    if (!policyCheck.allowed) {
-      await this.addTagByName(tenantId, conversationId, AI_ESCALATED_TAG_NAME);
+      const replyText = sanitizeAutoReplyText(generateResult.suggestionText);
+      if (!replyText) {
+        return;
+      }
+
+      const confidence = generateResult.confidence ?? 0;
+      const threshold = settings.aiAutoReplyConfidenceThreshold ?? 0.8;
+      if (confidence < threshold) {
+        return;
+      }
+
+      const policyCheck = this.aiPolicyService.checkReply(
+        replyText,
+        settings.aiPolicyBlockedTopics
+      );
+      if (!policyCheck.allowed) {
+        await this.addTagByName(tenantId, conversationId, AI_ESCALATED_TAG_NAME);
+        await this.prisma.auditLog.create({
+          data: {
+            tenantId,
+            action: AuditAction.AI_POLICY_BLOCKED,
+            targetType: "Conversation",
+            targetId: conversationId,
+            metadata: {
+              matchedTopics: policyCheck.matchedTopics,
+              triggeredBy: "automation"
+            }
+          }
+        });
+        return;
+      }
+
+      try {
+        await this.lineReplyService.replyText(tenantId, "automation", conversationId, {
+          text: replyText
+        });
+      } catch (error) {
+        this.logger.error(
+          "Automation AI reply LINE send failed",
+          error instanceof Error ? error.stack : error
+        );
+        return;
+      }
+
+      credit.consume();
+
       await this.prisma.auditLog.create({
         data: {
           tenantId,
-          action: AuditAction.AI_POLICY_BLOCKED,
+          action: AuditAction.AUTOMATION_AI_REPLY_SENT,
           targetType: "Conversation",
           targetId: conversationId,
           metadata: {
-            matchedTopics: policyCheck.matchedTopics,
+            provider: generateResult.provider,
+            latencyMs: generateResult.latencyMs,
+            confidence,
             triggeredBy: "automation"
           }
         }
       });
-      return;
-    }
-
-    try {
-      await this.lineReplyService.replyText(tenantId, "automation", conversationId, {
-        text: replyText
-      });
-    } catch (error) {
-      this.logger.error(
-        "Automation AI reply LINE send failed",
-        error instanceof Error ? error.stack : error
-      );
-      return;
-    }
-
-    await this.incrementAiCreditUsage(tenantId);
-
-    await this.prisma.auditLog.create({
-      data: {
-        tenantId,
-        action: AuditAction.AUTOMATION_AI_REPLY_SENT,
-        targetType: "Conversation",
-        targetId: conversationId,
-        metadata: {
-          provider: generateResult.provider,
-          latencyMs: generateResult.latencyMs,
-          confidence,
-          triggeredBy: "automation"
-        }
-      }
-    });
+      },
+      async () => undefined
+    );
   }
 
   private async addTagByName(
@@ -191,54 +193,5 @@ export class AiAutomationReplyService {
     }
 
     return Date.now() - recentOutbound.sentAt.getTime() < AI_AUTO_REPLY_DEBOUNCE_MS;
-  }
-
-  private async hasAiCreditAvailable(tenantId: string, planId: string): Promise<boolean> {
-    const limits = await this.prisma.planLimit.findUnique({
-      where: { planId }
-    });
-
-    if (!limits || limits.maxAiCreditsPerMonth <= 0) {
-      return false;
-    }
-
-    const { periodStart } = getCurrentMonthUsagePeriod();
-    const counter = await this.prisma.usageCounter.findUnique({
-      where: {
-        tenantId_metric_periodStart: {
-          tenantId,
-          metric: AI_SUGGEST_USAGE_METRIC,
-          periodStart
-        }
-      }
-    });
-
-    const currentUsage = Number(counter?.value ?? 0n);
-    return currentUsage < limits.maxAiCreditsPerMonth;
-  }
-
-  private async incrementAiCreditUsage(tenantId: string): Promise<void> {
-    const { periodStart, periodEnd } = getCurrentMonthUsagePeriod();
-
-    await this.prisma.usageCounter.upsert({
-      where: {
-        tenantId_metric_periodStart: {
-          tenantId,
-          metric: AI_SUGGEST_USAGE_METRIC,
-          periodStart
-        }
-      },
-      create: {
-        tenantId,
-        metric: AI_SUGGEST_USAGE_METRIC,
-        periodStart,
-        periodEnd,
-        value: 1
-      },
-      update: {
-        value: { increment: 1 },
-        periodEnd
-      }
-    });
   }
 }

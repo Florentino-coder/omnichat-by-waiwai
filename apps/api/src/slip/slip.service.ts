@@ -11,6 +11,7 @@ import { SlipOkClient } from "./slipok.client";
 import { calculateSlipScore } from "./slip-score.util";
 import { decodeSlipQr } from "./slip-qr-decode.util";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { assertResolvesToPublicAddress, assertSafePublicUrl } from "../knowledge/knowledge-url.util";
 
 @Injectable()
 export class SlipService {
@@ -92,7 +93,9 @@ export class SlipService {
       let mimeType = "image/jpeg";
 
       if (imageUrl && !imageUrl.startsWith("line://") && !imageUrl.includes("api-data.line.me")) {
-        const response = await fetch(imageUrl);
+        const safeUrl = assertSafePublicUrl(imageUrl);
+        await assertResolvesToPublicAddress(safeUrl);
+        const response = await fetch(safeUrl.toString(), { redirect: "error" });
         if (!response.ok) {
           throw new Error(`Failed to fetch image from URL: ${response.statusText}`);
         }

@@ -10,7 +10,7 @@ function createMocks() {
     tenantSettings: { findUnique: jest.fn() },
     tenant: { findUnique: jest.fn() },
     planLimit: { findUnique: jest.fn() },
-    usageCounter: { findUnique: jest.fn(), upsert: jest.fn() },
+    usageCounter: { upsert: jest.fn(), updateMany: jest.fn() },
     message: { findFirst: jest.fn() },
     aiSuggestion: { updateMany: jest.fn(), create: jest.fn() },
     auditLog: { create: jest.fn().mockResolvedValue({ id: "audit-1" }) }
@@ -57,9 +57,7 @@ function mockHappyPath(mocks: ReturnType<typeof createMocks>) {
   mocks.prisma.planLimit.findUnique.mockResolvedValue({
     maxAiCreditsPerMonth: 100
   });
-  mocks.prisma.usageCounter.findUnique.mockResolvedValue({
-    value: 0n
-  });
+  mocks.prisma.usageCounter.updateMany.mockResolvedValue({ count: 1 });
   mocks.aiReplyGenerator.generate.mockResolvedValue({
     outcome: "success",
     suggestionText: "สวัสดีค่ะ ยินดีให้บริการค่ะ",
@@ -193,7 +191,7 @@ describe("AiHybridDraftService", () => {
         isProgrammatic: true
       })
     });
-    expect(mocks.prisma.usageCounter.upsert).toHaveBeenCalled();
+    expect(mocks.prisma.usageCounter.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: { value: { decrement: 1 } } }));
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: null,
@@ -236,7 +234,7 @@ describe("AiHybridDraftService", () => {
         isProgrammatic: true
       })
     });
-    expect(mocks.prisma.usageCounter.upsert).not.toHaveBeenCalled();
+    expect(mocks.prisma.usageCounter.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { value: { decrement: 1 } } }));
     expect(mocks.prisma.auditLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: null,

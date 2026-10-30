@@ -16,7 +16,7 @@ describe("AuthLayout", () => {
       </AuthLayout>
     );
 
-    expect(screen.getByText("Chat-Wai")).toBeInTheDocument();
+    expect(screen.getByText("ChatWai")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toHaveClass("w-full");
   });
