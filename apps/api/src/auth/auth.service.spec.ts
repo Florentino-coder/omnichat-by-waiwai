@@ -1,4 +1,4 @@
-import { ConflictException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, ConflictException, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { AuditAction, Role } from "@prisma/client";
@@ -823,7 +823,7 @@ describe("AuthService", () => {
         { sub: "user-1", tenantId: "tenant-1", workspaceId: "workspace-1", role: Role.OWNER, email: "owner@omnichat.local" },
         "000000"
       )
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("requires and verifies real TOTP codes during login", async () => {

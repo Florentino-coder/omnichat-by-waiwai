@@ -15,7 +15,7 @@ export class TotpService {
     return {
       secret,
       otpauthUri: this.otp.generateURI({
-        issuer: "OmniChat",
+        issuer: "ChatWai",
         label: email,
         secret
       })

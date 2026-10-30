@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import QRCode from "qrcode";
 import { Button, Card, Input, Label } from "@omnichat/ui";
-import { apiFetch, authorizedFetch } from "../../lib/api-client";
+import { apiFetch } from "../../lib/api-client";
 import { useAuthSession } from "../../lib/use-auth-session";
+
+const INVALID_CODE_MESSAGE = "Invalid two-factor code";
 
 function readSecret(otpauthUri: string): string {
   try {
@@ -75,18 +77,18 @@ export default function SuperAdminSecurityPage() {
     setIsBusy(true);
     setError(null);
     try {
-      const response = await authorizedFetch("/api/v1/auth/2fa/super-owner/verify", {
+      await apiFetch("/api/v1/auth/2fa/super-owner/verify", {
         method: "POST",
         body: JSON.stringify({ code: code.trim() })
       });
-      if (!response.ok) {
-        setError("That code did not match. Check your authenticator app and try again.");
-        return;
-      }
       // Full reload so the session is read again with 2FA enabled.
       window.location.assign("/super-admin");
-    } catch {
-      setError("Could not verify the code. Try again.");
+    } catch (verifyError) {
+      setError(
+        verifyError instanceof Error && verifyError.message !== INVALID_CODE_MESSAGE
+          ? verifyError.message
+          : "That code did not match. Use the newest ChatWai entry in your app, and check that your phone's clock is set automatically."
+      );
     } finally {
       setIsBusy(false);
     }
