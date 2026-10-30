@@ -56,6 +56,21 @@ export async function resetSuperOwnerPassword(
   return { userId: user.id };
 }
 
+/**
+ * Prisma reads .env itself, but only when the client is created. Load it first, so
+ * the host the operator confirms is the database the script will really change.
+ */
+export function loadLocalEnv(): void {
+  if (process.env.DATABASE_URL) {
+    return;
+  }
+  try {
+    process.loadEnvFile(".env");
+  } catch {
+    // No .env file: the caller reports the missing DATABASE_URL.
+  }
+}
+
 /** Shows only the host, so the operator can confirm the target without exposing credentials. */
 export function describeDatabaseHost(databaseUrl: string | undefined): string {
   try {

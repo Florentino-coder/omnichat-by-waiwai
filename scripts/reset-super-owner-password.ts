@@ -3,6 +3,7 @@ import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
 import {
   describeDatabaseHost,
+  loadLocalEnv,
   resetSuperOwnerPassword
 } from "../apps/api/src/scripts/super-owner-reset";
 
@@ -46,7 +47,12 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  loadLocalEnv();
   const host = describeDatabaseHost(process.env.DATABASE_URL);
+  if (host === "unknown") {
+    console.error("DATABASE_URL is not set. Nothing was changed.");
+    process.exit(1);
+  }
   console.log(`Database: ${host}`);
   console.log(`Super Owner: ${email}`);
   console.log(`Also clear 2FA: ${resetTwoFa ? "yes" : "no"}`);

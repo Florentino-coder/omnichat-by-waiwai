@@ -11,6 +11,14 @@ The platform console (`/super-admin`, `/app/admin/monitor`) reaches every tenant
 
 After that, the login page asks for the 6-digit code.
 
+## Creating a Super Owner
+
+```bash
+npx tsx scripts/create-super-owner.ts --email=owner@example.com --username=owners
+```
+
+`--username` is optional. You can sign in with the email or the username. The script reads `DATABASE_URL` from the environment or `.env`, asks you to type the database host to confirm, then asks for the password in a hidden prompt.
+
 ## If you forget your password
 
 **Use the login page first.** Click **Forgot password**, enter your email, and open the link sent to your inbox. The link lasts 30 minutes. It needs `RESEND_API_KEY`, `EMAIL_FROM`, and `APP_BASE_URL` set on the API. Your 2FA stays on.
